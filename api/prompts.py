@@ -150,6 +150,68 @@ IMPORTANT:You MUST respond in {language_name} language.
 - Cite specific files and code sections when relevant
 </style>"""
 
+PDF_ONEPAGE_SUMMARY_PROMPT = """You are a senior software architect writing an architecture overview for team members who are new to this codebase. Respond in {language_name}.
+
+Write a clear, interpretable architecture overview for "{repo_name}". The audience are technical engineers who have general programming knowledge but do NOT know this repository or its tech stack. Your goal is to help them quickly understand:
+1. What this project does and why it exists
+2. How the main modules work together as a whole system
+3. The overall request/data flow from input to output
+
+CRITICAL GUIDELINES:
+- Focus on MODULE-LEVEL FUNCTIONS and INTER-MODULE COLLABORATION, not implementation details
+- Explain WHAT each part does and HOW parts connect, not HOW they are coded internally
+- Use plain, interpretable language — when you mention a technology or pattern, briefly explain what role it plays so a reader unfamiliar with the stack can follow
+- Think of this as a "system map" — show the big picture and the collaboration between parts, not the street-level code details
+- This will be rendered on ONE printed A4 page. Write substantial but compact content — no filler, every sentence should carry information
+- Each bullet point should be 1-2 complete, fluent sentences — NOT fragments or single words
+
+Follow this EXACT format (keep all 7 section headers EXACTLY as shown, each on its own line):
+
+PROJECT NAME: {repo_name}
+
+PROJECT OVERVIEW:
+(Write 3-5 sentences. Explain: what problem this project solves in plain language, what it produces as output, who the typical user is, and what makes it valuable. Write a coherent paragraph that a newcomer can read and immediately understand "what this thing is".)
+
+ARCHITECTURE & DESIGN:
+(Write 4-5 bullet points. Describe the overall system structure in a way that paints a clear mental picture: what are the major layers or components, how they are organized, what each layer is responsible for, how they communicate with each other, and what design philosophy ties them together. Each bullet should be a full sentence that explains both WHAT and WHY.)
+- (full sentence describing a layer/component and its role)
+- (full sentence describing how components communicate)
+- (full sentence about the design pattern or philosophy)
+- (full sentence about a key architectural decision)
+
+TECH STACK:
+Languages: (list with brief role for each, e.g. "Python for backend, TypeScript for frontend") | Frameworks: (name and what it does, e.g. "Next.js for server-side rendering") | Key Libraries: (name and purpose) | Infrastructure: (databases, message queues, caching, vector stores if any)
+
+KEY MODULES & COMPONENTS:
+(List 5-7 modules. For each module, write the module name followed by a colon and 1-2 sentences that explain: what this module is responsible for, what input it receives, what output it produces, and which other modules it interacts with. The reader should understand each module's role in the larger system.)
+- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
+- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
+- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
+- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
+- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
+
+DATA FLOW & PROCESSING:
+(Write 4-5 bullet points that tell the story of "a typical request's journey through the system" from start to finish. Each bullet should describe one stage: where data comes from, which module handles it, what transformation happens, and where the result goes next. The reader should be able to trace the entire pipeline by reading these bullets in order.)
+- Step 1: (how the request enters the system and what happens first)
+- Step 2: (how the data gets processed or transformed in the middle)
+- Step 3: (how intermediate results flow between modules)
+- Step 4: (how the final output is assembled and returned to the user)
+
+API & INTEGRATION POINTS:
+(Write 4-5 bullet points. Describe: what interfaces the system exposes to users or other systems (HTTP endpoints, WebSocket channels, CLI commands), what external services it depends on (LLM providers, databases, third-party APIs), and how authentication or configuration works at a high level. Each bullet should clearly state what can be called and what it does.)
+- (what the interface is and what it does)
+- (what external service is used and for what purpose)
+- (how the system is configured or authenticated)
+- (any other integration point)
+
+TARGET USERS & USE CASES:
+(Write 3-4 sentences. Identify who the target users are, list 3-4 concrete scenarios where they would use this system, and explain what value they get from each scenario. Be specific enough that a reader can judge whether this project is relevant to their needs.)
+
+Now write the architecture overview for "{repo_name}" based on:
+
+{input_json}
+"""
+
 SIMPLE_CHAT_SYSTEM_PROMPT = """<role>
 You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).
 You provide direct, concise, and accurate information about code repositories.

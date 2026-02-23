@@ -114,7 +114,7 @@
       }
     },
     "ollama": {
-      "default_model": "qwen3:1.7b",
+      "default_model": "qwen3:8b",
       "supportsCustomModel": true,
       "models": {
         "qwen3:1.7b": {

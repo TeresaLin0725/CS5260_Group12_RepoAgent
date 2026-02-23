@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UserSelector from './UserSelector';
 import TokenInput from './TokenInput';
+import { FaFilePdf } from 'react-icons/fa';
 
 interface ConfigurationModalProps {
   isOpen: boolean;
@@ -58,6 +59,12 @@ interface ConfigurationModalProps {
   authCode?: string;
   setAuthCode?: (code: string) => void;
   isAuthLoading?: boolean;
+
+  // Direct PDF generation (no wiki needed)
+  onGeneratePdf?: () => void;
+  isPdfGenerating?: boolean;
+  pdfPhase?: string | null;
+  pdfError?: string | null;
 }
 
 export default function ConfigurationModal({
@@ -94,7 +101,11 @@ export default function ConfigurationModal({
   authRequired,
   authCode,
   setAuthCode,
-  isAuthLoading
+  isAuthLoading,
+  onGeneratePdf,
+  isPdfGenerating,
+  pdfPhase,
+  pdfError
 }: ConfigurationModalProps) {
   const { messages: t } = useLanguage();
 
@@ -274,22 +285,52 @@ export default function ConfigurationModal({
           </div>
 
           {/* Modal footer */}
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[var(--border-color)]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-[var(--border-color)]/50 text-[var(--muted)] bg-transparent hover:bg-[var(--background)] hover:text-[var(--foreground)] transition-colors"
-            >
-              {t.common?.cancel || 'Cancel'}
-            </button>
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-[var(--accent-primary)]/90 text-white hover:bg-[var(--accent-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (t.common?.processing || 'Processing...') : (t.common?.generateWiki || 'Generate Wiki')}
-            </button>
+          <div className="flex flex-col gap-2 px-6 py-4 border-t border-[var(--border-color)]">
+            {/* PDF generation status/error */}
+            {pdfPhase && (
+              <div className="text-xs text-[var(--accent-primary)] flex items-center gap-2">
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                {pdfPhase}
+              </div>
+            )}
+            {pdfError && (
+              <div className="text-xs text-[var(--highlight)]">
+                {pdfError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium rounded-md border border-[var(--border-color)]/50 text-[var(--muted)] bg-transparent hover:bg-[var(--background)] hover:text-[var(--foreground)] transition-colors"
+              >
+                {t.common?.cancel || 'Cancel'}
+              </button>
+              {onGeneratePdf && (
+                <button
+                  type="button"
+                  onClick={onGeneratePdf}
+                  disabled={isPdfGenerating || isSubmitting}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaFilePdf className="text-xs" />
+                  {isPdfGenerating
+                    ? (pdfPhase || (t.repoPage?.exportingPdf || 'Generating PDF...'))
+                    : (t.common?.generatePdf || 'Generate PDF')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onSubmit}
+                disabled={isSubmitting || isPdfGenerating}
+                className="px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-[var(--accent-primary)]/90 text-white hover:bg-[var(--accent-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (t.common?.processing || 'Processing...') : (t.common?.generateWiki || 'Generate Wiki')}
+              </button>
+            </div>
           </div>
         </div>
       </div>

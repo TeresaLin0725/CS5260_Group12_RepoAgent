@@ -145,6 +145,11 @@ export default function Home() {
   const [authCode, setAuthCode] = useState<string>('');
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
+  // Direct PDF generation state
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfPhase, setPdfPhase] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   // Sync the language context with the selectedLanguage state
   useEffect(() => {
     setLanguage(selectedLanguage);
@@ -390,6 +395,86 @@ export default function Home() {
     // The isSubmitting state will be reset when the component unmounts during navigation
   };
 
+  // Direct PDF generation handler (no wiki needed)
+  const handleGeneratePdf = async () => {
+    const parsedRepo = parseRepositoryInput(repositoryInput);
+    if (!parsedRepo) {
+      setPdfError('Invalid repository format.');
+      return;
+    }
+
+    // Check authorization if needed
+    const validation = await validateAuthCode();
+    if (!validation) {
+      setPdfError('Failed to validate authorization code.');
+      return;
+    }
+
+    setIsPdfGenerating(true);
+    setPdfError(null);
+    setPdfPhase('Phase 1/3: Preparing embeddings...');
+
+    try {
+      const { type, localPath } = parsedRepo;
+      const repoUrl = localPath || repositoryInput.trim();
+      const repoName = `${parsedRepo.owner}/${parsedRepo.repo}`;
+      const repoType = type === 'local' ? 'local' : selectedPlatform;
+
+      setPdfPhase('Phase 2/3: Generating report...');
+
+      const response = await fetch('/api/export/repo-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo_url: repoUrl,
+          repo_name: repoName,
+          provider: provider || 'ollama',
+          model: (isCustomModel && customModel) ? customModel : (model || null),
+          language: selectedLanguage,
+          repo_type: repoType,
+          access_token: accessToken || null,
+          excluded_dirs: excludedDirs || null,
+          excluded_files: excludedFiles || null,
+          included_dirs: includedDirs || null,
+          included_files: includedFiles || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No error details');
+        throw new Error(`PDF generation failed: ${response.status} - ${errorText}`);
+      }
+
+      setPdfPhase('Phase 3/3: Downloading PDF...');
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${parsedRepo.repo}_report.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during PDF generation';
+      setPdfError(errorMessage);
+    } finally {
+      setIsPdfGenerating(false);
+      setPdfPhase(null);
+    }
+  };
+
   return (
     <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
       <header className="max-w-6xl mx-auto mb-6 h-fit w-full">
@@ -476,6 +561,10 @@ export default function Home() {
             authCode={authCode}
             setAuthCode={setAuthCode}
             isAuthLoading={isAuthLoading}
+            onGeneratePdf={handleGeneratePdf}
+            isPdfGenerating={isPdfGenerating}
+            pdfPhase={pdfPhase}
+            pdfError={pdfError}
           />
 
         </div>

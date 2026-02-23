@@ -272,6 +272,72 @@ async def export_wiki(request: WikiExportRequest):
         logger.error(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
+
+# --- PDF Technical Report Export ---
+from api.pdf_export import PDFExportRequest, DirectPDFExportRequest, generate_onepage_pdf, generate_direct_pdf
+
+@app.post("/export/wiki/pdf")
+async def export_wiki_pdf(request: PDFExportRequest):
+    """
+    Generate a detailed PDF technical report of the wiki content.
+
+    The pipeline runs in three phases:
+      Phase 1: Content Extraction (from cached wiki pages — no LLM)
+      Phase 2: Technical Report Generation (single LLM call → detailed report)
+      Phase 3: PDF Rendering (fpdf2 → multi-page A4 PDF)
+    """
+    try:
+        logger.info(f"PDF export requested for {request.repo_url} (provider={request.provider})")
+        pdf_bytes = await generate_onepage_pdf(request)
+
+        repo_parts = request.repo_url.rstrip('/').split('/')
+        repo_name = repo_parts[-1] if repo_parts else "wiki"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{repo_name}_summary_{timestamp}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+            },
+        )
+    except Exception as e:
+        error_msg = f"Error generating PDF summary: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/export/repo/pdf")
+async def export_repo_pdf(request: DirectPDFExportRequest):
+    """
+    Generate a PDF technical report directly from repo embeddings.
+    Does NOT require wiki to be generated first.
+    Uses existing embedding pipeline + FAISS retrieval → LLM summary → PDF.
+    Memory-safe for Ollama users.
+    """
+    try:
+        logger.info(f"Direct PDF export requested for {request.repo_url} (provider={request.provider})")
+        pdf_bytes = await generate_direct_pdf(request)
+
+        repo_parts = request.repo_url.rstrip('/').split('/')
+        repo_name = repo_parts[-1] if repo_parts else "repo"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{repo_name}_report_{timestamp}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+            },
+        )
+    except Exception as e:
+        error_msg = f"Error generating direct PDF report: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
 @app.get("/local_repo/structure")
 async def get_local_repo_structure(path: str = Query(None, description="Path to local repository")):
     """Return the file tree and README content for a local repository."""
