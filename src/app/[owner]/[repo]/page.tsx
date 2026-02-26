@@ -13,7 +13,7 @@ import { extractUrlDomain, extractUrlPath } from '@/utils/urlDecoder';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFilePdf, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
+import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFilePdf, FaFilePowerpoint, FaFileVideo, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
 // Define the WikiSection and WikiStructure types directly in this file
 // since the imported types don't have the sections and rootSections properties
 interface WikiSection {
@@ -236,6 +236,10 @@ export default function RepoWikiPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [pdfPhase, setPdfPhase] = useState<string | null>(null);
+  const [isPptExporting, setIsPptExporting] = useState(false);
+  const [pptPhase, setPptPhase] = useState<string | null>(null);
+  const [isVideoExporting, setIsVideoExporting] = useState(false);
+  const [videoPhase, setVideoPhase] = useState<string | null>(null);
   const [originalMarkdown, setOriginalMarkdown] = useState<Record<string, string>>({});
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [currentToken, setCurrentToken] = useState(token); // Track current effective token
@@ -509,17 +513,7 @@ Based ONLY on the content of the \`[RELEVANT_SOURCE_FILES]\`:
 
 9.  **Conclusion/Summary:** End with a brief summary paragraph if appropriate for "${page.title}", reiterating the key aspects covered and their significance within the project.
 
-IMPORTANT: Generate the content in ${language === 'en' ? 'English' :
-            language === 'ja' ? 'Japanese (日本語)' :
-            language === 'zh' ? 'Mandarin Chinese (中文)' :
-            language === 'zh-tw' ? 'Traditional Chinese (繁體中文)' :
-            language === 'es' ? 'Spanish (Español)' :
-            language === 'kr' ? 'Korean (한국어)' :
-            language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 
-            language === "pt-br" ? "Brazilian Portuguese (Português Brasileiro)" :
-            language === "fr" ? "Français (French)" :
-            language === "ru" ? "Русский (Russian)" :
-            'English'} language.
+IMPORTANT: Generate the content in ${language === 'zh' ? 'Mandarin Chinese (中文)' : 'English'} language.
 
 Remember:
 - Ground every claim in the provided source files.
@@ -725,17 +719,7 @@ ${readme}
 
 I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content.
 
-IMPORTANT: The wiki content will be generated in ${language === 'en' ? 'English' :
-            language === 'ja' ? 'Japanese (日本語)' :
-            language === 'zh' ? 'Mandarin Chinese (中文)' :
-            language === 'zh-tw' ? 'Traditional Chinese (繁體中文)' :
-            language === 'es' ? 'Spanish (Español)' :
-            language === 'kr' ? 'Korean (한国語)' :
-            language === 'vi' ? 'Vietnamese (Tiếng Việt)' :
-            language === "pt-br" ? "Brazilian Portuguese (Português Brasileiro)" :
-            language === "fr" ? "Français (French)" :
-            language === "ru" ? "Русский (Russian)" :
-            'English'} language.
+IMPORTANT: The wiki content will be generated in ${language === 'zh' ? 'Mandarin Chinese (中文)' : 'English'} language.
 
 When designing the wiki structure, include pages that would benefit from visual diagrams, such as:
 - Architecture overviews
@@ -1506,7 +1490,7 @@ IMPORTANT:
     try {
       setIsExporting(true);
       setExportError(null);
-      setLoadingMessage(`${language === 'ja' ? 'Wikiを' : 'Exporting wiki as '} ${format} ${language === 'ja' ? 'としてエクスポート中...' : '...'}`);
+      setLoadingMessage(`${language === 'zh' ? '正在导出Wiki为 ' : 'Exporting wiki as '} ${format}...`);
 
       // Prepare the pages for export
       const pagesToExport = wikiStructure.pages.map(page => {
@@ -1645,6 +1629,156 @@ IMPORTANT:
     } finally {
       setIsPdfExporting(false);
       setPdfPhase(null);
+    }
+  }, [wikiStructure, generatedPages, effectiveRepoInfo, selectedProviderState, selectedModelState, language]);
+
+  // Function to export wiki as PPT presentation
+  const exportPpt = useCallback(async () => {
+    if (!wikiStructure || Object.keys(generatedPages).length === 0) {
+      setExportError('No wiki content to export');
+      return;
+    }
+
+    try {
+      setIsPptExporting(true);
+      setExportError(null);
+      setPptPhase('Phase 1/3: Extracting content...');
+
+      const pagesToExport = wikiStructure.pages.map(page => {
+        const content = generatedPages[page.id]?.content || 'Content not generated';
+        return {
+          id: page.id,
+          title: page.title,
+          content,
+          importance: page.importance || 'medium',
+        };
+      });
+
+      const repoUrl = getRepoUrl(effectiveRepoInfo);
+      const repoName = `${effectiveRepoInfo.owner}/${effectiveRepoInfo.repo}`;
+
+      setPptPhase('Phase 2/3: Generating presentation...');
+
+      const response = await fetch(`/api/export/ppt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo_url: repoUrl,
+          repo_name: repoName,
+          pages: pagesToExport,
+          provider: selectedProviderState || 'ollama',
+          model: selectedModelState || null,
+          language: language,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No error details');
+        throw new Error(`PPT export failed: ${response.status} - ${errorText}`);
+      }
+
+      setPptPhase('Phase 3/3: Downloading PPT...');
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${effectiveRepoInfo.repo}_slides.pptx`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting PPT:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during PPT export';
+      setExportError(errorMessage);
+    } finally {
+      setIsPptExporting(false);
+      setPptPhase(null);
+    }
+  }, [wikiStructure, generatedPages, effectiveRepoInfo, selectedProviderState, selectedModelState, language]);
+
+  // Function to export wiki as Video overview
+  const exportVideo = useCallback(async () => {
+    if (!wikiStructure || Object.keys(generatedPages).length === 0) {
+      setExportError('No wiki content to export');
+      return;
+    }
+
+    try {
+      setIsVideoExporting(true);
+      setExportError(null);
+      setVideoPhase('Phase 1/3: Extracting content...');
+
+      const pagesToExport = wikiStructure.pages.map(page => {
+        const content = generatedPages[page.id]?.content || 'Content not generated';
+        return {
+          id: page.id,
+          title: page.title,
+          content,
+          importance: page.importance || 'medium',
+        };
+      });
+
+      const repoUrl = getRepoUrl(effectiveRepoInfo);
+      const repoName = `${effectiveRepoInfo.owner}/${effectiveRepoInfo.repo}`;
+
+      setVideoPhase('Phase 2/3: Generating video...');
+
+      const response = await fetch(`/api/export/video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo_url: repoUrl,
+          repo_name: repoName,
+          pages: pagesToExport,
+          provider: selectedProviderState || 'ollama',
+          model: selectedModelState || null,
+          language: language,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No error details');
+        throw new Error(`Video export failed: ${response.status} - ${errorText}`);
+      }
+
+      setVideoPhase('Phase 3/3: Downloading Video...');
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${effectiveRepoInfo.repo}_overview.mp4`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting Video:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during Video export';
+      setExportError(errorMessage);
+    } finally {
+      setIsVideoExporting(false);
+      setVideoPhase(null);
     }
   }, [wikiStructure, generatedPages, effectiveRepoInfo, selectedProviderState, selectedModelState, language]);
 
@@ -2058,9 +2192,7 @@ IMPORTANT:
                   />
                 </div>
                 <p className="text-xs text-[var(--muted)] text-center">
-                  {language === 'ja'
-                    ? `${wikiStructure.pages.length}ページ中${wikiStructure.pages.length - pagesInProgress.size}ページ完了`
-                    : messages.repoPage?.pagesCompleted
+                  {messages.repoPage?.pagesCompleted
                         ? messages.repoPage.pagesCompleted
                             .replace('{completed}', (wikiStructure.pages.length - pagesInProgress.size).toString())
                             .replace('{total}', wikiStructure.pages.length.toString())
@@ -2080,9 +2212,7 @@ IMPORTANT:
                       })}
                       {pagesInProgress.size > 3 && (
                         <li className="text-[var(--muted)]">
-                          {language === 'ja'
-                            ? `...他に${pagesInProgress.size - 3}ページ`
-                            : messages.repoPage?.andMorePages
+                          {messages.repoPage?.andMorePages
                                 ? messages.repoPage.andMorePages.replace('{count}', (pagesInProgress.size - 3).toString())
                                 : `...and ${pagesInProgress.size - 3} more`}
                         </li>
@@ -2208,6 +2338,26 @@ IMPORTANT:
                       {isPdfExporting
                         ? (pdfPhase || (messages.repoPage?.exportingPdf || 'Generating PDF...'))
                         : (messages.repoPage?.exportAsPdf || 'Export PDF Report')}
+                    </button>
+                    <button
+                      onClick={exportPpt}
+                      disabled={isPptExporting || isExporting}
+                      className="flex items-center text-xs px-3 py-2 bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-primary)]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <FaFilePowerpoint className="mr-2" />
+                      {isPptExporting
+                        ? (pptPhase || (messages.repoPage?.exportingPpt || 'Generating PPT...'))
+                        : (messages.repoPage?.exportAsPpt || 'Export PPT Slides')}
+                    </button>
+                    <button
+                      onClick={exportVideo}
+                      disabled={isVideoExporting || isExporting}
+                      className="flex items-center text-xs px-3 py-2 bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-primary)]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <FaFileVideo className="mr-2" />
+                      {isVideoExporting
+                        ? (videoPhase || (messages.repoPage?.exportingVideo || 'Generating Video...'))
+                        : (messages.repoPage?.exportAsVideo || 'Export Video')}
                     </button>
                   </div>
                   {exportError && (

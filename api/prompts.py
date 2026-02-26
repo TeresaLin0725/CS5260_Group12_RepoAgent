@@ -150,66 +150,142 @@ IMPORTANT:You MUST respond in {language_name} language.
 - Cite specific files and code sections when relevant
 </style>"""
 
-PDF_ONEPAGE_SUMMARY_PROMPT = """You are a senior software architect writing an architecture overview for team members who are new to this codebase. Respond in {language_name}.
+# ---------------------------------------------------------------------------
+# Phase 2a: Structured Analysis Prompt — outputs JSON, not plain text
+# ---------------------------------------------------------------------------
 
-Write a clear, interpretable architecture overview for "{repo_name}". The audience are technical engineers who have general programming knowledge but do NOT know this repository or its tech stack. Your goal is to help them quickly understand:
-1. What this project does and why it exists
-2. How the main modules work together as a whole system
-3. The overall request/data flow from input to output
+STRUCTURED_ANALYSIS_PROMPT = """You are a senior software architect writing an architecture overview for team members who are new to this codebase. Your writing will be rendered on ONE printed A4 page — write SUBSTANTIAL, DENSE content that fills the page completely. Every sentence must carry real information. Respond ONLY with a valid JSON object (no markdown fences, no commentary).
+
+Language: {language_name}
+Repository: {repo_name}
 
 CRITICAL GUIDELINES:
 - Focus on MODULE-LEVEL FUNCTIONS and INTER-MODULE COLLABORATION, not implementation details
 - Explain WHAT each part does and HOW parts connect, not HOW they are coded internally
-- Use plain, interpretable language — when you mention a technology or pattern, briefly explain what role it plays so a reader unfamiliar with the stack can follow
-- Think of this as a "system map" — show the big picture and the collaboration between parts, not the street-level code details
-- This will be rendered on ONE printed A4 page. Write substantial but compact content — no filler, every sentence should carry information
-- Each bullet point should be 1-2 complete, fluent sentences — NOT fragments or single words
+- Use plain, interpretable language — when you mention a technology or pattern, briefly explain what role it plays
+- Think of this as a "system map" — show the big picture and collaboration between parts
+- Each bullet point must be 2-3 COMPLETE, FLUENT sentences — NOT fragments or single words
+- Write SUBSTANTIAL content: project_overview should be 4-6 sentences, each bullet 2-3 sentences
+- DO NOT leave any section sparse — every section should be detailed and helpful
 
-Follow this EXACT format (keep all 7 section headers EXACTLY as shown, each on its own line):
+Analyze the following repository content and produce a JSON object with this EXACT schema:
 
-PROJECT NAME: {repo_name}
+{{
+  "repo_type_hint": "<one of: library, webapp, microservice, data_pipeline, cli_tool, generic>",
+  "project_overview": "<4-6 flowing sentences: what problem this project solves in plain language, what it produces as output, who the typical user is, what makes it valuable, and how it differs from alternatives. Write a coherent paragraph that a newcomer can read and immediately understand what this thing is.>",
+  "architecture": [
+    "<2-3 sentences: describe the overall system structure — what are the major layers, how they are organized, and what philosophy ties them together.>",
+    "<2-3 sentences: explain how the major components communicate — protocols, data formats, sync vs async, and why.>",
+    "<2-3 sentences: identify the primary design pattern or architectural philosophy and what benefits it provides.>",
+    "<2-3 sentences: describe a key architectural decision — what trade-off was made and what benefit it provides.>",
+    "<2-3 sentences: explain the separation of concerns — which layer handles which responsibility.>"
+  ],
+  "tech_stack": {{
+    "languages": ["<language — its specific role in the project, e.g. 'Python 3.x serves as the backend language, handling API logic and data processing'>"],
+    "frameworks": ["<framework — what it brings and why it was chosen, e.g. 'Next.js provides SSR and API routes for a unified full-stack framework'>"],
+    "key_libraries": ["<library — its specific purpose and integration, e.g. 'fpdf2 generates PDF documents programmatically for the export feature'>", "<another library with purpose>"],
+    "infrastructure": ["<infra component — its role, e.g. 'FAISS vector store enables fast similarity search for code embeddings'>"]
+  }},
+  "key_modules": [
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: what this module is responsible for, what input it receives, what output it produces, and which other modules it interacts with.>"
+    }},
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: responsibility, inputs/outputs, collaborators.>"
+    }},
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: responsibility, inputs/outputs, collaborators.>"
+    }},
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: responsibility, inputs/outputs, collaborators.>"
+    }},
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: responsibility, inputs/outputs, collaborators.>"
+    }},
+    {{
+      "name": "<module name>",
+      "responsibility": "<2-3 sentences: responsibility, inputs/outputs, collaborators.>"
+    }}
+  ],
+  "data_flow": [
+    "<2-3 sentences: how the request/data enters the system — entry point, input format, initial validation or routing.>",
+    "<2-3 sentences: how the data gets processed — what business logic is applied and what intermediate structures are created.>",
+    "<2-3 sentences: how intermediate results flow between modules — what handoffs and transformations occur.>",
+    "<2-3 sentences: how the final output is assembled and returned to the user — format, post-processing.>",
+    "<2-3 sentences: error handling, caching, or feedback loops in the pipeline.>"
+  ],
+  "api_points": [
+    "<2-3 sentences: the primary interface — HTTP endpoints, WebSocket channels, or CLI commands — and what they allow users to do.>",
+    "<2-3 sentences: key external service dependencies — LLM providers, databases, third-party APIs — and their role.>",
+    "<2-3 sentences: how authentication, configuration, or access control works.>",
+    "<2-3 sentences: secondary interfaces or integration mechanisms — webhooks, event streams, plugin systems.>",
+    "<2-3 sentences: other notable API surface — admin endpoints, health checks, monitoring.>"
+  ],
+  "target_users": "<4-6 sentences: who the target users are, 3-4 concrete usage scenarios, what value they get from each scenario, and what makes this tool indispensable.>",
+  "deployment_info": "<optional — 3-4 sentences on deployment strategy, containerization, CI/CD, scaling. null if not applicable>",
+  "component_hierarchy": "<optional — 3-4 sentences on UI component tree, routing, state management. null if not applicable>",
+  "data_schemas": "<optional — 3-4 sentences on key data models, database schema, validation. null if not applicable>"
+}}
 
-PROJECT OVERVIEW:
-(Write 3-5 sentences. Explain: what problem this project solves in plain language, what it produces as output, who the typical user is, and what makes it valuable. Write a coherent paragraph that a newcomer can read and immediately understand "what this thing is".)
+Guidelines:
+- repo_type_hint: infer from the code — library/SDK, web app, microservice system, data/ML pipeline, CLI tool, or generic
+- Focus on MODULE-LEVEL functions and INTER-MODULE collaboration, not implementation details
+- key_modules: list 5-7 most important modules, each with 2-3 sentence descriptions
+- data_flow: 4-5 steps tracing a typical request end-to-end, each 2-3 sentences
+- api_points: 4-5 items covering exposed interfaces AND external dependencies, each 2-3 sentences
+- architecture: 4-5 bullets, each 2-3 sentences explaining both WHAT and WHY
+- EVERY field must contain substantial, information-dense content — no filler, no vague generalities
+- Each bullet should be a full paragraph of 2-3 sentences, not a fragment
+- Write all content in {language_name}
 
-ARCHITECTURE & DESIGN:
-(Write 4-5 bullet points. Describe the overall system structure in a way that paints a clear mental picture: what are the major layers or components, how they are organized, what each layer is responsible for, how they communicate with each other, and what design philosophy ties them together. Each bullet should be a full sentence that explains both WHAT and WHY.)
-- (full sentence describing a layer/component and its role)
-- (full sentence describing how components communicate)
-- (full sentence about the design pattern or philosophy)
-- (full sentence about a key architectural decision)
+Depth emphasis by repo type (adjust section detail accordingly):
+  library / sdk     -> Emphasise api_points, key_modules (with usage patterns). De-emphasise target_users, deployment_info.
+  webapp            -> Emphasise component_hierarchy, data_flow (routing & state). De-emphasise low-level implementation.
+  microservice      -> Emphasise deployment_info, architecture (service topology), data_flow (message flow). De-emphasise single-module internals.
+  data_pipeline     -> Emphasise data_schemas, data_flow (ETL / training / inference). De-emphasise api_points.
+  cli_tool          -> Emphasise api_points (commands & flags), key_modules. De-emphasise frontend concepts.
+  generic           -> Balanced across all sections.
 
-TECH STACK:
-Languages: (list with brief role for each, e.g. "Python for backend, TypeScript for frontend") | Frameworks: (name and what it does, e.g. "Next.js for server-side rendering") | Key Libraries: (name and purpose) | Infrastructure: (databases, message queues, caching, vector stores if any)
-
-KEY MODULES & COMPONENTS:
-(List 5-7 modules. For each module, write the module name followed by a colon and 1-2 sentences that explain: what this module is responsible for, what input it receives, what output it produces, and which other modules it interacts with. The reader should understand each module's role in the larger system.)
-- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
-- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
-- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
-- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
-- (Module Name): (1-2 sentences: responsibility, inputs/outputs, who it talks to)
-
-DATA FLOW & PROCESSING:
-(Write 4-5 bullet points that tell the story of "a typical request's journey through the system" from start to finish. Each bullet should describe one stage: where data comes from, which module handles it, what transformation happens, and where the result goes next. The reader should be able to trace the entire pipeline by reading these bullets in order.)
-- Step 1: (how the request enters the system and what happens first)
-- Step 2: (how the data gets processed or transformed in the middle)
-- Step 3: (how intermediate results flow between modules)
-- Step 4: (how the final output is assembled and returned to the user)
-
-API & INTEGRATION POINTS:
-(Write 4-5 bullet points. Describe: what interfaces the system exposes to users or other systems (HTTP endpoints, WebSocket channels, CLI commands), what external services it depends on (LLM providers, databases, third-party APIs), and how authentication or configuration works at a high level. Each bullet should clearly state what can be called and what it does.)
-- (what the interface is and what it does)
-- (what external service is used and for what purpose)
-- (how the system is configured or authenticated)
-- (any other integration point)
-
-TARGET USERS & USE CASES:
-(Write 3-4 sentences. Identify who the target users are, list 3-4 concrete scenarios where they would use this system, and explain what value they get from each scenario. Be specific enough that a reader can judge whether this project is relevant to their needs.)
-
-Now write the architecture overview for "{repo_name}" based on:
+Source content:
 
 {input_json}
+"""
+
+# ---------------------------------------------------------------------------
+# Legacy prompt alias (backward compat for any external references)
+# ---------------------------------------------------------------------------
+
+PDF_ONEPAGE_SUMMARY_PROMPT = STRUCTURED_ANALYSIS_PROMPT
+
+# ---------------------------------------------------------------------------
+# Phase 2b: Format-specific adapter prompts
+# ---------------------------------------------------------------------------
+
+VIDEO_NARRATION_PROMPT = """You are a technical narrator. Convert the following structured project analysis into a narration script for a short video walkthrough (3-5 minutes). Respond in {language_name}.
+
+Write the script as a sequence of scenes. Each scene has:
+- A title (displayed on screen)
+- Narration text (spoken aloud — conversational, clear, engaging)
+- Duration hint in seconds
+
+Respond ONLY with a valid JSON array (no markdown fences):
+[
+  {{
+    "title": "<scene title>",
+    "narration": "<what the narrator says — 2-4 sentences, conversational tone>",
+    "duration_seconds": <number>
+  }}
+]
+
+Target 6-8 scenes covering: introduction, architecture overview, key technical components, data flow, and conclusion.
+
+Project analysis:
+{analysis_json}
 """
 
 SIMPLE_CHAT_SYSTEM_PROMPT = """<role>

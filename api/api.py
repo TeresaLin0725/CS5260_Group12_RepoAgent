@@ -276,6 +276,10 @@ async def export_wiki(request: WikiExportRequest):
 # --- PDF Technical Report Export ---
 from api.pdf_export import PDFExportRequest, DirectPDFExportRequest, generate_onepage_pdf, generate_direct_pdf
 
+# --- Multi-format Export Service ---
+from api.export_service import ExportFormat, ExportResult
+from api.content_analyzer import WikiAnalysisRequest, RepoAnalysisRequest, WikiPageInput
+
 @app.post("/export/wiki/pdf")
 async def export_wiki_pdf(request: PDFExportRequest):
     """
@@ -334,6 +338,156 @@ async def export_repo_pdf(request: DirectPDFExportRequest):
         )
     except Exception as e:
         error_msg = f"Error generating direct PDF report: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+# --- PPT Export (from wiki pages) ---
+
+@app.post("/export/wiki/ppt")
+async def export_wiki_ppt(request: PDFExportRequest):
+    """
+    Generate a PPT presentation from wiki content.
+    Uses the same analysis pipeline as PDF but renders to PowerPoint.
+    """
+    try:
+        from api.export_service import export_wiki as _export_wiki
+
+        logger.info(f"PPT export requested for {request.repo_url} (provider={request.provider})")
+        wiki_req = WikiAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            pages=[
+                WikiPageInput(id=p.id, title=p.title, content=p.content, importance=p.importance)
+                for p in request.pages
+            ],
+        )
+        result = await _export_wiki(wiki_req, fmt=ExportFormat.PPT)
+
+        return Response(
+            content=result.content_bytes,
+            media_type=result.media_type,
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"},
+        )
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        error_msg = f"Error generating PPT: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/export/repo/ppt")
+async def export_repo_ppt(request: DirectPDFExportRequest):
+    """
+    Generate a PPT presentation directly from repo embeddings.
+    """
+    try:
+        from api.export_service import export_repo as _export_repo
+
+        logger.info(f"Direct PPT export requested for {request.repo_url} (provider={request.provider})")
+        repo_req = RepoAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            repo_type=request.repo_type,
+            access_token=request.access_token,
+            excluded_dirs=request.excluded_dirs,
+            excluded_files=request.excluded_files,
+            included_dirs=request.included_dirs,
+            included_files=request.included_files,
+        )
+        result = await _export_repo(repo_req, fmt=ExportFormat.PPT)
+
+        return Response(
+            content=result.content_bytes,
+            media_type=result.media_type,
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"},
+        )
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        error_msg = f"Error generating direct PPT: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+# --- Video Export (from wiki pages) ---
+
+@app.post("/export/wiki/video")
+async def export_wiki_video(request: PDFExportRequest):
+    """
+    Generate a video overview from wiki content.
+    Uses the same analysis pipeline as PDF but renders to MP4 video.
+    """
+    try:
+        from api.export_service import export_wiki as _export_wiki
+
+        logger.info(f"Video export requested for {request.repo_url} (provider={request.provider})")
+        wiki_req = WikiAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            pages=[
+                WikiPageInput(id=p.id, title=p.title, content=p.content, importance=p.importance)
+                for p in request.pages
+            ],
+        )
+        result = await _export_wiki(wiki_req, fmt=ExportFormat.VIDEO)
+
+        return Response(
+            content=result.content_bytes,
+            media_type=result.media_type,
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"},
+        )
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        error_msg = f"Error generating video: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/export/repo/video")
+async def export_repo_video(request: DirectPDFExportRequest):
+    """
+    Generate a video overview directly from repo embeddings.
+    """
+    try:
+        from api.export_service import export_repo as _export_repo
+
+        logger.info(f"Direct video export requested for {request.repo_url} (provider={request.provider})")
+        repo_req = RepoAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            repo_type=request.repo_type,
+            access_token=request.access_token,
+            excluded_dirs=request.excluded_dirs,
+            excluded_files=request.excluded_files,
+            included_dirs=request.included_dirs,
+            included_files=request.included_files,
+        )
+        result = await _export_repo(repo_req, fmt=ExportFormat.VIDEO)
+
+        return Response(
+            content=result.content_bytes,
+            media_type=result.media_type,
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"},
+        )
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        error_msg = f"Error generating direct video: {str(e)}"
         logger.error(error_msg, exc_info=True)
         raise HTTPException(status_code=500, detail=error_msg)
 

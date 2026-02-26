@@ -1,38 +1,22 @@
 """
-PDF Technical Report Export Module
+PDF Rendering Module
 
-Three-phase pipeline:
-  Phase 1: Content Extraction          (from cached wiki pages — NO LLM call)
-  Phase 2: Technical Report Generation (single LLM call — detailed report)
-  Phase 3: PDF Rendering               (fpdf2 → multi-page PDF bytes)
+Responsible ONLY for rendering structured summary text into PDF bytes (fpdf2).
+The content analysis (Phase 1 + Phase 2) is handled by content_analyzer.py.
+The orchestration is handled by export_service.py.
+
+This module also exposes backward-compatible wrapper functions
+(generate_onepage_pdf, generate_direct_pdf) so existing API routes
+continue to work without changes.
 """
 
-import json
 import logging
 import os
 import re
 from io import BytesIO
-from typing import List, Dict, Optional, Any
+from typing import List, Optional
 
-import google.generativeai as genai
-from adalflow.components.model_client.ollama_client import OllamaClient
-from adalflow.core.types import ModelType
 from pydantic import BaseModel, Field
-
-from api.config import (
-    get_model_config,
-    configs,
-    OPENROUTER_API_KEY,
-    OPENAI_API_KEY,
-    AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY,
-)
-from api.openai_client import OpenAIClient
-from api.openrouter_client import OpenRouterClient
-from api.bedrock_client import BedrockClient
-from api.azureai_client import AzureAIClient
-from api.dashscope_client import DashscopeClient
-from api.prompts import PDF_ONEPAGE_SUMMARY_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -72,442 +56,7 @@ class DirectPDFExportRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Phase 1 — Code Semantics Extraction (pure Python, no LLM)
-# ---------------------------------------------------------------------------
-
-def _extract_page_content(text: str, max_chars: int = 1500) -> str:
-    """Extract meaningful content from a wiki page, preserving technical details.
-    Strips markdown formatting but keeps code references, architecture details, etc.
-    """
-    lines = text.splitlines()
-    result_lines = []
-    in_code_block = False
-    total_chars = 0
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Track code blocks — skip long code blocks but note them
-        if stripped.startswith("```"):
-            in_code_block = not in_code_block
-            continue
-        if in_code_block:
-            continue
-
-        # Skip empty lines but preserve paragraph separation
-        if not stripped:
-            if result_lines and result_lines[-1] != "":
-                result_lines.append("")
-            continue
-
-        # Skip pure table rows
-        if stripped.startswith("|") and stripped.endswith("|"):
-            continue
-        if re.match(r'^[\|\-\s:]+$', stripped):
-            continue
-
-        # Strip markdown heading markers but keep heading text
-        clean = re.sub(r'^#{1,6}\s+', '', stripped)
-        # Strip markdown bold but keep text
-        clean = re.sub(r'\*\*(.+?)\*\*', r'\1', clean)
-        # Strip markdown links but keep text
-        clean = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', clean)
-        # Keep inline code references — just remove backticks but keep content
-        clean = re.sub(r'`([^`]+)`', r'\1', clean)
-        clean = clean.strip()
-
-        if not clean:
-            continue
-
-        result_lines.append(clean)
-        total_chars += len(clean)
-
-        if total_chars >= max_chars:
-            break
-
-    return "\n".join(result_lines).strip()[:max_chars]
-
-
-def _summarize_page(page: WikiPageForPDF, max_chars: int = 1500) -> str:
-    """Create a content-rich summary of a page for the LLM prompt."""
-    content = _extract_page_content(page.content, max_chars)
-    if content:
-        return f"[{page.title}]\n{content}"
-    return f"[{page.title}]\n(No content available)"
-
-
-def phase1_extract(pages: List[WikiPageForPDF], repo_url: str, repo_name: str) -> str:
-    """
-    Extract comprehensive content from existing wiki pages for the LLM summary.
-    Returns a rich text block that preserves technical details from the wiki.
-    This reuses cached content — zero LLM cost.
-    """
-    high = [p for p in pages if p.importance == "high"]
-    medium = [p for p in pages if p.importance == "medium"]
-    low = [p for p in pages if p.importance == "low"]
-
-    lines = []
-    lines.append(f"Repository: {repo_name}")
-    lines.append(f"URL: {repo_url}")
-    lines.append(f"Total documentation pages: {len(pages)}")
-    lines.append("")
-
-    # Include ALL high-importance pages with rich content
-    if high:
-        lines.append("=" * 60)
-        lines.append("HIGH-IMPORTANCE DOCUMENTATION:")
-        lines.append("=" * 60)
-        for p in high:
-            lines.append("")
-            lines.append(_summarize_page(p, max_chars=2000))
-            lines.append("")
-
-    # Include medium-importance pages with moderate content
-    if medium:
-        lines.append("=" * 60)
-        lines.append("MEDIUM-IMPORTANCE DOCUMENTATION:")
-        lines.append("=" * 60)
-        for p in medium[:10]:  # up to 10 medium pages
-            lines.append("")
-            lines.append(_summarize_page(p, max_chars=1200))
-            lines.append("")
-
-    # Include low-importance pages with brief content
-    if low:
-        lines.append("=" * 60)
-        lines.append("ADDITIONAL DOCUMENTATION:")
-        lines.append("=" * 60)
-        for p in low[:8]:  # up to 8 low pages
-            lines.append("")
-            lines.append(_summarize_page(p, max_chars=600))
-            lines.append("")
-
-    result = "\n".join(lines)
-
-    # Cap total size to avoid exceeding context window, but keep it generous
-    max_total = 30000
-    if len(result) > max_total:
-        result = result[:max_total] + "\n\n[... additional documentation truncated for brevity ...]"
-
-    logger.info(
-        "Phase 1 complete — %d high, %d medium, %d low pages, %d total chars",
-        len(high),
-        len(medium),
-        len(low),
-        len(result),
-    )
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Phase 2 — Analogy Mapping (single LLM call)
-# ---------------------------------------------------------------------------
-
-def _extract_ollama_content(response) -> str:
-    """
-    Robustly extract the text content from an Ollama response object.
-    Handles both streaming and non-streaming, and strips think tags.
-    """
-    text = ""
-
-    # Try message.content first (non-streaming response)
-    if hasattr(response, "message"):
-        msg = response.message
-        if hasattr(msg, "content") and msg.content:
-            text = msg.content
-        elif isinstance(msg, dict) and "content" in msg:
-            text = msg["content"]
-
-    # Fallback: response attribute
-    if not text and hasattr(response, "response") and response.response:
-        text = response.response
-
-    # Fallback: text attribute
-    if not text and hasattr(response, "text") and response.text:
-        text = response.text
-
-    # Last resort: str(response), but try to extract content from it
-    if not text:
-        raw = str(response)
-        # Try to extract content='...' from the string representation
-        content_match = re.search(r"content='(.*?)'(?:,\s*(?:images|tool))", raw, re.DOTALL)
-        if content_match:
-            text = content_match.group(1)
-        else:
-            # Try another pattern
-            content_match = re.search(r"content='(.*)'", raw, re.DOTALL)
-            if content_match:
-                text = content_match.group(1)
-            else:
-                text = raw
-
-    # Strip think tags (qwen3 thinking output)
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-    text = text.replace('<think>', '').replace('</think>', '')
-
-    return text.strip()
-
-
-def _postprocess_summary(text: str) -> str:
-    """
-    Clean up and repair LLM output to ensure the 6-section structure.
-    Small models often produce:
-    - Broken section headers (missing colon, extra spaces)
-    - Mixed-up sections
-    - Extra markdown formatting
-    """
-    # Remove markdown bold markers
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-    # Remove markdown heading markers
-    text = re.sub(r'^#{1,4}\s+', '', text, flags=re.MULTILINE)
-    # Remove stray markdown fences
-    text = text.replace('```', '')
-
-    # Normalize section headers — fix common LLM variants
-    header_patterns = {
-        r'(?i)^[\s]*PROJECT\s+NAME\s*[:：]': 'PROJECT NAME:',
-        r'(?i)^[\s]*PROJECT\s+OVERVIEW\s*[:：]': 'PROJECT OVERVIEW:',
-        r'(?i)^[\s]*ARCHITECTURE\s*[&\s]+DESIGN\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        r'(?i)^[\s]*ARCHITECTURE\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        r'(?i)^[\s]*TECH(?:NOLOGY)?\s+STACK\s*(?:[&\s]+DEPENDENCIES)?\s*[:：]': 'TECH STACK:',
-        r'(?i)^[\s]*KEY\s+MODULES\s*(?:[&\s]+COMPONENTS)?\s*[:：]': 'KEY MODULES & COMPONENTS:',
-        r'(?i)^[\s]*KEY\s+COMPONENTS\s*[:：]': 'KEY MODULES & COMPONENTS:',
-        r'(?i)^[\s]*MODULES?\s*(?:[&\s]+COMPONENTS)?\s*[:：]': 'KEY MODULES & COMPONENTS:',
-        r'(?i)^[\s]*DATA\s+FLOW\s*(?:[&\s]+PROCESSING)?\s*[:：]': 'DATA FLOW & PROCESSING:',
-        r'(?i)^[\s]*API\s*(?:[&\s]+INTEGRATIONS?\s*(?:POINTS?)?)?\s*[:：]': 'API & INTEGRATION POINTS:',
-        r'(?i)^[\s]*TARGET\s+USERS?\s*(?:[&\s]+USE\s+CASES?)?\s*[:：]': 'TARGET USERS & USE CASES:',
-        r'(?i)^[\s]*USE\s+CASES?\s*(?:[&\s]+TARGET\s+USERS?)?\s*[:：]': 'TARGET USERS & USE CASES:',
-        r'(?i)^[\s]*WHO\s+WOULD\s+USE\s+THIS\s*[:：]': 'TARGET USERS & USE CASES:',
-        r'(?i)^[\s]*WHAT\s+IT\s+DOES\s*[:：]': 'PROJECT OVERVIEW:',
-        r'(?i)^[\s]*HOW\s+IT\s+WORKS\s*(?:\(SIMPLIFIED\))?\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        # Chinese variants (broad patterns to catch many LLM outputs)
-        r'(?i)^[\s]*项目名称\s*[:：]': 'PROJECT NAME:',
-        r'(?i)^[\s]*项目概述\s*[:：]': 'PROJECT OVERVIEW:',
-        r'(?i)^[\s]*功能概述\s*[:：]': 'PROJECT OVERVIEW:',
-        r'(?i)^[\s]*概述\s*[:：]': 'PROJECT OVERVIEW:',
-        r'(?i)^[\s]*架构[与和&]?\s*设计\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        r'(?i)^[\s]*系统架构\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        r'(?i)^[\s]*工作原理[（(]?简化版[）)]?\s*[:：]': 'ARCHITECTURE & DESIGN:',
-        r'(?i)^[\s]*技术栈[与和&]?\s*(?:依赖)?\s*[:：]': 'TECH STACK:',
-        r'(?i)^[\s]*(?:关键|核心|主要)?\s*(?:模块|组件)[与和&]?\s*(?:模块|组件)?\s*[:：]': 'KEY MODULES & COMPONENTS:',
-        r'(?i)^[\s]*数据流[与和&]?\s*处理\s*[:：]': 'DATA FLOW & PROCESSING:',
-        r'(?i)^[\s]*数据流\s*[:：]': 'DATA FLOW & PROCESSING:',
-        r'(?i)^[\s]*API\s*[与和&]?\s*集成点?\s*[:：]': 'API & INTEGRATION POINTS:',
-        r'(?i)^[\s]*API\s*[与和&]?\s*(?:接口|端点)\s*[:：]': 'API & INTEGRATION POINTS:',
-        r'(?i)^[\s]*接口[与和&]?\s*(?:集成)?\s*[:：]': 'API & INTEGRATION POINTS:',
-        r'(?i)^[\s]*(?:适用人群|目标用户|使用场景)\s*[与和&]?\s*(?:使用场景|用例|目标用户)?\s*[:：]': 'TARGET USERS & USE CASES:',
-    }
-
-    for pattern, replacement in header_patterns.items():
-        text = re.sub(pattern, replacement, text, flags=re.MULTILINE)
-
-    # Fix section headers that appear mid-line (small models often do this)
-    # e.g. "- Step 2 blah KEY COMPONENTS:" → "- Step 2 blah\nKEY COMPONENTS:"
-    inline_headers = [
-        'PROJECT NAME:', 'PROJECT OVERVIEW:', 'ARCHITECTURE & DESIGN:',
-        'TECH STACK:', 'KEY MODULES & COMPONENTS:',
-        'DATA FLOW & PROCESSING:', 'API & INTEGRATION POINTS:',
-        'TARGET USERS & USE CASES:',
-    ]
-    for h in inline_headers:
-        # If the header appears in mid-line (not at line start), split it
-        pattern = re.compile(r'([^\n]+\S)\s+(' + re.escape(h) + r')', re.IGNORECASE)
-        text = pattern.sub(r'\1\n\2', text)
-
-    # Remove excessive blank lines
-    text = re.sub(r'\n{4,}', '\n\n\n', text)
-
-    # Remove the example output if the model accidentally repeated it
-    example_start = text.find('--- EXAMPLE OUTPUT')
-    if example_start > 0:
-        text = text[:example_start].strip()
-    example_start2 = text.find('--- END EXAMPLE')
-    if example_start2 > 0:
-        text = text[:example_start2].strip()
-
-    # Remove lines that are just the separator
-    text = re.sub(r'^---+\s*$', '', text, flags=re.MULTILINE)
-
-    # Clean escaped newlines that some models produce
-    text = text.replace('\\n', '\n')
-
-    # Ensure bullet points are normalized
-    text = re.sub(r'^[\s]*[•*]\s+', '- ', text, flags=re.MULTILINE)
-
-    # Strip SUMMARY section if present (we no longer include it)
-    text = re.sub(r'\n*(?:SUMMARY|总结|一句话总结|まとめ)\s*[:：].*', '', text, flags=re.DOTALL | re.IGNORECASE)
-
-    return text.strip()
-
-
-async def phase2_analogy(
-    semantics: str,
-    provider: str,
-    model: Optional[str],
-    language: str,
-) -> str:
-    """
-    One LLM call: turn the Phase-1 JSON into a human-friendly summary.
-    Returns plain text ready for Phase 3.
-    """
-
-    # Resolve language display name
-    supported_langs = configs.get("lang_config", {}).get("supported_languages", {})
-    language_name = supported_langs.get(language, "English")
-
-    # semantics is now a plain text string from Phase 1
-    repo_name = semantics.split("\n")[0].replace("Repository: ", "").strip() if semantics else "unknown"
-
-    prompt = PDF_ONEPAGE_SUMMARY_PROMPT.format(
-        repo_name=repo_name,
-        language_name=language_name,
-        input_json=semantics,
-    )
-
-    full_text = ""
-
-    model_config = get_model_config(provider, model)["model_kwargs"]
-
-    if provider == "ollama":
-        # /no_think must be at the very beginning for qwen3
-        prompt = "/no_think\n" + prompt
-
-        client = OllamaClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "stream": False,
-            "options": {
-                "temperature": 0.3,  # very low for structured output from small models
-                "top_p": 0.7,
-                "num_ctx": min(model_config.get("num_ctx", 8000), 8000),  # cap ctx for memory
-            },
-        }
-
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-
-        # Extract content from Ollama response properly
-        full_text = _extract_ollama_content(response)
-
-    elif provider == "openai":
-        client = OpenAIClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "stream": False,
-            "temperature": 0.5,
-        }
-        if "top_p" in model_config:
-            model_kwargs["top_p"] = model_config["top_p"]
-
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-        # Handle OpenAI non-streaming response
-        if hasattr(response, "choices") and response.choices:
-            full_text = response.choices[0].message.content or ""
-        else:
-            full_text = str(response)
-
-    elif provider == "openrouter":
-        client = OpenRouterClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "stream": False,
-            "temperature": 0.5,
-        }
-        if "top_p" in model_config:
-            model_kwargs["top_p"] = model_config["top_p"]
-
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-        if hasattr(response, "choices") and response.choices:
-            full_text = response.choices[0].message.content or ""
-        else:
-            full_text = str(response)
-
-    elif provider == "bedrock":
-        client = BedrockClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "temperature": 0.5,
-            "top_p": model_config.get("top_p", 0.8),
-        }
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-        full_text = str(response)
-
-    elif provider == "azure":
-        client = AzureAIClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "stream": False,
-            "temperature": 0.5,
-            "top_p": model_config.get("top_p", 0.8),
-        }
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-        full_text = str(response)
-
-    elif provider == "dashscope":
-        client = DashscopeClient()
-        model_kwargs = {
-            "model": model_config["model"],
-            "stream": False,
-            "temperature": 0.5,
-            "top_p": model_config.get("top_p", 0.8),
-        }
-        api_kwargs = client.convert_inputs_to_api_kwargs(
-            input=prompt,
-            model_kwargs=model_kwargs,
-            model_type=ModelType.LLM,
-        )
-        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-        full_text = str(response)
-
-    else:
-        # Default: Google Generative AI
-        gen_model = genai.GenerativeModel(
-            model_name=model_config["model"],
-            generation_config={
-                "temperature": 0.5,
-                "top_p": model_config.get("top_p", 0.8),
-                "top_k": model_config.get("top_k", 20),
-            },
-        )
-        response = gen_model.generate_content(prompt)
-        full_text = response.text if hasattr(response, "text") else str(response)
-
-    logger.info("Phase 2 raw LLM output — %d chars", len(full_text))
-
-    # Post-process: clean up and repair the structure
-    full_text = _postprocess_summary(full_text)
-    logger.info("Phase 2 post-processed — %d chars", len(full_text))
-
-    return full_text.strip()
-
-
-# ---------------------------------------------------------------------------
-# Phase 3 — PDF Rendering (fpdf2)
+# PDF Rendering (fpdf2)
 # ---------------------------------------------------------------------------
 
 def _has_cjk(text: str) -> bool:
@@ -639,14 +188,92 @@ def _soft_wrap_long_tokens(text: str) -> str:
 
     return text
 
-def phase3_render_pdf(summary_text: str, repo_name: str) -> bytes:
+def _strip_json_artifacts(text: str) -> str:
+    """
+    Last-resort cleanup: strip any remaining JSON syntax artifacts
+    from text that will be rendered in the PDF. This handles the case
+    where raw JSON leaked through upstream parsing.
+    """
+    # If the text looks like raw JSON (starts with { or contains lots of JSON keys),
+    # do aggressive cleanup. Otherwise, do minimal cleanup.
+    json_indicators = 0
+    if re.search(r'^\s*\{', text):
+        json_indicators += 1
+    if re.search(r'"repo_type_hint"\s*:', text):
+        json_indicators += 1
+    if re.search(r'"project_overview"\s*:', text):
+        json_indicators += 1
+    if re.search(r'"architecture"\s*:', text):
+        json_indicators += 1
+
+    if json_indicators >= 2:
+        # This looks like raw JSON — try to parse and convert
+        try:
+            import json as _json
+            cleaned = re.sub(r"```(?:json)?\s*", "", text)
+            cleaned = re.sub(r"```\s*$", "", cleaned)
+            # Try repair
+            from api.content_analyzer import _repair_json_string, _dict_to_readable_text
+            repaired = _repair_json_string(cleaned)
+            data = _json.loads(repaired)
+            if isinstance(data, dict) and data:
+                return _dict_to_readable_text(data)
+        except Exception:
+            pass
+
+        # Regex fallback: strip JSON syntax
+        _key_map = {
+            "project_overview": "Project Overview:",
+            "architecture": "Architecture & Design:",
+            "tech_stack": "Tech Stack & Dependencies:",
+            "key_modules": "Key Modules & Components:",
+            "data_flow": "Data Flow & Processing:",
+            "api_points": "API & Integration Points:",
+            "target_users": "Target Users & Use Cases:",
+            "deployment_info": "Deployment & Infrastructure:",
+            "component_hierarchy": "Component Hierarchy:",
+            "data_schemas": "Data Schemas & Models:",
+        }
+        for jk, header in _key_map.items():
+            text = re.sub(rf'"\s*{jk}\s*"\s*:\s*', f"\n{header}\n", text, flags=re.IGNORECASE)
+        # Remove skip keys
+        for jk in ("repo_type_hint", "repo_name", "project_name"):
+            text = re.sub(rf'"\s*{jk}\s*"\s*:\s*"[^"]*"\s*,?\s*', "", text, flags=re.IGNORECASE)
+        # Remove inner dict keys (name, responsibility, languages, etc.)
+        text = re.sub(r'"\s*name\s*"\s*:\s*"([^"]*)"', r'\1', text, flags=re.IGNORECASE)
+        text = re.sub(r'"\s*responsibility\s*"\s*:\s*"([^"]*)"', r': \1', text, flags=re.IGNORECASE)
+        for inner in ("languages", "frameworks", "key_libraries", "infrastructure"):
+            text = re.sub(rf'"\s*{inner}\s*"\s*:\s*', '', text, flags=re.IGNORECASE)
+        # Strip structural chars
+        text = re.sub(r'^\s*\{\s*', '', text)
+        text = re.sub(r'\s*\}\s*$', '', text)
+        text = text.replace("[", "").replace("]", "")
+        text = text.replace("{", "").replace("}", "")
+        # Clean stray quotes
+        text = re.sub(r'(?<!\w)"([^"]{3,})"(?!\w)', r'\1', text)
+        # Clean trailing/leading commas from lines
+        text = re.sub(r',\s*$', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^\s*,\s*', '', text, flags=re.MULTILINE)
+        # Collapse blank lines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = text.strip()
+
+    return text
+
+
+def render_pdf(summary_text: str, repo_name: str) -> bytes:
     """
     Render plain-text summary into a polished single-page A4 PDF.
     Uses auto font-sizing to fit content on one page.
     Returns raw PDF bytes.
+
+    This is the main public API for PDF rendering.
     """
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
+
+    # --- Strip any JSON artifacts that leaked through ---
+    summary_text = _strip_json_artifacts(summary_text)
 
     # --- Font setup ---
     need_cjk = _has_cjk(summary_text) or _has_cjk(repo_name)
@@ -664,8 +291,8 @@ def phase3_render_pdf(summary_text: str, repo_name: str) -> bytes:
     if need_cjk:
         summary_text = _soft_wrap_long_tokens(summary_text)
 
-    # --- Try font sizes from 10.5 down to 7 to fit on one page ---
-    for font_size in [10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7]:
+    # --- Try font sizes from 10 down to 6.5 to fit on one page ---
+    for font_size in [10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5]:
         pdf_bytes = _render_single_page_attempt(
             summary_text, repo_name, font_size,
             need_cjk, font_path,
@@ -674,7 +301,7 @@ def phase3_render_pdf(summary_text: str, repo_name: str) -> bytes:
             return pdf_bytes
 
     # Fallback at smallest size; final renderer is forced to one page.
-    return _render_pdf_final(summary_text, repo_name, 7.0, need_cjk, font_path)
+    return _render_pdf_final(summary_text, repo_name, 6.5, need_cjk, font_path)
 
 
 def _render_single_page_attempt(
@@ -686,7 +313,7 @@ def _render_single_page_attempt(
     from fpdf.enums import XPos, YPos
 
     trial = FPDF(orientation="P", unit="mm", format="A4")
-    trial.set_margins(10, 8, 10)
+    trial.set_margins(8, 6, 8)
     trial.set_auto_page_break(auto=False)
     trial.add_page()
 
@@ -700,17 +327,20 @@ def _render_single_page_attempt(
 
     # Simulate title + accent line (must match _render_pdf_final layout)
     pw = trial.w - trial.l_margin - trial.r_margin
-    trial.set_font(font_family if font_family == "CJK" else "Helvetica", "" if font_family == "CJK" else "B", size=15)
-    trial.set_xy(trial.l_margin, 8)
-    trial.cell(pw, 9, "Title", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    trial.cell(pw, 0.6, "", new_x=XPos.LMARGIN, new_y=YPos.NEXT)  # accent line
-    trial.ln(2.5)
+    trial.set_font(font_family if font_family == "CJK" else "Helvetica", "" if font_family == "CJK" else "B", size=14)
+    trial.set_xy(trial.l_margin, 6)
+    trial.cell(pw, 8, "Title", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    # Subtitle line
+    trial.set_font(font_family if font_family == "CJK" else "Helvetica", "" if font_family == "CJK" else "I", size=7.5)
+    trial.cell(pw, 4, "Architecture Overview", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    trial.cell(pw, 0.5, "", new_x=XPos.LMARGIN, new_y=YPos.NEXT)  # accent line
+    trial.ln(1.5)
 
     # Simulate body
     _render_body(trial, summary_text, pw, font_size, font_family, need_cjk, font_path)
 
-    # Reserve space for footer (~12 mm) so body does not collide with it.
-    usable_h = 297 - 8 - 16  # = 273 mm
+    # Reserve space for footer (~10 mm) so body does not collide with it.
+    usable_h = 297 - 6 - 12  # = 279 mm
     if trial.get_y() < usable_h:
         # Fits on one page. Render the real pretty version.
         return _render_pdf_final(summary_text, repo_name, font_size, need_cjk, font_path)
@@ -721,12 +351,12 @@ def _render_pdf_final(
     summary_text: str, repo_name: str, font_size: float,
     need_cjk: bool, font_path: Optional[str],
 ) -> bytes:
-    """Render the final polished PDF."""
+    """Render the final polished single-page PDF."""
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
 
     pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.set_margins(10, 8, 10)
+    pdf.set_margins(8, 6, 8)
     # Force single-page output to avoid accidental blank second page.
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
@@ -741,19 +371,29 @@ def _render_pdf_final(
 
     page_width = pdf.w - pdf.l_margin - pdf.r_margin
 
-    # ── Title bar ──
+    # ── Title bar with gradient-like appearance ──
     if font_family == "CJK":
-        pdf.set_font("CJK", size=15)
+        pdf.set_font("CJK", size=14)
     else:
-        pdf.set_font("Helvetica", "B", size=15)
-    pdf.set_fill_color(35, 55, 100)
+        pdf.set_font("Helvetica", "B", size=14)
+    pdf.set_fill_color(25, 42, 86)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(page_width, 9, f"  {repo_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, align="L")
+    pdf.set_xy(pdf.l_margin, 6)
+    pdf.cell(page_width, 8, f"  {repo_name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, align="L")
+
+    # Subtitle line
+    pdf.set_fill_color(35, 55, 100)
+    if font_family == "CJK":
+        pdf.set_font("CJK", size=7.5)
+    else:
+        pdf.set_font("Helvetica", "I", size=7.5)
+    pdf.set_text_color(200, 215, 245)
+    pdf.cell(page_width, 4, "  Architecture Overview  |  Generated by DeepWiki", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, align="L")
 
     # Thin accent line
-    pdf.set_fill_color(70, 130, 220)
-    pdf.cell(page_width, 0.6, "", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
-    pdf.ln(2.5)
+    pdf.set_fill_color(65, 135, 245)
+    pdf.cell(page_width, 0.5, "", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True)
+    pdf.ln(1.5)
 
     # ── Body ──
     pdf.set_text_color(30, 30, 30)
@@ -765,17 +405,17 @@ def _render_pdf_final(
     _render_body(pdf, summary_text, page_width, font_size, font_family, need_cjk, font_path)
 
     # ── Footer line ──
-    pdf.set_y(-8)
+    pdf.set_y(-6)
     pdf.set_x(pdf.l_margin)
     pdf.set_draw_color(200, 200, 200)
     pdf.line(pdf.l_margin, pdf.get_y(), pdf.l_margin + page_width, pdf.get_y())
-    pdf.ln(0.8)
+    pdf.ln(0.5)
     if font_family == "CJK":
-        pdf.set_font("CJK", size=7)
+        pdf.set_font("CJK", size=6)
     else:
-        pdf.set_font("Helvetica", "I", size=7)
+        pdf.set_font("Helvetica", "I", size=6)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(page_width, 3, "Generated by DeepWiki  |  AI-powered repository documentation", align="C")
+    pdf.cell(page_width, 2.5, "Generated by DeepWiki  |  AI-powered repository documentation", align="C")
 
     # ── Enforce single page: remove any accidental trailing pages ──
     try:
@@ -792,7 +432,12 @@ def _render_pdf_final(
 
 def _is_section_header(line: str) -> bool:
     """Check if a line is a section header using robust pattern matching."""
-    s = line.strip().upper()
+    s = line.strip().replace("\u200b", "").upper()
+    # Normalize ampersand variants so headers like "A＆B", "A & B", "A&amp;B"
+    # are recognized consistently.
+    s = s.replace("&AMP;", "&").replace("\uFF06", "&")
+    s = re.sub(r"\s*&\s*", " & ", s)
+    s = re.sub(r"\s+", " ", s).strip()
     if not s:
         return False
 
@@ -806,11 +451,19 @@ def _is_section_header(line: str) -> bool:
         "KEY MODULES:", "KEY COMPONENTS:", "MODULES & COMPONENTS:",
         "MODULES AND COMPONENTS:",
         "DATA FLOW & PROCESSING:", "DATA FLOW AND PROCESSING:",
-        "DATA FLOW:", "DATA PROCESSING:",
+        "DATA FLOW:", "DATA PROCESSING:", "DATA FLOW & PIPELINE STAGES:",
         "API & INTEGRATION POINTS:", "API AND INTEGRATION POINTS:",
         "API & INTEGRATIONS:", "API AND INTEGRATIONS:", "API:",
         "TARGET USERS & USE CASES:", "TARGET USERS AND USE CASES:",
         "TARGET USERS:", "USE CASES:",
+        # Extended headers from repo-type-specific adapters
+        "SERVICE TOPOLOGY & ARCHITECTURE:", "SERVICE TOPOLOGY:",
+        "MESSAGE FLOW & DATA PROCESSING:", "MESSAGE FLOW:",
+        "DEPLOYMENT & INFRASTRUCTURE:", "DEPLOYMENT:",
+        "KEY SERVICES & COMPONENTS:", "KEY SERVICES:",
+        "COMPONENT HIERARCHY & ROUTING:", "COMPONENT HIERARCHY:",
+        "DATA SCHEMAS & MODELS:", "DATA SCHEMAS:",
+        "COMMANDS & INTERFACE:", "COMMANDS:",
     ]
     for h in en_headers:
         if s.startswith(h):
@@ -841,10 +494,14 @@ def _is_section_header(line: str) -> bool:
 
 def _get_section_key(line: str) -> str:
     """Map a recognized section header to a canonical key.
-    Supports English, Chinese, and Japanese headers.
+    Supports English and Chinese headers.
     """
-    s = line.strip()
+    s = line.strip().replace("\u200b", "")
     su = s.upper()  # for English matching
+    # Keep normalization aligned with _is_section_header.
+    su = su.replace("&AMP;", "&").replace("\uFF06", "&")
+    su = re.sub(r"\s*&\s*", " & ", su)
+    su = re.sub(r"\s+", " ", su).strip()
 
     # --- English headers ---
     if su.startswith("PROJECT NAME:"):
@@ -863,6 +520,24 @@ def _get_section_key(line: str) -> str:
         return "api_integration_points"
     if su.startswith(("TARGET USERS & USE CASES:", "TARGET USERS AND USE CASES:", "TARGET USERS:", "USE CASES:")):
         return "target_users_use_cases"
+
+    # --- Extended headers from repo-type-specific adapters ---
+    if su.startswith(("SERVICE TOPOLOGY & ARCHITECTURE:", "SERVICE TOPOLOGY:")):
+        return "architecture_design"
+    if su.startswith(("MESSAGE FLOW & DATA PROCESSING:", "MESSAGE FLOW:")):
+        return "data_flow_processing"
+    if su.startswith(("DEPLOYMENT & INFRASTRUCTURE:", "DEPLOYMENT:")):
+        return "deployment"
+    if su.startswith(("KEY SERVICES & COMPONENTS:", "KEY SERVICES:")):
+        return "key_modules_components"
+    if su.startswith(("COMPONENT HIERARCHY & ROUTING:", "COMPONENT HIERARCHY:")):
+        return "component_hierarchy"
+    if su.startswith(("DATA FLOW & PIPELINE STAGES:",)):
+        return "data_flow_processing"
+    if su.startswith(("DATA SCHEMAS & MODELS:", "DATA SCHEMAS:")):
+        return "data_schemas"
+    if su.startswith(("COMMANDS & INTERFACE:", "COMMANDS:")):
+        return "api_integration_points"
 
     # --- Chinese headers (fallback if _postprocess_summary missed) ---
     if s.startswith("项目名称"):
@@ -908,25 +583,56 @@ def _get_section_key(line: str) -> str:
 
 
 def _render_body(pdf, text: str, page_width: float, font_size: float, font_family: str, need_cjk: bool, cjk_font_path: Optional[str]):
-    """Render the summary body with polished section headers and compact layout."""
+    """Render the summary body with bold section headers and compact, dense layout."""
     from fpdf.enums import XPos, YPos
 
-    # Vivid color rendering for ALL section titles (more saturated for visibility).
+    # Section header background colors — vivid, highly saturated.
     section_header_colors = {
-        "project_overview": (210, 225, 248),   # blue tint
-        "architecture_design": (205, 240, 220), # green tint
-        "tech_stack": (215, 230, 250),          # sky blue
-        "key_modules_components": (200, 235, 245), # teal tint
-        "data_flow_processing": (208, 240, 225),  # mint
-        "api_integration_points": (218, 225, 248), # lavender
-        "target_users_use_cases": (215, 238, 228), # sage
+        "project_overview": (220, 235, 255),   # blue tint
+        "architecture_design": (215, 245, 225), # green tint
+        "tech_stack": (230, 242, 255),          # sky blue tint
+        "key_modules_components": (215, 240, 248), # teal tint
+        "data_flow_processing": (220, 245, 235),  # mint tint
+        "api_integration_points": (225, 230, 255), # lavender tint
+        "target_users_use_cases": (225, 245, 235), # sage tint
+        # Extended section types from repo-type-specific adapters
+        "deployment": (248, 235, 220),          # warm amber
+        "component_hierarchy": (230, 230, 255), # periwinkle
+        "data_schemas": (235, 248, 225),        # olive
     }
-    default_header_bg = (220, 220, 235)  # light purple fallback
-    header_text_color = (20, 45, 100)
-    body_text_color = (40, 40, 40)
-    bullet_dot_color = (80, 120, 190)
+    # Accent bar colors — darker, matching the section theme.
+    section_accent_colors = {
+        "project_overview": (40, 90, 180),
+        "architecture_design": (30, 130, 80),
+        "tech_stack": (30, 100, 190),
+        "key_modules_components": (20, 120, 150),
+        "data_flow_processing": (30, 140, 100),
+        "api_integration_points": (60, 60, 180),
+        "target_users_use_cases": (40, 130, 90),
+        "deployment": (160, 100, 30),
+        "component_hierarchy": (70, 70, 180),
+        "data_schemas": (80, 140, 40),
+    }
+    # Section icon prefixes — Unicode symbols to visually distinguish sections.
+    section_icons = {
+        "project_overview": "\u25a0 ",       # ■
+        "architecture_design": "\u25b6 ",    # ▶
+        "tech_stack": "\u25c6 ",             # ◆
+        "key_modules_components": "\u25a3 ", # ▣
+        "data_flow_processing": "\u25b7 ",   # ▷
+        "api_integration_points": "\u25cb ", # ○
+        "target_users_use_cases": "\u25cf ", # ●
+        "deployment": "\u25b2 ",             # ▲
+        "component_hierarchy": "\u25a1 ",    # □
+        "data_schemas": "\u25c7 ",           # ◇
+    }
+    default_header_bg = (230, 230, 248)
+    default_accent_color = (60, 60, 140)
+    header_text_color = (10, 30, 90)
+    body_text_color = (35, 35, 35)
+    bullet_dot_color = (50, 100, 200)
 
-    lh = font_size * 0.48  # line height in mm
+    lh = font_size * 0.46  # slightly relaxed line height in mm
     current_section = ""
 
     lines = text.split("\n")
@@ -935,7 +641,7 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
     for line in lines:
         stripped = line.strip()
         if not stripped:
-            pdf.ln(lh * 0.35)
+            pdf.ln(lh * 0.18)
             continue
 
         is_header = _is_section_header(stripped)
@@ -948,35 +654,40 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
 
         if is_header:
             current_section = _get_section_key(stripped)
-            # ── Section header with colored background band ──
-            pdf.ln(lh * 0.5)
+            # ── Prominent section header with colored band + bold accent bar ──
+            pdf.ln(lh * 0.55)
 
             bg = section_header_colors.get(current_section, default_header_bg)
+            accent_color = section_accent_colors.get(current_section, default_accent_color)
 
             pdf.set_fill_color(*bg)
             pdf.set_text_color(*header_text_color)
 
+            header_font_size = font_size + 1.8
             if font_family == "CJK":
-                pdf.set_font("CJK", size=font_size + 1.0)
+                pdf.set_font("CJK", size=header_font_size)
             else:
-                pdf.set_font("Helvetica", "B", size=font_size + 1.0)
+                pdf.set_font("Helvetica", "B", size=header_font_size)
 
-            # Left accent bar + header text
-            header_h = lh + 2.2
-            accent_w = 1.2
+            # Prepare header text with icon prefix
+            icon = section_icons.get(current_section, "\u25a0 ") if not need_cjk else ""
+            header_display = f"  {icon}{stripped}"
+
+            header_h = lh + 2.8
+            accent_w = 1.8
 
             pdf.set_x(pdf.l_margin)
             y_before = pdf.get_y()
 
-            wrapped = _wrap_to_width(pdf, "   " + stripped, page_width)
+            wrapped = _wrap_to_width(pdf, header_display, page_width - accent_w)
             for wline in wrapped:
                 pdf.set_x(pdf.l_margin)
                 pdf.cell(page_width, header_h, wline, new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, align="L")
 
             y_after = pdf.get_y()
 
-            # Draw left accent bar
-            pdf.set_fill_color(*header_text_color)
+            # Draw bold left accent bar
+            pdf.set_fill_color(*accent_color)
             pdf.rect(pdf.l_margin, y_before, accent_w, y_after - y_before, style="F")
 
             # Reset to body style
@@ -985,16 +696,15 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
                 pdf.set_font("CJK", size=font_size)
             else:
                 pdf.set_font("Helvetica", size=font_size)
-            pdf.ln(lh * 0.2)
+            pdf.ln(lh * 0.15)
 
         elif stripped.startswith("- ") or stripped.startswith("* "):
             # ── Bullet point with colored dot ──
             content = stripped[2:].strip()
             pdf.set_text_color(*body_text_color)
 
-            indent = 5
-            bullet_x = pdf.l_margin + indent - 2.2
-            bullet_y = pdf.get_y() + lh * 0.42
+            indent = 4.5
+            bullet_x = pdf.l_margin + indent - 2.0
 
             wrapped = _wrap_to_width(pdf, content, page_width - indent)
 
@@ -1010,15 +720,15 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
             for i, wline in enumerate(wrapped):
                 pdf.set_x(pdf.l_margin + indent)
                 if i == 0:
+                    bullet_y = pdf.get_y() + lh * 0.42
                     pdf.set_fill_color(*bullet_dot_color)
-                    pdf.circle(bullet_x, bullet_y, 0.55, style="F")
+                    pdf.circle(bullet_x, bullet_y, 0.5, style="F")
                 pdf.cell(page_width - indent, lh, wline, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="L")
 
         else:
             # ── Regular paragraph text ──
-            # TARGET USERS section: plain black text, no special color
             if current_section == "target_users_use_cases":
-                pdf.set_text_color(50, 50, 50)
+                pdf.set_text_color(45, 45, 45)
             else:
                 pdf.set_text_color(*body_text_color)
             wrapped = _wrap_to_width(pdf, stripped, page_width)
@@ -1028,236 +738,393 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
 
 
 # ---------------------------------------------------------------------------
-# Main orchestrator
+# Backward-compatible aliases (keep phase3_render_pdf for any internal refs)
+# ---------------------------------------------------------------------------
+
+phase3_render_pdf = render_pdf
+
+
+# ---------------------------------------------------------------------------
+# Phase 2b-PDF: Structured AnalyzedContent → format-specific plain text
+# ---------------------------------------------------------------------------
+
+def _adapt_pdf_text_generic(analyzed) -> str:
+    """Generic 7-section layout (backward compatible)."""
+    return analyzed.summary_text
+
+
+def _adapt_pdf_text_library(analyzed) -> str:
+    """Library / SDK — emphasise API & module docs, trim target users."""
+    lines: list[str] = []
+    lines.append(f"Project Name: {analyzed.repo_name}")
+    lines.append("")
+
+    if analyzed.project_overview:
+        lines.append("Project Overview:")
+        lines.append(analyzed.project_overview)
+        lines.append("")
+
+    # API points — promoted to top
+    if analyzed.api_points:
+        lines.append("API & Integration Points:")
+        for pt in analyzed.api_points:
+            lines.append(f"- {pt}")
+        lines.append("")
+
+    if analyzed.key_modules:
+        lines.append("Key Modules & Components:")
+        for mod in analyzed.key_modules:
+            lines.append(f"- {mod.name}: {mod.responsibility}")
+        lines.append("")
+
+    if analyzed.architecture:
+        lines.append("Architecture & Design:")
+        for item in analyzed.architecture:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    ts = analyzed.tech_stack
+    if ts and (ts.languages or ts.frameworks or ts.key_libraries or ts.infrastructure):
+        lines.append("Tech Stack & Dependencies:")
+        for x in ts.languages + ts.frameworks + ts.key_libraries + ts.infrastructure:
+            lines.append(f"- {x}")
+        lines.append("")
+
+    if analyzed.data_flow:
+        lines.append("Data Flow & Processing:")
+        for step in analyzed.data_flow:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _adapt_pdf_text_webapp(analyzed) -> str:
+    """Web application — emphasise component hierarchy, routes, state."""
+    lines: list[str] = []
+    lines.append(f"Project Name: {analyzed.repo_name}")
+    lines.append("")
+
+    if analyzed.project_overview:
+        lines.append("Project Overview:")
+        lines.append(analyzed.project_overview)
+        lines.append("")
+
+    if analyzed.component_hierarchy:
+        lines.append("Component Hierarchy & Routing:")
+        lines.append(analyzed.component_hierarchy)
+        lines.append("")
+
+    if analyzed.architecture:
+        lines.append("Architecture & Design:")
+        for item in analyzed.architecture:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    ts = analyzed.tech_stack
+    if ts and (ts.languages or ts.frameworks or ts.key_libraries or ts.infrastructure):
+        lines.append("Tech Stack & Dependencies:")
+        for x in ts.languages + ts.frameworks + ts.key_libraries + ts.infrastructure:
+            lines.append(f"- {x}")
+        lines.append("")
+
+    if analyzed.key_modules:
+        lines.append("Key Modules & Components:")
+        for mod in analyzed.key_modules:
+            lines.append(f"- {mod.name}: {mod.responsibility}")
+        lines.append("")
+
+    if analyzed.data_flow:
+        lines.append("Data Flow & Processing:")
+        for step in analyzed.data_flow:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    if analyzed.api_points:
+        lines.append("API & Integration Points:")
+        for pt in analyzed.api_points:
+            lines.append(f"- {pt}")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _adapt_pdf_text_microservice(analyzed) -> str:
+    """Microservice system — emphasise service topology, message flow, deployment."""
+    lines: list[str] = []
+    lines.append(f"Project Name: {analyzed.repo_name}")
+    lines.append("")
+
+    if analyzed.project_overview:
+        lines.append("Project Overview:")
+        lines.append(analyzed.project_overview)
+        lines.append("")
+
+    if analyzed.architecture:
+        lines.append("Service Topology & Architecture:")
+        for item in analyzed.architecture:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    if analyzed.data_flow:
+        lines.append("Message Flow & Data Processing:")
+        for step in analyzed.data_flow:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    if analyzed.deployment_info:
+        lines.append("Deployment & Infrastructure:")
+        lines.append(analyzed.deployment_info)
+        lines.append("")
+
+    ts = analyzed.tech_stack
+    if ts and (ts.languages or ts.frameworks or ts.key_libraries or ts.infrastructure):
+        lines.append("Tech Stack & Dependencies:")
+        for x in ts.languages + ts.frameworks + ts.key_libraries + ts.infrastructure:
+            lines.append(f"- {x}")
+        lines.append("")
+
+    if analyzed.key_modules:
+        lines.append("Key Services & Components:")
+        for mod in analyzed.key_modules:
+            lines.append(f"- {mod.name}: {mod.responsibility}")
+        lines.append("")
+
+    if analyzed.api_points:
+        lines.append("API & Integration Points:")
+        for pt in analyzed.api_points:
+            lines.append(f"- {pt}")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _adapt_pdf_text_data_pipeline(analyzed) -> str:
+    """Data / ML pipeline — emphasise data flow, schemas, pipeline stages."""
+    lines: list[str] = []
+    lines.append(f"Project Name: {analyzed.repo_name}")
+    lines.append("")
+
+    if analyzed.project_overview:
+        lines.append("Project Overview:")
+        lines.append(analyzed.project_overview)
+        lines.append("")
+
+    if analyzed.data_flow:
+        lines.append("Data Flow & Pipeline Stages:")
+        for step in analyzed.data_flow:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    if analyzed.data_schemas:
+        lines.append("Data Schemas & Models:")
+        lines.append(analyzed.data_schemas)
+        lines.append("")
+
+    if analyzed.architecture:
+        lines.append("Architecture & Design:")
+        for item in analyzed.architecture:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    ts = analyzed.tech_stack
+    if ts and (ts.languages or ts.frameworks or ts.key_libraries or ts.infrastructure):
+        lines.append("Tech Stack & Dependencies:")
+        for x in ts.languages + ts.frameworks + ts.key_libraries + ts.infrastructure:
+            lines.append(f"- {x}")
+        lines.append("")
+
+    if analyzed.key_modules:
+        lines.append("Key Modules & Components:")
+        for mod in analyzed.key_modules:
+            lines.append(f"- {mod.name}: {mod.responsibility}")
+        lines.append("")
+
+    if analyzed.target_users:
+        lines.append("Target Users & Use Cases:")
+        lines.append(analyzed.target_users)
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _adapt_pdf_text_cli_tool(analyzed) -> str:
+    """CLI tool — emphasise commands, flags, module structure."""
+    lines: list[str] = []
+    lines.append(f"Project Name: {analyzed.repo_name}")
+    lines.append("")
+
+    if analyzed.project_overview:
+        lines.append("Project Overview:")
+        lines.append(analyzed.project_overview)
+        lines.append("")
+
+    if analyzed.api_points:
+        lines.append("Commands & Interface:")
+        for pt in analyzed.api_points:
+            lines.append(f"- {pt}")
+        lines.append("")
+
+    if analyzed.key_modules:
+        lines.append("Key Modules & Components:")
+        for mod in analyzed.key_modules:
+            lines.append(f"- {mod.name}: {mod.responsibility}")
+        lines.append("")
+
+    if analyzed.architecture:
+        lines.append("Architecture & Design:")
+        for item in analyzed.architecture:
+            lines.append(f"- {item}")
+        lines.append("")
+
+    ts = analyzed.tech_stack
+    if ts and (ts.languages or ts.frameworks or ts.key_libraries or ts.infrastructure):
+        lines.append("Tech Stack & Dependencies:")
+        for x in ts.languages + ts.frameworks + ts.key_libraries + ts.infrastructure:
+            lines.append(f"- {x}")
+        lines.append("")
+
+    if analyzed.data_flow:
+        lines.append("Data Flow & Processing:")
+        for step in analyzed.data_flow:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+# Adapter dispatch table
+_PDF_ADAPTERS = {
+    "generic": _adapt_pdf_text_generic,
+    "library": _adapt_pdf_text_library,
+    "sdk": _adapt_pdf_text_library,
+    "webapp": _adapt_pdf_text_webapp,
+    "microservice": _adapt_pdf_text_microservice,
+    "data_pipeline": _adapt_pdf_text_data_pipeline,
+    "cli_tool": _adapt_pdf_text_cli_tool,
+}
+
+
+def render_pdf_from_analyzed(analyzed) -> bytes:
+    """
+    Phase 2b-PDF + Phase 3: AnalyzedContent → PDF bytes.
+
+    Selects a layout adapter based on ``analyzed.repo_type_hint``,
+    assembles a plain-text summary in the appropriate order / emphasis,
+    then delegates to the existing ``render_pdf()`` renderer.
+    """
+    adapter = _PDF_ADAPTERS.get(analyzed.repo_type_hint, _adapt_pdf_text_generic)
+    summary_text = adapter(analyzed)
+
+    # Safety: if the adapted text is essentially empty (just "Project Name: ..."),
+    # fall back to the generic adapter which uses summary_text (including raw_llm_text fallback)
+    stripped_lines = [l.strip() for l in summary_text.split("\n") if l.strip()]
+    if len(stripped_lines) <= 1:
+        logger.warning(
+            "PDF adapter '%s' produced near-empty text (%d lines); falling back to generic",
+            analyzed.repo_type_hint, len(stripped_lines),
+        )
+        summary_text = _adapt_pdf_text_generic(analyzed)
+
+    return render_pdf(summary_text, analyzed.repo_name)
+
+
+# ---------------------------------------------------------------------------
+# Debug helper: print AnalyzedContent (LLM structured output)
+# ---------------------------------------------------------------------------
+
+def _print_analyzed_content(analyzed, label: str = "PDF"):
+    """Pretty-print the AnalyzedContent structured fields to console & log."""
+    import json as _json
+
+    data = {
+        "repo_name": analyzed.repo_name,
+        "repo_url": analyzed.repo_url,
+        "language": analyzed.language,
+        "repo_type_hint": analyzed.repo_type_hint,
+        "project_overview": analyzed.project_overview,
+        "architecture": analyzed.architecture,
+        "tech_stack": {
+            "languages": analyzed.tech_stack.languages,
+            "frameworks": analyzed.tech_stack.frameworks,
+            "key_libraries": analyzed.tech_stack.key_libraries,
+            "infrastructure": analyzed.tech_stack.infrastructure,
+        },
+        "key_modules": [{"name": m.name, "responsibility": m.responsibility} for m in analyzed.key_modules],
+        "data_flow": analyzed.data_flow,
+        "api_points": analyzed.api_points,
+        "target_users": analyzed.target_users,
+        "deployment_info": analyzed.deployment_info,
+        "component_hierarchy": analyzed.component_hierarchy,
+        "data_schemas": analyzed.data_schemas,
+    }
+
+    json_str = _json.dumps(data, ensure_ascii=False, indent=2)
+
+    header = f"\n{'='*60}\nAnalyzedContent (input to {label} renderer)\n{'='*60}"
+    print(header)
+    print(json_str)
+    print('='*60 + '\n')
+
+    logger.info("AnalyzedContent for %s export:\n%s", label, json_str)
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatible orchestrators
+# These delegate to the decoupled content_analyzer + render_pdf pipeline.
+# Existing API routes (api.py) import these, so they must stay.
 # ---------------------------------------------------------------------------
 
 async def generate_onepage_pdf(request: PDFExportRequest) -> bytes:
     """
-    Run the 3-phase pipeline and return PDF bytes.
+    Backward-compatible wrapper: wiki pages → PDF bytes.
+    Delegates to content_analyzer for Phase 1+2, then render_pdf for Phase 3.
     """
-    repo_name = request.repo_name or request.repo_url.rstrip("/").split("/")[-1]
+    from api.content_analyzer import WikiAnalysisRequest, WikiPageInput, analyze_wiki_content
 
-    logger.info("=== PDF Export: Phase 1 — Code Semantics Extraction ===")
-    semantics = phase1_extract(request.pages, request.repo_url, repo_name)
+    analysis_request = WikiAnalysisRequest(
+        repo_url=request.repo_url,
+        repo_name=request.repo_name,
+        provider=request.provider,
+        model=request.model,
+        language=request.language,
+        pages=[
+            WikiPageInput(id=p.id, title=p.title, content=p.content, importance=p.importance)
+            for p in request.pages
+        ],
+    )
 
-    logger.info("=== PDF Export: Phase 2 — Analogy Mapping (LLM call) ===")
-    summary_text = await phase2_analogy(semantics, request.provider, request.model, request.language)
-
-    logger.info("=== PDF Export: Phase 3 — PDF Rendering ===")
-    pdf_bytes = phase3_render_pdf(summary_text, repo_name)
-
+    analyzed = await analyze_wiki_content(analysis_request)
+    _print_analyzed_content(analyzed, "PDF")
+    pdf_bytes = render_pdf_from_analyzed(analyzed)
     logger.info("PDF export complete — %d bytes", len(pdf_bytes))
     return pdf_bytes
 
 
-# ---------------------------------------------------------------------------
-# Direct PDF generation (from repo embeddings, no wiki needed)
-# ---------------------------------------------------------------------------
-
-def _phase1_extract_from_repo(
-    repo_url: str,
-    repo_name: str,
-    repo_type: str = "github",
-    access_token: Optional[str] = None,
-    excluded_dirs: Optional[List[str]] = None,
-    excluded_files: Optional[List[str]] = None,
-    included_dirs: Optional[List[str]] = None,
-    included_files: Optional[List[str]] = None,
-) -> str:
-    """
-    Phase 1 for direct PDF: use the existing embedding pipeline + FAISS retrieval
-    to extract the most relevant documents from the repo.
-    Memory-safe: limits top-K results and caps total context size.
-    """
-    from api.data_pipeline import DatabaseManager
-    from api.config import get_embedder_type
-    from api.tools.embedder import get_embedder
-    from adalflow.components.retriever.faiss_retriever import FAISSRetriever
-
-    embedder_type = get_embedder_type()
-
-    # --- Step 1: Prepare / reuse the embedding database ---
-    db_manager = DatabaseManager()
-    try:
-        transformed_docs = db_manager.prepare_database(
-            repo_url,
-            repo_type=repo_type,
-            access_token=access_token,
-            embedder_type=embedder_type,
-            excluded_dirs=excluded_dirs,
-            excluded_files=excluded_files,
-            included_dirs=included_dirs,
-            included_files=included_files,
-        )
-    except Exception as e:
-        logger.error("Failed to prepare embedding database: %s", e)
-        # Fallback: return minimal context
-        return f"Repository: {repo_name}\nURL: {repo_url}\n\n(Embedding failed: {e})"
-
-    if not transformed_docs:
-        return f"Repository: {repo_name}\nURL: {repo_url}\n\n(No documents found in repository)"
-
-    # --- Step 2: Filter docs with valid embeddings ---
-    valid_docs = []
-    target_size = None
-    size_counts: Dict[int, int] = {}
-    for doc in transformed_docs:
-        vec = getattr(doc, "vector", None)
-        if vec is None:
-            continue
-        try:
-            sz = len(vec) if isinstance(vec, list) else (vec.shape[-1] if hasattr(vec, "shape") else len(vec))
-        except Exception:
-            continue
-        if sz == 0:
-            continue
-        size_counts[sz] = size_counts.get(sz, 0) + 1
-
-    if not size_counts:
-        # No usable embeddings; just dump file names
-        file_list = "\n".join(
-            getattr(d, "meta_data", {}).get("file_path", "?") for d in transformed_docs[:30]
-        )
-        return f"Repository: {repo_name}\nURL: {repo_url}\nFiles:\n{file_list}"
-
-    target_size = max(size_counts, key=lambda k: size_counts[k])
-    for doc in transformed_docs:
-        vec = getattr(doc, "vector", None)
-        if vec is None:
-            continue
-        try:
-            sz = len(vec) if isinstance(vec, list) else (vec.shape[-1] if hasattr(vec, "shape") else len(vec))
-        except Exception:
-            continue
-        if sz == target_size:
-            valid_docs.append(doc)
-
-    logger.info("Direct PDF Phase 1: %d valid docs (embedding dim=%d)", len(valid_docs), target_size)
-
-    # --- Step 3: Retrieve top-K most relevant docs via FAISS ---
-    # Use a broad query to get the most informative documents
-    TOP_K = min(12, len(valid_docs))  # keep small for memory
-    MAX_CONTEXT_CHARS = 15000  # hard cap on total context to keep LLM prompt small
-
-    embedder = get_embedder(embedder_type=embedder_type)
-    is_ollama = embedder_type == "ollama"
-
-    def query_embedder(query):
-        if isinstance(query, list):
-            query = query[0]
-        return embedder(input=query)
-
-    retrieve_embedder = query_embedder if is_ollama else embedder
-
-    retriever = None
-    try:
-        retriever = FAISSRetriever(
-            **configs["retriever"],
-            embedder=retrieve_embedder,
-            documents=valid_docs,
-            document_map_func=lambda doc: doc.vector,
-        )
-        overview_query = (
-            f"What is {repo_name}? Architecture overview, main modules, "
-            f"tech stack, API endpoints, data flow, entry point"
-        )
-        results = retriever(overview_query)
-        retrieved_indices = results[0].doc_indices[:TOP_K] if results and results[0].doc_indices is not None else []
-        retrieved_docs = [valid_docs[i] for i in retrieved_indices if i < len(valid_docs)]
-    except Exception as e:
-        logger.warning("FAISS retrieval failed, falling back to first N docs: %s", e)
-        retrieved_docs = valid_docs[:TOP_K]
-    finally:
-        # Release FAISS memory
-        if retriever is not None:
-            del retriever
-        del valid_docs
-        import gc
-        gc.collect()
-
-    # --- Step 4: Build compact context string ---
-    lines = []
-    lines.append(f"Repository: {repo_name}")
-    lines.append(f"URL: {repo_url}")
-    lines.append(f"Total source documents: {len(transformed_docs)}")
-    lines.append("")
-
-    total_chars = 0
-    for doc in retrieved_docs:
-        meta = getattr(doc, "meta_data", {})
-        fp = meta.get("file_path", "unknown")
-        text = getattr(doc, "text", "") or ""
-        # Truncate individual doc content
-        max_per_doc = min(2000, (MAX_CONTEXT_CHARS - total_chars))
-        if max_per_doc <= 0:
-            break
-        snippet = text[:max_per_doc]
-        lines.append(f"--- {fp} ---")
-        lines.append(snippet)
-        lines.append("")
-        total_chars += len(snippet) + len(fp) + 10
-
-    result = "\n".join(lines)
-    if len(result) > MAX_CONTEXT_CHARS:
-        result = result[:MAX_CONTEXT_CHARS] + "\n\n[... truncated for memory safety ...]"
-
-    # Release db_manager
-    del db_manager
-    del transformed_docs
-    import gc
-    gc.collect()
-
-    logger.info("Direct PDF Phase 1 complete — %d docs retrieved, %d chars context", len(retrieved_docs), len(result))
-    return result
-
-
 async def generate_direct_pdf(request: DirectPDFExportRequest) -> bytes:
     """
-    Generate PDF directly from repo embeddings (no wiki needed).
-    Memory-safe pipeline for Ollama users.
+    Backward-compatible wrapper: repo embeddings → PDF bytes.
+    Delegates to content_analyzer for Phase 1+2, then render_pdf for Phase 3.
     """
-    repo_name = request.repo_name or request.repo_url.rstrip("/").split("/")[-1]
+    from api.content_analyzer import RepoAnalysisRequest, analyze_repo_content
 
-    # Parse file filter strings into lists
-    excluded_dirs = (
-        [d.strip() for d in request.excluded_dirs.split("\n") if d.strip()]
-        if request.excluded_dirs else None
-    )
-    excluded_files = (
-        [f.strip() for f in request.excluded_files.split("\n") if f.strip()]
-        if request.excluded_files else None
-    )
-    included_dirs = (
-        [d.strip() for d in request.included_dirs.split("\n") if d.strip()]
-        if request.included_dirs else None
-    )
-    included_files = (
-        [f.strip() for f in request.included_files.split("\n") if f.strip()]
-        if request.included_files else None
-    )
-
-    logger.info("=== Direct PDF Export: Phase 1 — Repo Embedding Extraction ===")
-    semantics = _phase1_extract_from_repo(
+    analysis_request = RepoAnalysisRequest(
         repo_url=request.repo_url,
-        repo_name=repo_name,
+        repo_name=request.repo_name,
+        provider=request.provider,
+        model=request.model,
+        language=request.language,
         repo_type=request.repo_type,
         access_token=request.access_token,
-        excluded_dirs=excluded_dirs,
-        excluded_files=excluded_files,
-        included_dirs=included_dirs,
-        included_files=included_files,
+        excluded_dirs=request.excluded_dirs,
+        excluded_files=request.excluded_files,
+        included_dirs=request.included_dirs,
+        included_files=request.included_files,
     )
 
-    logger.info("=== Direct PDF Export: Phase 2 — LLM Summary ===")
-    summary_text = await phase2_analogy(semantics, request.provider, request.model, request.language)
+    analyzed = await analyze_repo_content(analysis_request)
+    _print_analyzed_content(analyzed, "PDF (direct)")
 
-    # Free semantics string before rendering
-    del semantics
-    import gc
-    gc.collect()
-
-    logger.info("=== Direct PDF Export: Phase 3 — PDF Rendering ===")
-    pdf_bytes = phase3_render_pdf(summary_text, repo_name)
-
+    pdf_bytes = render_pdf_from_analyzed(analyzed)
     logger.info("Direct PDF export complete — %d bytes", len(pdf_bytes))
     return pdf_bytes
