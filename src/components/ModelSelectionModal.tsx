@@ -3,7 +3,6 @@
 import React, {useEffect, useState} from 'react';
 import {useLanguage} from '@/contexts/LanguageContext';
 import UserSelector from './UserSelector';
-import WikiTypeSelector from './WikiTypeSelector';
 import TokenInput from './TokenInput';
 
 interface ModelSelectionModalProps {
@@ -19,10 +18,6 @@ interface ModelSelectionModalProps {
   setCustomModel: (value: string) => void;
   onApply: (token?: string) => void;
 
-  // Wiki type options
-  isComprehensiveView: boolean;
-  setIsComprehensiveView: (value: boolean) => void;
-
   // File filter options - optional
   excludedDirs?: string;
   setExcludedDirs?: (value: string) => void;
@@ -33,7 +28,6 @@ interface ModelSelectionModalProps {
   includedFiles?: string;
   setIncludedFiles?: (value: string) => void;
   showFileFilters?: boolean;
-  showWikiType: boolean;
   
   // Token input for refresh
   showTokenInput?: boolean;
@@ -57,8 +51,6 @@ export default function ModelSelectionModal({
   customModel,
   setCustomModel,
   onApply,
-  isComprehensiveView,
-  setIsComprehensiveView,
   excludedDirs = '',
   setExcludedDirs,
   excludedFiles = '',
@@ -72,7 +64,6 @@ export default function ModelSelectionModal({
   authCode = '',
   setAuthCode,
   isAuthLoading,
-  showWikiType = true,
   showTokenInput = false,
   repositoryType = 'github',
 }: ModelSelectionModalProps) {
@@ -83,7 +74,6 @@ export default function ModelSelectionModal({
   const [localModel, setLocalModel] = useState(model);
   const [localIsCustomModel, setLocalIsCustomModel] = useState(isCustomModel);
   const [localCustomModel, setLocalCustomModel] = useState(customModel);
-  const [localIsComprehensiveView, setLocalIsComprehensiveView] = useState(isComprehensiveView);
   const [localExcludedDirs, setLocalExcludedDirs] = useState(excludedDirs);
   const [localExcludedFiles, setLocalExcludedFiles] = useState(excludedFiles);
   const [localIncludedDirs, setLocalIncludedDirs] = useState(includedDirs);
@@ -101,7 +91,6 @@ export default function ModelSelectionModal({
       setLocalModel(model);
       setLocalIsCustomModel(isCustomModel);
       setLocalCustomModel(customModel);
-      setLocalIsComprehensiveView(isComprehensiveView);
       setLocalExcludedDirs(excludedDirs);
       setLocalExcludedFiles(excludedFiles);
       setLocalIncludedDirs(includedDirs);
@@ -110,7 +99,7 @@ export default function ModelSelectionModal({
       setLocalAccessToken('');
       setShowTokenSection(showTokenInput);
     }
-  }, [isOpen, provider, model, isCustomModel, customModel, isComprehensiveView, excludedDirs, excludedFiles, includedDirs, includedFiles, repositoryType, showTokenInput]);
+  }, [isOpen, provider, model, isCustomModel, customModel, excludedDirs, excludedFiles, includedDirs, includedFiles, repositoryType, showTokenInput]);
 
   // Handler for applying changes
   const handleApply = () => {
@@ -118,7 +107,6 @@ export default function ModelSelectionModal({
     setModel(localModel);
     setIsCustomModel(localIsCustomModel);
     setCustomModel(localCustomModel);
-    setIsComprehensiveView(localIsComprehensiveView);
     if (setExcludedDirs) setExcludedDirs(localExcludedDirs);
     if (setExcludedFiles) setExcludedFiles(localExcludedFiles);
     if (setIncludedDirs) setIncludedDirs(localIncludedDirs);
@@ -157,14 +145,6 @@ export default function ModelSelectionModal({
 
           {/* Modal body */}
           <div className="p-6">
-            {/* Wiki Type Selector */}
-            {
-              showWikiType && <WikiTypeSelector
-                    isComprehensiveView={localIsComprehensiveView}
-                    setIsComprehensiveView={setLocalIsComprehensiveView}
-                />
-            }
-
             {/* Divider */}
             <div className="my-4 border-t border-[var(--border-color)]/30"></div>
 
@@ -229,7 +209,7 @@ export default function ModelSelectionModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    {t.form?.authorizationRequired || 'Authentication is required to generate the wiki.'}
+                    {t.form?.authorizationRequired || 'Authentication is required.'}
                   </div>
                 </div>
             )}

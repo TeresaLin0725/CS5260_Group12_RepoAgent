@@ -1,17 +1,14 @@
 """
 Content Analyzer — Phase 1 (extraction) + Phase 2a (structured understanding)
 
-Produces a structured `AnalyzedContent` object (JSON-backed) from wiki pages
-or repo embeddings via a single LLM call.  Each export format (PDF, PPT,
+Produces a structured `AnalyzedContent` object (JSON-backed) from
+repo embeddings via a single LLM call.  Each export format (PDF, PPT,
 Video) then applies its own Phase 2b adapter on top of the structured data.
 
 Public API
 ----------
 - AnalyzedContent          – Pydantic model (structured semantic JSON)
-- WikiAnalysisRequest      – Input model for wiki-based exports
 - RepoAnalysisRequest      – Input model for repo-embedding-based exports
-- WikiPageInput            – A single wiki page
-- analyze_wiki_content()   – Wiki pages → AnalyzedContent
 - analyze_repo_content()   – Repo embeddings → AnalyzedContent
 """
 
@@ -392,26 +389,10 @@ class AnalyzedContent(BaseModel):
 # Request models
 # ---------------------------------------------------------------------------
 
-class WikiPageInput(BaseModel):
-    id: str
-    title: str
-    content: str
-    importance: str = "medium"
-
-
-class WikiAnalysisRequest(BaseModel):
-    repo_url: str = ""
-    repo_name: str = ""
-    provider: str = "ollama"
-    model: Optional[str] = None
-    language: str = "en"
-    pages: List[WikiPageInput] = Field(default_factory=list)
-
-
 class RepoAnalysisRequest(BaseModel):
     repo_url: str = ""
     repo_name: str = ""
-    provider: str = "ollama"
+    provider: str = "openai"
     model: Optional[str] = None
     language: str = "en"
     repo_type: str = "github"
@@ -557,23 +538,6 @@ def _build_analyzed_content(
 # ---------------------------------------------------------------------------
 # Phase 1: Content extraction (pure Python, no LLM)
 # ---------------------------------------------------------------------------
-
-def _extract_wiki_content(pages: List[WikiPageInput]) -> str:
-    """
-    Concatenate wiki pages into a single context string for the LLM.
-    High-importance pages first, then medium, then low.
-    """
-    priority = {"high": 0, "medium": 1, "low": 2}
-    sorted_pages = sorted(pages, key=lambda p: priority.get(p.importance, 1))
-
-    parts: list[str] = []
-    for p in sorted_pages:
-        parts.append(f"=== {p.title} (importance: {p.importance}) ===")
-        parts.append(p.content.strip())
-        parts.append("")
-
-    return "\n".join(parts)
-
 
 def _extract_repo_context(rag_instance: Any, repo_name: str) -> str:
     """
@@ -853,47 +817,6 @@ def _postprocess_summary(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Public entry points
 # ---------------------------------------------------------------------------
-
-async def analyze_wiki_content(request: WikiAnalysisRequest) -> AnalyzedContent:
-    """
-    Full Phase 1 + Phase 2a pipeline for wiki-page-based exports.
-
-    Phase 1: Extract & concatenate wiki pages (pure Python).
-    Phase 2a: Single LLM call → structured JSON → AnalyzedContent.
-    """
-    logger.info("analyze_wiki_content: repo=%s, pages=%d", request.repo_name, len(request.pages))
-
-    # Phase 1
-    context_text = _extract_wiki_content(request.pages)
-    if not context_text.strip():
-        logger.warning("No wiki content to analyse; returning empty AnalyzedContent")
-        return AnalyzedContent(repo_name=request.repo_name, repo_url=request.repo_url, language=request.language)
-
-    # Phase 2a
-    raw_text = await _run_llm_structured_analysis(
-        input_context=context_text,
-        repo_name=request.repo_name,
-        language=request.language,
-        provider=request.provider,
-        model=request.model,
-    )
-
-    raw_json = _extract_json_from_llm(raw_text)
-    analyzed = _build_analyzed_content(raw_json, request.repo_name, request.repo_url, request.language, raw_llm_text=raw_text)
-
-    # Post-process the summary_text via computed property is automatic,
-    # but also post-process raw_llm_text for fallback rendering
-    if analyzed.raw_llm_text:
-        analyzed.raw_llm_text = _postprocess_summary(analyzed.raw_llm_text)
-
-    logger.info(
-        "analyze_wiki_content complete: repo_type_hint=%s, modules=%d, has_overview=%s",
-        analyzed.repo_type_hint,
-        len(analyzed.key_modules),
-        bool(analyzed.project_overview),
-    )
-    return analyzed
-
 
 async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
     """

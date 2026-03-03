@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Deepwiki Open Source | Sheing Ng",
+  title: "RepoHelper",
   description: "Created by Sheing Ng",
 };
 

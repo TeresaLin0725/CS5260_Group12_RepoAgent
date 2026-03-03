@@ -89,7 +89,7 @@ async def generate_narration_script(
     # plumbing (provider dispatch) is identical.
     raw_text = await _call_llm_raw(
         prompt=prompt,
-        provider=provider or "ollama",
+        provider=provider or "openai",
         model=model,
     )
 

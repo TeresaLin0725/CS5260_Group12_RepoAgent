@@ -49,7 +49,7 @@ class ChatCompletionRequest(BaseModel):
 
     # model parameters
     provider: str = Field(
-        "google",
+        "openai",
         description="Model provider (google, openai, openrouter, ollama, bedrock, azure, dashscope)",
     )
     model: Optional[str] = Field(None, description="Model name for the specified provider")

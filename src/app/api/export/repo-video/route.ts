@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 
 /**
- * Proxy direct Video export requests (from repo embeddings, no wiki needed)
- * to the backend.
+ * Proxy direct Video export requests to the backend.
  */
 export async function POST(req: NextRequest) {
   try {

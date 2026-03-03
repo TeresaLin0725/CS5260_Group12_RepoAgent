@@ -36,14 +36,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/wiki_cache/:path*',
-        destination: `${TARGET_SERVER_BASE_URL}/api/wiki_cache/:path*`,
-      },
-      {
-        source: '/api/wiki_cache',
-        destination: `${TARGET_SERVER_BASE_URL}/api/wiki_cache`,
-      },
-      {
         source: '/local_repo/structure',
         destination: `${TARGET_SERVER_BASE_URL}/local_repo/structure`,
       },

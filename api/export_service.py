@@ -18,10 +18,7 @@ from pydantic import BaseModel, Field
 
 from api.content_analyzer import (
     AnalyzedContent,
-    WikiAnalysisRequest,
     RepoAnalysisRequest,
-    WikiPageInput,
-    analyze_wiki_content,
     analyze_repo_content,
 )
 
@@ -144,27 +141,6 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-
-async def export_wiki(
-    request: WikiAnalysisRequest,
-    fmt: ExportFormat = ExportFormat.PDF,
-) -> ExportResult:
-    """
-    Full pipeline: wiki pages → analysis → render to the requested format.
-    """
-    logger.info("Export wiki as %s for %s", fmt.value, request.repo_name or request.repo_url)
-
-    analyzed = await analyze_wiki_content(request)
-
-    # ── Print AnalyzedContent (LLM structured output) ──
-    _print_analyzed_content(analyzed, fmt)
-
-    renderer = _RENDERERS[fmt]
-    result = renderer(analyzed)
-
-    logger.info("Export complete — format=%s, %d bytes", fmt.value, len(result.content_bytes))
-    return result
-
 
 async def export_repo(
     request: RepoAnalysisRequest,

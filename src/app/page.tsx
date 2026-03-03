@@ -2,50 +2,46 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { FaWikipediaW, FaGithub, FaCoffee, FaTwitter } from 'react-icons/fa';
 import ThemeToggle from '@/components/theme-toggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
-import ProcessedProjects from '@/components/ProcessedProjects';
 import { extractUrlPath, extractUrlDomain } from '@/utils/urlDecoder';
-import { useProcessedProjects } from '@/hooks/useProcessedProjects';
 
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // Define the demo mermaid charts outside the component
 const DEMO_FLOW_CHART = `graph TD
-  A[Code Repository] --> B[DeepWiki]
+  A[Code Repository] --> B[RepoHelper]
   B --> C[Architecture Diagrams]
   B --> D[Component Relationships]
   B --> E[Data Flow]
   B --> F[Process Workflows]
 
-  style A fill:#f9d3a9,stroke:#d86c1f
-  style B fill:#d4a9f9,stroke:#6c1fd8
-  style C fill:#a9f9d3,stroke:#1fd86c
-  style D fill:#a9d3f9,stroke:#1f6cd8
-  style E fill:#f9a9d3,stroke:#d81f6c
-  style F fill:#d3f9a9,stroke:#6cd81f`;
+  style A fill:#d4e8ec,stroke:#4a8c99
+  style B fill:#b8d8e0,stroke:#3d7a8a
+  style C fill:#d0e8d4,stroke:#4a9960
+  style D fill:#cce0f0,stroke:#4a7c99
+  style E fill:#e0d4d8,stroke:#996070
+  style F fill:#d8e8cc,stroke:#6a9940`;
 
 const DEMO_SEQUENCE_CHART = `sequenceDiagram
   participant User
-  participant DeepWiki
+  participant RepoHelper
   participant GitHub
 
-  User->>DeepWiki: Enter repository URL
-  DeepWiki->>GitHub: Request repository data
-  GitHub-->>DeepWiki: Return repository data
-  DeepWiki->>DeepWiki: Process and analyze code
-  DeepWiki-->>User: Display wiki with diagrams
+  User->>RepoHelper: Enter repository URL
+  RepoHelper->>GitHub: Request repository data
+  GitHub-->>RepoHelper: Return repository data
+  RepoHelper->>RepoHelper: Process and analyze code
+  RepoHelper-->>User: Display results with diagrams
 
   %% Add a note to make text more visible
-  Note over User,GitHub: DeepWiki supports sequence diagrams for visualizing interactions`;
+  Note over User,GitHub: RepoHelper supports sequence diagrams for visualizing interactions`;
 
 export default function Home() {
   const router = useRouter();
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
-  const { projects, isLoading: projectsLoading } = useProcessedProjects();
 
   // Create a simple translation function
   const t = (key: string, params: Record<string, string | number> = {}): string => {
@@ -75,9 +71,9 @@ export default function Home() {
     return key;
   };
 
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/AsyncFuncAI/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('');
 
-  const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
+  const REPO_CONFIG_CACHE_KEY = 'repohelperRepoConfigCache';
 
   const loadConfigFromCache = (repoUrl: string) => {
     if (!repoUrl) return;
@@ -88,7 +84,6 @@ export default function Home() {
         const config = configs[repoUrl.trim()];
         if (config) {
           setSelectedLanguage(config.selectedLanguage || language);
-          setIsComprehensiveView(config.isComprehensiveView === undefined ? true : config.isComprehensiveView);
           setProvider(config.provider || '');
           setModel(config.model || '');
           setIsCustomModel(config.isCustomModel || false);
@@ -127,8 +122,7 @@ export default function Home() {
   const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
   const [customModel, setCustomModel] = useState<string>('');
 
-  // Wiki type state - default to comprehensive view
-  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
+  // Export configuration state
 
   const [excludedDirs, setExcludedDirs] = useState('');
   const [excludedFiles, setExcludedFiles] = useState('');
@@ -137,7 +131,6 @@ export default function Home() {
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket'>('github');
   const [accessToken, setAccessToken] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
 
   // Authentication state
@@ -163,7 +156,12 @@ export default function Home() {
   // Sync the language context with the selectedLanguage state
   useEffect(() => {
     setLanguage(selectedLanguage);
-  }, [selectedLanguage, setLanguage]);
+  }, [selectedLanguage]);
+
+  // Reverse sync: when language toggle changes context language, update local selectedLanguage
+  useEffect(() => {
+    setSelectedLanguage(language);
+  }, [language]);
 
   // Fetch authentication status on component mount
   useEffect(() => {
@@ -304,108 +302,7 @@ export default function Home() {
     return true;
   };
 
-  const handleGenerateWiki = async () => {
-
-    // Check authorization code
-    const validation = await validateAuthCode();
-    if(!validation) {
-      setError(`Failed to validate the authorization code`);
-      console.error(`Failed to validate the authorization code`);
-      setIsConfigModalOpen(false);
-      return;
-    }
-
-    // Prevent multiple submissions
-    if (isSubmitting) {
-      console.log('Form submission already in progress, ignoring duplicate click');
-      return;
-    }
-
-    try {
-      const currentRepoUrl = repositoryInput.trim();
-      if (currentRepoUrl) {
-        const existingConfigs = JSON.parse(localStorage.getItem(REPO_CONFIG_CACHE_KEY) || '{}');
-        const configToSave = {
-          selectedLanguage,
-          isComprehensiveView,
-          provider,
-          model,
-          isCustomModel,
-          customModel,
-          selectedPlatform,
-          excludedDirs,
-          excludedFiles,
-          includedDirs,
-          includedFiles,
-        };
-        existingConfigs[currentRepoUrl] = configToSave;
-        localStorage.setItem(REPO_CONFIG_CACHE_KEY, JSON.stringify(existingConfigs));
-      }
-    } catch (error) {
-      console.error('Error saving config to localStorage:', error);
-    }
-
-    setIsSubmitting(true);
-
-    // Parse repository input
-    const parsedRepo = parseRepositoryInput(repositoryInput);
-
-    if (!parsedRepo) {
-      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
-      setIsSubmitting(false);
-      return;
-    }
-
-    const { owner, repo, type, localPath } = parsedRepo;
-
-    // Store tokens in query params if they exist
-    const params = new URLSearchParams();
-    if (accessToken) {
-      params.append('token', accessToken);
-    }
-    // Always include the type parameter
-    params.append('type', (type == 'local' ? type : selectedPlatform) || 'github');
-    // Add local path if it exists
-    if (localPath) {
-      params.append('local_path', encodeURIComponent(localPath));
-    } else {
-      params.append('repo_url', encodeURIComponent(repositoryInput));
-    }
-    // Add model parameters
-    params.append('provider', provider);
-    params.append('model', model);
-    if (isCustomModel && customModel) {
-      params.append('custom_model', customModel);
-    }
-    // Add file filters configuration
-    if (excludedDirs) {
-      params.append('excluded_dirs', excludedDirs);
-    }
-    if (excludedFiles) {
-      params.append('excluded_files', excludedFiles);
-    }
-    if (includedDirs) {
-      params.append('included_dirs', includedDirs);
-    }
-    if (includedFiles) {
-      params.append('included_files', includedFiles);
-    }
-
-    // Add language parameter
-    params.append('language', selectedLanguage);
-
-    // Add comprehensive parameter
-    params.append('comprehensive', isComprehensiveView.toString());
-
-    const queryString = params.toString() ? `?${params.toString()}` : '';
-
-    // Navigate to the dynamic route
-    router.push(`/${owner}/${repo}${queryString}`);
-
-    // The isSubmitting state will be reset when the component unmounts during navigation
-  };
-
-  // Direct PDF generation handler (no wiki needed)
+  // Direct PDF generation handler
   const handleGeneratePdf = async () => {
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
@@ -438,7 +335,7 @@ export default function Home() {
         body: JSON.stringify({
           repo_url: repoUrl,
           repo_name: repoName,
-          provider: provider || 'ollama',
+          provider: provider || 'openai',
           model: (isCustomModel && customModel) ? customModel : (model || null),
           language: selectedLanguage,
           repo_type: repoType,
@@ -467,6 +364,8 @@ export default function Home() {
       }
 
       const blob = await response.blob();
+
+      // 1. Auto-download the PDF
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -475,6 +374,26 @@ export default function Home() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      // 2. Store PDF in sessionStorage and navigate to viewer page with AI assistant
+      const blobReader = new FileReader();
+      blobReader.onloadend = () => {
+        const base64 = (blobReader.result as string).split(',')[1];
+        sessionStorage.setItem('pdfViewerData', base64);
+        sessionStorage.setItem('pdfViewerFilename', filename);
+
+        const params = new URLSearchParams({
+          repoUrl: repoUrl,
+          repoType: repoType,
+          repoName: repoName,
+          provider: provider || 'openai',
+          model: (isCustomModel && customModel) ? customModel : (model || ''),
+          language: selectedLanguage,
+          ...(accessToken ? { token: accessToken } : {}),
+        });
+        router.push(`/pdf-viewer?${params.toString()}`);
+      };
+      blobReader.readAsDataURL(blob);
     } catch (err) {
       console.error('Error generating PDF:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error during PDF generation';
@@ -485,7 +404,7 @@ export default function Home() {
     }
   };
 
-  // Direct PPT generation handler (no wiki needed)
+  // Direct PPT generation handler
   const handleGeneratePpt = async () => {
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
@@ -517,7 +436,7 @@ export default function Home() {
         body: JSON.stringify({
           repo_url: repoUrl,
           repo_name: repoName,
-          provider: provider || 'ollama',
+          provider: provider || 'openai',
           model: (isCustomModel && customModel) ? customModel : (model || null),
           language: selectedLanguage,
           repo_type: repoType,
@@ -564,7 +483,7 @@ export default function Home() {
     }
   };
 
-  // Direct Video generation handler (no wiki needed)
+  // Direct Video generation handler
   const handleGenerateVideo = async () => {
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
@@ -596,7 +515,7 @@ export default function Home() {
         body: JSON.stringify({
           repo_url: repoUrl,
           repo_name: repoName,
-          provider: provider || 'ollama',
+          provider: provider || 'openai',
           model: (isCustomModel && customModel) ? customModel : (model || null),
           language: selectedLanguage,
           repo_type: repoType,
@@ -644,245 +563,227 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
-      <header className="max-w-6xl mx-auto mb-6 h-fit w-full">
-        <div
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-[var(--card-bg)] rounded-lg shadow-custom border border-[var(--border-color)] p-4">
-          <div className="flex items-center">
-            <div className="bg-[var(--accent-primary)] p-2 rounded-lg mr-3">
-              <FaWikipediaW className="text-2xl text-white" />
-            </div>
-            <div className="mr-6">
-              <h1 className="text-xl md:text-2xl font-bold text-[var(--accent-primary)]">{t('common.appName')}</h1>
-              <div className="flex flex-wrap items-baseline gap-x-2 md:gap-x-3 mt-0.5">
-                <p className="text-xs text-[var(--muted)] whitespace-nowrap">{t('common.tagline')}</p>
-                <div className="hidden md:inline-block">
-                  <Link href="/wiki/projects"
-                    className="text-xs font-medium text-[var(--accent-primary)] hover:text-[var(--highlight)] hover:underline whitespace-nowrap">
-                    {t('nav.wikiProjects')}
-                  </Link>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+      {/* Top navigation bar */}
+      <nav className="sticky top-0 z-30 backdrop-blur-md bg-[var(--background)]/80 border-b border-[var(--border-color)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-base font-semibold text-[var(--foreground)] tracking-tight">{t('common.appName')}</span>
+            <span className="hidden sm:inline text-xs text-[var(--muted)] ml-1">{t('common.tagline')}</span>
           </div>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
+        </div>
+      </nav>
 
-          <form onSubmit={handleFormSubmit} className="flex flex-col gap-3 w-full max-w-3xl">
-            {/* Repository URL input and submit button */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
+      {/* Hero section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--accent-primary)]/[0.04] to-transparent pointer-events-none" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center relative">
+          <h1 className="text-3xl sm:text-4xl font-bold text-[var(--foreground)] tracking-tight mb-3">
+            {t('home.welcome')}
+          </h1>
+          <p className="text-[var(--muted)] text-base sm:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+            {t('home.description')}
+          </p>
+
+          {/* Search-style input */}
+          <form onSubmit={handleFormSubmit} className="max-w-2xl mx-auto">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-[var(--accent-primary)]/10 rounded-xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500" />
+              <div className="relative flex items-center bg-[var(--card-bg)] rounded-xl border border-[var(--border-color)] shadow-custom group-focus-within:border-[var(--accent-primary)] transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--muted)] ml-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
                 <input
                   type="text"
                   value={repositoryInput}
                   onChange={handleRepositoryInputChange}
                   placeholder={t('form.repoPlaceholder') || "owner/repo, GitHub/GitLab/BitBucket URL, or local folder path"}
-                  className="input-japanese block w-full pl-10 pr-3 py-2.5 border-[var(--border-color)] rounded-lg bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  className="flex-1 bg-transparent px-3 py-3.5 text-[var(--foreground)] placeholder-[var(--muted)]/60 focus:outline-none text-sm"
                 />
-                {error && (
-                  <div className="text-[var(--highlight)] text-xs mt-1">
-                    {error}
+                <button
+                  type="submit"
+                  className="btn-japanese mr-1.5 px-5 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  {t('common.configure') || 'Configure'}
+                </button>
+              </div>
+            </div>
+            {error && (
+              <div className="text-[var(--highlight)] text-xs mt-2 text-left pl-2">
+                {error}
+              </div>
+            )}
+          </form>
+        </div>
+      </section>
+
+      {/* Configuration Modal */}
+      <ConfigurationModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        repositoryInput={repositoryInput}
+        selectedLanguage={selectedLanguage}
+        setSelectedLanguage={setSelectedLanguage}
+        supportedLanguages={supportedLanguages}
+        provider={provider}
+        setProvider={setProvider}
+        model={model}
+        setModel={setModel}
+        isCustomModel={isCustomModel}
+        setIsCustomModel={setIsCustomModel}
+        customModel={customModel}
+        setCustomModel={setCustomModel}
+        selectedPlatform={selectedPlatform}
+        setSelectedPlatform={setSelectedPlatform}
+        accessToken={accessToken}
+        setAccessToken={setAccessToken}
+        excludedDirs={excludedDirs}
+        setExcludedDirs={setExcludedDirs}
+        excludedFiles={excludedFiles}
+        setExcludedFiles={setExcludedFiles}
+        includedDirs={includedDirs}
+        setIncludedDirs={setIncludedDirs}
+        includedFiles={includedFiles}
+        setIncludedFiles={setIncludedFiles}
+        authRequired={authRequired}
+        authCode={authCode}
+        setAuthCode={setAuthCode}
+        isAuthLoading={isAuthLoading}
+        onGeneratePdf={handleGeneratePdf}
+        isPdfGenerating={isPdfGenerating}
+        pdfPhase={pdfPhase}
+        pdfError={pdfError}
+        onGeneratePpt={handleGeneratePpt}
+        isPptGenerating={isPptGenerating}
+        pptPhase={pptPhase}
+        pptError={pptError}
+        onGenerateVideo={handleGenerateVideo}
+        isVideoGenerating={isVideoGenerating}
+        videoPhase={videoPhase}
+        videoError={videoError}
+      />
+
+      {/* Main content */}
+      <main className="flex-1">
+        {/* Feature introduction module */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-px flex-1 bg-[var(--border-color)]" />
+            <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">{t('home.featuresTitle')}</span>
+            <div className="h-px flex-1 bg-[var(--border-color)]" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+                label: t('home.featureMultiModel'),
+                desc: t('home.featureMultiModelDesc'),
+              },
+              {
+                icon: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
+                label: t('home.featureCustomRepo'),
+                desc: t('home.featureCustomRepoDesc'),
+              },
+              {
+                icon: "M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z",
+                label: t('home.featureAiChat'),
+                desc: t('home.featureAiChatDesc'),
+              },
+              {
+                icon: "M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z",
+                label: t('home.featureExport'),
+                desc: t('home.featureExportDesc'),
+                badges: ['PDF', 'PPT', 'Video'],
+              },
+            ].map((item, i) => (
+              <div key={i} className="group bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)] p-4 hover:border-[var(--accent-primary)]/40 hover:shadow-custom transition-all duration-300">
+                <div className="w-9 h-9 rounded-lg bg-[var(--accent-primary)]/10 flex items-center justify-center mb-3 group-hover:bg-[var(--accent-primary)]/15 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-medium text-[var(--foreground)] mb-1">{item.label}</h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">{item.desc}</p>
+                {'badges' in item && item.badges && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {item.badges.map((badge, j) => (
+                      <span key={j} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]">
+                        {badge}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
-              <button
-                type="submit"
-                className="btn-japanese px-6 py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? t('common.processing') : t('common.generateWiki')}
-              </button>
-            </div>
-          </form>
-
-          {/* Configuration Modal */}
-          <ConfigurationModal
-            isOpen={isConfigModalOpen}
-            onClose={() => setIsConfigModalOpen(false)}
-            repositoryInput={repositoryInput}
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            supportedLanguages={supportedLanguages}
-            isComprehensiveView={isComprehensiveView}
-            setIsComprehensiveView={setIsComprehensiveView}
-            provider={provider}
-            setProvider={setProvider}
-            model={model}
-            setModel={setModel}
-            isCustomModel={isCustomModel}
-            setIsCustomModel={setIsCustomModel}
-            customModel={customModel}
-            setCustomModel={setCustomModel}
-            selectedPlatform={selectedPlatform}
-            setSelectedPlatform={setSelectedPlatform}
-            accessToken={accessToken}
-            setAccessToken={setAccessToken}
-            excludedDirs={excludedDirs}
-            setExcludedDirs={setExcludedDirs}
-            excludedFiles={excludedFiles}
-            setExcludedFiles={setExcludedFiles}
-            includedDirs={includedDirs}
-            setIncludedDirs={setIncludedDirs}
-            includedFiles={includedFiles}
-            setIncludedFiles={setIncludedFiles}
-            onSubmit={handleGenerateWiki}
-            isSubmitting={isSubmitting}
-            authRequired={authRequired}
-            authCode={authCode}
-            setAuthCode={setAuthCode}
-            isAuthLoading={isAuthLoading}
-            onGeneratePdf={handleGeneratePdf}
-            isPdfGenerating={isPdfGenerating}
-            pdfPhase={pdfPhase}
-            pdfError={pdfError}
-            onGeneratePpt={handleGeneratePpt}
-            isPptGenerating={isPptGenerating}
-            pptPhase={pptPhase}
-            pptError={pptError}
-            onGenerateVideo={handleGenerateVideo}
-            isVideoGenerating={isVideoGenerating}
-            videoPhase={videoPhase}
-            videoError={videoError}
-          />
-
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-6xl mx-auto w-full overflow-y-auto">
-        <div
-          className="min-h-full flex flex-col items-center p-8 pt-10 bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
-
-          {/* Conditionally show processed projects or welcome content */}
-          {!projectsLoading && projects.length > 0 ? (
-            <div className="w-full">
-              {/* Header section for existing projects */}
-              <div className="flex flex-col items-center w-full max-w-2xl mb-8 mx-auto">
-                <div className="flex flex-col sm:flex-row items-center mb-6 gap-4">
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-[var(--accent-primary)]/20 rounded-full blur-md"></div>
-                    <FaWikipediaW className="text-5xl text-[var(--accent-primary)] relative z-10" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <h2 className="text-2xl font-bold text-[var(--foreground)] font-serif mb-1">{t('projects.existingProjects')}</h2>
-                    <p className="text-[var(--accent-primary)] text-sm max-w-md">{t('projects.browseExisting')}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Show processed projects */}
-              <ProcessedProjects
-                showHeader={false}
-                maxItems={6}
-                messages={messages}
-                className="w-full"
-              />
-            </div>
-          ) : (
-            <>
-              {/* Header section */}
-              <div className="flex flex-col items-center w-full max-w-2xl mb-8">
-                <div className="flex flex-col sm:flex-row items-center mb-6 gap-4">
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-[var(--accent-primary)]/20 rounded-full blur-md"></div>
-                    <FaWikipediaW className="text-5xl text-[var(--accent-primary)] relative z-10" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <h2 className="text-2xl font-bold text-[var(--foreground)] font-serif mb-1">{t('home.welcome')}</h2>
-                    <p className="text-[var(--accent-primary)] text-sm max-w-md">{t('home.welcomeTagline')}</p>
-                  </div>
-                </div>
-
-                <p className="text-[var(--foreground)] text-center mb-8 text-lg leading-relaxed">
-                  {t('home.description')}
-                </p>
-              </div>
-
-          {/* Quick Start section - redesigned for better spacing */}
-          <div
-            className="w-full max-w-2xl mb-10 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-lg p-5">
-            <h3 className="text-sm font-semibold text-[var(--accent-primary)] mb-3 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {t('home.quickStart')}
-            </h3>
-            <p className="text-sm text-[var(--foreground)] mb-3">{t('home.enterRepoUrl')}</p>
-            <div className="grid grid-cols-1 gap-3 text-xs text-[var(--muted)]">
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://github.com/AsyncFuncAI/deepwiki-open
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://gitlab.com/gitlab-org/gitlab
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >AsyncFuncAI/deepwiki-open
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://bitbucket.org/atlassian/atlaskit
-              </div>
-            </div>
+            ))}
           </div>
+        </section>
 
-          {/* Visualization section - improved for better visibility */}
-          <div
-            className="w-full max-w-2xl mb-8 bg-[var(--background)]/70 rounded-lg p-6 border border-[var(--border-color)]">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-[var(--accent-primary)] flex-shrink-0 mt-0.5 sm:mt-0" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <h3 className="text-base font-semibold text-[var(--foreground)] font-serif">{t('home.advancedVisualization')}</h3>
-            </div>
-            <p className="text-sm text-[var(--foreground)] mb-5 leading-relaxed">
-              {t('home.diagramDescription')}
-            </p>
+        {/* Supported formats */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-8">
+          <h3 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-3">
+            {t('home.enterRepoUrl')}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              "https://github.com/owner/repo",
+              "https://gitlab.com/group/project",
+              "https://bitbucket.org/team/repo",
+              "owner/repo",
+            ].map((example, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setRepositoryInput(example)}
+                className="text-xs font-mono px-3 py-1.5 rounded-md bg-[var(--card-bg)] border border-[var(--border-color)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--accent-primary)]/40 transition-all cursor-pointer"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </section>
 
-            {/* Diagrams with improved layout */}
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-[var(--card-bg)] p-4 rounded-lg border border-[var(--border-color)] shadow-custom">
-                <h4 className="text-sm font-medium text-[var(--foreground)] mb-3 font-serif">{t('home.flowDiagram')}</h4>
+        {/* Diagram showcase — side by side on desktop */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-12">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-px flex-1 bg-[var(--border-color)]" />
+            <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">{t('home.advancedVisualization')}</span>
+            <div className="h-px flex-1 bg-[var(--border-color)]" />
+          </div>
+          <p className="text-sm text-[var(--muted)] text-center mb-6 max-w-xl mx-auto">
+            {t('home.diagramDescription')}
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)] overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--background)]/50">
+                <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">{t('home.flowDiagram')}</h4>
+              </div>
+              <div className="p-4">
                 <Mermaid chart={DEMO_FLOW_CHART} />
               </div>
-
-              <div className="bg-[var(--card-bg)] p-4 rounded-lg border border-[var(--border-color)] shadow-custom">
-                <h4 className="text-sm font-medium text-[var(--foreground)] mb-3 font-serif">{t('home.sequenceDiagram')}</h4>
+            </div>
+            <div className="bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)] overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border-color)] bg-[var(--background)]/50">
+                <h4 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider">{t('home.sequenceDiagram')}</h4>
+              </div>
+              <div className="p-4">
                 <Mermaid chart={DEMO_SEQUENCE_CHART} />
               </div>
             </div>
           </div>
-            </>
-          )}
-        </div>
+        </section>
       </main>
 
-      <footer className="max-w-6xl mx-auto mt-8 flex flex-col gap-4 w-full">
-        <div
-          className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[var(--card-bg)] rounded-lg p-4 border border-[var(--border-color)] shadow-custom">
-          <p className="text-[var(--muted)] text-sm font-serif">{t('footer.copyright')}</p>
-
-          <div className="flex items-center gap-6">
-            <div className="flex items-center space-x-5">
-              <a href="https://github.com/AsyncFuncAI/deepwiki-open" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaGithub className="text-xl" />
-              </a>
-              <a href="https://buymeacoffee.com/sheing" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaCoffee className="text-xl" />
-              </a>
-              <a href="https://x.com/sashimikun_void" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaTwitter className="text-xl" />
-              </a>
-            </div>
-            <ThemeToggle />
-          </div>
+      {/* Footer */}
+      <footer className="border-t border-[var(--border-color)] bg-[var(--card-bg)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+          <p className="text-[var(--muted)] text-xs">{t('footer.copyright')}</p>
         </div>
       </footer>
     </div>

@@ -63,7 +63,6 @@ const Ask: React.FC<AskProps> = ({
   const [isCustomSelectedModel, setIsCustomSelectedModel] = useState(isCustomModel);
   const [customSelectedModel, setCustomSelectedModel] = useState(customModel);
   const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
-  const [isComprehensiveView, setIsComprehensiveView] = useState(true);
 
   // Get language context for translations
   const { messages } = useLanguage();
@@ -702,7 +701,7 @@ const Ask: React.FC<AskProps> = ({
                     onChange={() => setDeepResearch(!deepResearch)}
                     className="sr-only"
                   />
-                  <div className={`w-10 h-5 rounded-full transition-colors ${deepResearch ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                  <div className={`w-10 h-5 rounded-full transition-colors ${deepResearch ? 'bg-teal-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
                   <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${deepResearch ? 'translate-x-5' : ''}`}></div>
                 </div>
               </label>
@@ -722,7 +721,7 @@ const Ask: React.FC<AskProps> = ({
               </div>
             </div>
             {deepResearch && (
-              <div className="text-xs text-purple-600 dark:text-purple-400">
+              <div className="text-xs text-teal-600 dark:text-teal-400">
                 Multi-turn research process enabled
                 {researchIteration > 0 && !researchComplete && ` (iteration ${researchIteration})`}
                 {researchComplete && ` (complete)`}
@@ -791,7 +790,7 @@ const Ask: React.FC<AskProps> = ({
               <button
                 id="ask-clear-conversation"
                 onClick={clearConversation}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 px-2 py-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 px-2 py-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
               >
                 Clear conversation
               </button>
@@ -805,9 +804,9 @@ const Ask: React.FC<AskProps> = ({
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <div className="animate-pulse flex space-x-1">
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-teal-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-teal-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-teal-600 rounded-full"></div>
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 {deepResearch
@@ -851,7 +850,7 @@ const Ask: React.FC<AskProps> = ({
                         <span>Investigating remaining questions...</span>
                       </div>
                       <div className="flex items-center">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                        <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
                         <span>Connecting findings from previous iterations...</span>
                       </div>
                     </>
@@ -883,7 +882,7 @@ const Ask: React.FC<AskProps> = ({
                   {researchIteration >= 5 && (
                     <>
                       <div className="flex items-center">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                        <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
                         <span>Finalizing comprehensive answer...</span>
                       </div>
                       <div className="flex items-center">
@@ -911,13 +910,10 @@ const Ask: React.FC<AskProps> = ({
         setIsCustomModel={setIsCustomSelectedModel}
         customModel={customSelectedModel}
         setCustomModel={setCustomSelectedModel}
-        isComprehensiveView={isComprehensiveView}
-        setIsComprehensiveView={setIsComprehensiveView}
         showFileFilters={false}
         onApply={() => {
           console.log('Model selection applied:', selectedProvider, selectedModel);
         }}
-        showWikiType={false}
         authRequired={false}
         isAuthLoading={false}
       />

@@ -1,9 +1,11 @@
 {
   "common": {
-    "appName": "DeepWiki-Open",
-    "tagline": "AI-powered documentation",
-    "generateWiki": "Generate Wiki",
+    "appName": "RepoHelper",
+    "tagline": "AI-powered code repository analysis assistant",
+    "configure": "Configure",
     "generatePdf": "Generate PDF",
+    "generatePpt": "Generate PPT",
+    "generateVideo": "Generate Video",
     "processing": "Processing...",
     "error": "Error",
     "submit": "Submit",
@@ -12,36 +14,36 @@
     "loading": "Loading..."
   },
   "loading": {
-    "initializing": "Initializing wiki generation...",
-    "fetchingStructure": "Fetching repository structure...",
-    "determiningStructure": "Determining wiki structure...",
-    "clearingCache": "Clearing server cache...",
     "preparingDownload": "Please wait while we prepare your download..."
   },
   "home": {
-    "welcome": "Welcome to DeepWiki-Open",
-    "welcomeTagline": "AI-powered documentation for your code repositories",
-    "description": "Generate comprehensive documentation from GitHub, GitLab, or Bitbucket repositories with just a few clicks.",
+    "welcome": "Welcome to RepoHelper",
+    "welcomeTagline": "AI-powered code repository analysis assistant",
+    "description": "Generate easy-to-understand PDFs, PPTs, and videos from GitHub, GitLab, or Bitbucket repositories with just a few clicks.",
     "quickStart": "Quick Start",
     "enterRepoUrl": "Enter a repository URL in one of these formats:",
     "advancedVisualization": "Advanced Visualization with Mermaid Diagrams",
-    "diagramDescription": "DeepWiki automatically generates interactive diagrams to help you understand code structure and relationships:",
+    "diagramDescription": "RepoHelper automatically generates interactive diagrams to help you understand code structure and relationships:",
     "flowDiagram": "Flow Diagram",
-    "sequenceDiagram": "Sequence Diagram"
+    "sequenceDiagram": "Sequence Diagram",
+    "featuresTitle": "What We Offer",
+    "featureMultiModel": "Multi-Model Support",
+    "featureMultiModelDesc": "Supports OpenAI, Google, OpenRouter, Ollama and more. Switch models freely to find the best fit.",
+    "featureCustomRepo": "Custom Repositories",
+    "featureCustomRepoDesc": "Analyze repos from GitHub, GitLab, Bitbucket, or local folders with flexible file filtering.",
+    "featureAiChat": "AI Chat",
+    "featureAiChatDesc": "Ask questions about your repository with an intelligent AI assistant powered by RAG.",
+    "featureExport": "Multi-Format Export",
+    "featureExportDesc": "Export analysis results as PDF reports, PPT slides, or overview videos."
   },
   "form": {
     "repository": "Repository",
-    "configureWiki": "Configure Wiki",
+    "configureExport": "Configure Export",
     "repoPlaceholder": "owner/repo or GitHub/GitLab/Bitbucket URL",
-    "wikiLanguage": "Wiki Language",
+    "wikiLanguage": "Language",
     "modelOptions": "Model Options",
     "modelProvider": "Model Provider",
     "modelSelection": "Model Selection",
-    "wikiType": "Wiki Type",
-    "comprehensive": "Comprehensive",
-    "concise": "Concise",
-    "comprehensiveDescription": "Detailed wiki with structured sections and more pages",
-    "conciseDescription": "Simplified wiki with fewer pages and essential information",
     "providerGoogle": "Google",
     "providerOpenAI": "OpenAI",
     "providerOpenRouter": "OpenRouter",
@@ -91,10 +93,10 @@
     "excludeModeDescription": "Specify paths to exclude from processing (default behavior)",
     "includeModeDescription": "Specify only the paths to include, ignoring all others",
     "authorizationCode": "Authorization Code",
-    "authorizationRequired": "Authentication is required to generate the wiki."
+    "authorizationRequired": "Authentication is required."
   },
   "footer": {
-    "copyright": "DeepWiki - AI-powered documentation for code repositories"
+    "copyright": "RepoHelper - AI-powered documentation for code repositories"
   },
   "ask": {
     "placeholder": "Ask a question about this repository...",
@@ -107,43 +109,34 @@
     "viewConclusion": "View Conclusion"
   },
   "repoPage": {
-    "refreshWiki": "Refresh Wiki",
-    "confirmRefresh": "Confirm Refresh",
-    "cancel": "Cancel",
     "home": "Home",
     "errorTitle": "Error",
     "errorMessageDefault": "Please check that your repository exists and is public. Valid formats are \"owner/repo\", \"https://github.com/owner/repo\", \"https://gitlab.com/owner/repo\", \"https://bitbucket.org/owner/repo\", or local folder paths like \"C:\\\\path\\\\to\\\\folder\" or \"/path/to/folder\".",
     "embeddingErrorDefault": "This error is related to the document embedding system used for analyzing your repository. Please verify your embedding model configuration, API keys, and try again. If the issue persists, consider switching to a different embedding provider in the model settings.",
     "backToHome": "Back to Home",
-    "exportWiki": "Export Wiki",
-    "exportAsMarkdown": "Export as Markdown",
-    "exportAsJson": "Export as JSON",
     "exportAsPdf": "Export PDF Report",
     "exportingPdf": "Generating PDF...",
     "exportAsPpt": "Export PPT Slides",
     "exportingPpt": "Generating PPT...",
     "exportAsVideo": "Export Video",
-    "exportingVideo": "Generating Video...",
-    "pages": "Pages",
-    "relatedFiles": "Related Files:",
-    "relatedPages": "Related Pages:",
-    "selectPagePrompt": "Select a page from the navigation to view its content",
-    "askAboutRepo": "Ask questions about this repository"
+    "exportingVideo": "Generating Video..."
   },
-  "nav": {
-    "wikiProjects": "Wiki Projects"
-  },
-  "projects": {
-    "title": "Processed Wiki Projects",
-    "searchPlaceholder": "Search projects by name, owner, or repository...",
-    "noProjects": "No projects found in the server cache. The cache might be empty or the server encountered an issue.",
-    "noSearchResults": "No projects match your search criteria.",
-    "processedOn": "Processed on:",
-    "loadingProjects": "Loading projects...",
-    "errorLoading": "Error loading projects:",
+  "nav": {},
+  "projects": {},
+  "pdfViewer": {
     "backToHome": "Back to Home",
-    "browseExisting": "Browse Existing Projects",
-    "existingProjects": "Existing Projects",
-    "recentProjects": "Recent Projects"
+    "download": "Download PDF",
+    "loading": "Loading PDF...",
+    "loadError": "Failed to load PDF. Please try generating it again.",
+    "noPdf": "No PDF found. Please generate a PDF report first.",
+    "goGenerate": "Go Generate PDF"
+  },
+  "floatingChat": {
+    "title": "AI Assistant",
+    "toggleChat": "AI Assistant",
+    "placeholder": "Ask about this repository...",
+    "emptyState": "Ask anything about this repository!",
+    "clearChat": "Clear chat",
+    "changeModel": "Change model"
   }
 }

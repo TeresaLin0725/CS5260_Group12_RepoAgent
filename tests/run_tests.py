@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-Test runner for DeepWiki project.
+Test runner for the RepoHelper project.
 
-This script provides a unified way to run all tests or specific test categories.
+Usage:
+    python tests/run_tests.py              # run all tests
+    python tests/run_tests.py --unit       # unit tests only
+    python tests/run_tests.py --integration
+    python tests/run_tests.py --api
+    python tests/run_tests.py --check-env  # just check the environment
 """
 
 import os
@@ -11,153 +16,81 @@ import argparse
 import subprocess
 from pathlib import Path
 
-# Add the project root to the Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-def run_test_file(test_file):
-    """Run a single test file and return success status."""
-    print(f"\n🧪 Running {test_file}...")
-    try:
-        result = subprocess.run([sys.executable, str(test_file)], 
-                              capture_output=True, text=True, cwd=project_root)
-        
-        if result.returncode == 0:
-            print(f"✅ {test_file.name} - PASSED")
-            if result.stdout:
-                print(f"📄 Output:\n{result.stdout}")
-            return True
-        else:
-            print(f"❌ {test_file.name} - FAILED")
-            if result.stderr:
-                print(f"💥 Error:\n{result.stderr}")
-            if result.stdout:
-                print(f"📄 Output:\n{result.stdout}")
-            return False
-    except Exception as e:
-        print(f"💥 {test_file.name} - ERROR: {e}")
-        return False
-
-def run_tests(test_dirs):
-    """Run all tests in the specified directories."""
-    total_tests = 0
-    passed_tests = 0
-    failed_tests = []
-    
-    for test_dir in test_dirs:
-        test_path = Path(__file__).parent / test_dir
-        if not test_path.exists():
-            print(f"⚠️  Warning: Test directory {test_dir} not found")
-            continue
-            
-        test_files = list(test_path.glob("test_*.py"))
-        if not test_files:
-            print(f"⚠️  No test files found in {test_dir}")
-            continue
-            
-        print(f"\n📁 Running {test_dir} tests...")
-        for test_file in sorted(test_files):
-            total_tests += 1
-            if run_test_file(test_file):
-                passed_tests += 1
-            else:
-                failed_tests.append(str(test_file))
-    
-    # Print summary
-    print(f"\n{'='*50}")
-    print(f"📊 TEST SUMMARY")
-    print(f"{'='*50}")
-    print(f"Total tests: {total_tests}")
-    print(f"Passed: {passed_tests}")
-    print(f"Failed: {len(failed_tests)}")
-    
-    if failed_tests:
-        print(f"\n❌ Failed tests:")
-        for test in failed_tests:
-            print(f"  - {test}")
-        print(f"\n💡 Tip: Run individual failed tests for more details")
-        return False
-    else:
-        print(f"\n🎉 All tests passed!")
-        return True
 
 def check_environment():
-    """Check if required environment variables and dependencies are available."""
-    print("🔧 Checking test environment...")
-    
-    # Check for .env file
+    """Print environment information useful for debugging test failures."""
+    print("Checking test environment...")
+
+    # .env
     env_file = project_root / ".env"
     if env_file.exists():
-        print("✅ .env file found")
-        from dotenv import load_dotenv
-        load_dotenv(env_file)
+        print("  .env file found")
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(env_file)
+        except ImportError:
+            pass
     else:
-        print("⚠️  No .env file found - some tests may fail without API keys")
-    
-    # Check for API keys
-    api_keys = {
-        "GOOGLE_API_KEY": "Google AI embedder tests",
-        "OPENAI_API_KEY": "OpenAI integration tests"
-    }
-    
-    for key, purpose in api_keys.items():
-        if os.getenv(key):
-            print(f"✅ {key} is set ({purpose})")
-        else:
-            print(f"⚠️  {key} not set - {purpose} may fail")
-    
-    # Check Python dependencies
-    try:
-        import adalflow
-        print("✅ adalflow available")
-    except ImportError:
-        print("❌ adalflow not available - install with: pip install adalflow")
-    
-    try:
-        import google.generativeai
-        print("✅ google-generativeai available")
-    except ImportError:
-        print("❌ google-generativeai not available - install with: pip install google-generativeai")
-    
-    try:
-        import requests
-        print("✅ requests available")
-    except ImportError:
-        print("❌ requests not available - install with: pip install requests")
+        print("  .env file NOT found – some tests may be skipped")
+
+    # API keys
+    for key, purpose in {
+        "GOOGLE_API_KEY": "Google AI embedder live tests",
+        "OPENAI_API_KEY": "OpenAI embedder live tests",
+    }.items():
+        status = "set" if os.getenv(key) else "NOT set"
+        print(f"  {key}: {status} ({purpose})")
+
+    # Python packages
+    for pkg in ("adalflow", "google.generativeai", "requests", "pytest"):
+        try:
+            __import__(pkg)
+            print(f"  {pkg}: available")
+        except ImportError:
+            print(f"  {pkg}: MISSING")
+
+
+def run_pytest(test_dirs: list[str], verbose: bool = False):
+    """Run pytest on the given directories."""
+    cmd = [sys.executable, "-m", "pytest"]
+    if verbose:
+        cmd.append("-v")
+    cmd.extend(test_dirs)
+    result = subprocess.run(cmd, cwd=project_root)
+    return result.returncode == 0
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Run DeepWiki tests")
-    parser.add_argument("--unit", action="store_true", help="Run only unit tests")
-    parser.add_argument("--integration", action="store_true", help="Run only integration tests")
-    parser.add_argument("--api", action="store_true", help="Run only API tests")
-    parser.add_argument("--check-env", action="store_true", help="Only check environment setup")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
-    
+    parser = argparse.ArgumentParser(description="Run RepoHelper tests")
+    parser.add_argument("--unit", action="store_true", help="Run unit tests only")
+    parser.add_argument("--integration", action="store_true", help="Run integration tests only")
+    parser.add_argument("--api", action="store_true", help="Run API tests only")
+    parser.add_argument("--check-env", action="store_true", help="Only check environment")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
-    
-    # Check environment first
+
     check_environment()
-    
+
     if args.check_env:
         return
-    
-    # Determine which tests to run
-    test_dirs = []
+
+    dirs: list[str] = []
     if args.unit:
-        test_dirs.append("unit")
+        dirs.append("tests/unit")
     if args.integration:
-        test_dirs.append("integration")
+        dirs.append("tests/integration")
     if args.api:
-        test_dirs.append("api")
-    
-    # If no specific category selected, run all
-    if not test_dirs:
-        test_dirs = ["unit", "integration", "api"]
-    
-    print(f"\n🚀 Starting test run for: {', '.join(test_dirs)}")
-    
-    success = run_tests(test_dirs)
+        dirs.append("tests/api")
+    if not dirs:
+        dirs = ["test", "tests/unit", "tests/integration", "tests/api"]
+
+    print(f"\nRunning tests in: {', '.join(dirs)}")
+    success = run_pytest(dirs, verbose=args.verbose)
     sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()

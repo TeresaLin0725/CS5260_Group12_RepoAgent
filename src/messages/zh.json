@@ -1,9 +1,11 @@
 {
   "common": {
-    "appName": "DeepWiki-Open",
-    "tagline": "AI驱动的文档",
-    "generateWiki": "生成Wiki",
+    "appName": "RepoHelper",
+    "tagline": "AI驱动的代码仓库分析助手",
+    "configure": "配置",
     "generatePdf": "生成PDF",
+    "generatePpt": "生成PPT",
+    "generateVideo": "生成视频",
     "processing": "处理中...",
     "error": "错误",
     "submit": "提交",
@@ -12,36 +14,36 @@
     "loading": "加载中..."
   },
   "loading": {
-    "initializing": "初始化Wiki生成...",
-    "fetchingStructure": "获取仓库结构...",
-    "determiningStructure": "验证Wiki结构...",
-    "clearingCache": "清除服务器缓存...",
     "preparingDownload": "请等待，我们正在准备您的下载..."
   },
   "home": {
-    "welcome": "欢迎使用DeepWiki",
-    "welcomeTagline": "为代码仓库提供AI驱动的文档",
-    "description": "只需一次点击，即可从GitHub、GitLab或Bitbucket仓库生成全面的文档。",
+    "welcome": "欢迎使用RepoHelper",
+    "welcomeTagline": "AI驱动的代码仓库分析助手",
+    "description": "只需一次点击，即可从GitHub、GitLab或Bitbucket仓库生成易于理解的PDF、PPT、VIDEO。",
     "quickStart": "快速开始",
     "enterRepoUrl": "请以下列格式之一输入仓库URL：",
     "advancedVisualization": "使用Mermaid图表进行高级可视化",
-    "diagramDescription": "DeepWiki自动生成交互式图表，帮助您理解代码结构和关系：",
+    "diagramDescription": "RepoHelper自动生成交互式图表，帮助您理解代码结构和关系：",
     "flowDiagram": "流程图",
-    "sequenceDiagram": "序列图"
+    "sequenceDiagram": "序列图",
+    "featuresTitle": "核心功能",
+    "featureMultiModel": "多模型支持",
+    "featureMultiModelDesc": "支持 OpenAI、Google、OpenRouter、Ollama 等多种模型，自由切换以找到最佳方案。",
+    "featureCustomRepo": "自定义仓库",
+    "featureCustomRepoDesc": "分析来自 GitHub、GitLab、Bitbucket 或本地文件夹的仓库，支持灵活的文件过滤。",
+    "featureAiChat": "AI 对话",
+    "featureAiChatDesc": "基于 RAG 的智能 AI 助手，随时提问了解仓库详情。",
+    "featureExport": "多格式导出",
+    "featureExportDesc": "将分析结果导出为 PDF 报告、PPT 演示文稿或视频概览。"
   },
   "form": {
     "repository": "仓库",
-    "configureWiki": "配置Wiki",
+    "configureExport": "配置导出",
     "repoPlaceholder": "所有者/仓库或GitHub/GitLab/Bitbucket URL",
-    "wikiLanguage": "Wiki语言",
+    "wikiLanguage": "语言",
     "modelOptions": "模型选项",
     "modelProvider": "模型提供商",
     "modelSelection": "模型选择",
-    "wikiType": "Wiki类型",
-    "comprehensive": "全面型",
-    "concise": "简洁型",
-    "comprehensiveDescription": "包含结构化章节和更多页面的详细Wiki",
-    "conciseDescription": "页面更少，仅包含核心信息的简化Wiki",
     "providerGoogle": "Google",
     "providerOpenAI": "OpenAI",
     "providerOpenRouter": "OpenRouter",
@@ -82,10 +84,10 @@
     "hideDefault": "隐藏默认配置",
     "viewDefault": "查看默认配置",
     "authorizationCode": "授权码",
-    "authorizationRequired": "生成wiki页面需要填写授权码"
+    "authorizationRequired": "需要填写授权码"
   },
   "footer": {
-    "copyright": "DeepWiki - 为代码仓库提供AI驱动的文档"
+    "copyright": "RepoHelper - 为代码仓库提供AI驱动的文档"
   },
   "ask": {
     "placeholder": "询问关于此仓库的问题...",
@@ -98,43 +100,34 @@
     "viewConclusion": "查看结论"
   },
   "repoPage": {
-    "refreshWiki": "刷新Wiki",
-    "confirmRefresh": "确认刷新",
-    "cancel": "取消",
     "home": "首页",
     "errorTitle": "错误",
     "errorMessageDefault": "请检查您的仓库是否存在且为公开仓库。有效格式为\"owner/repo\", \"https://github.com/owner/repo\", \"https://gitlab.com/owner/repo\", \"https://bitbucket.org/owner/repo\", 或本地文件夹路径，如\"C:\\\\path\\\\to\\\\folder\"或\"/path/to/folder\"。",
     "embeddingErrorDefault": "这个错误与用于分析您的仓库的文件嵌入系统有关。请检查您的嵌入模型配置、API 密钥，并重试。如果问题持续存在，请考虑在模型设置中切换到不同的嵌入提供者。",
     "backToHome": "返回首页",
-    "exportWiki": "导出Wiki",
-    "exportAsMarkdown": "导出为Markdown",
-    "exportAsJson": "导出为JSON",
     "exportAsPdf": "导出PDF技术报告",
     "exportingPdf": "正在生成PDF...",
     "exportAsPpt": "导出PPT演示文稿",
     "exportingPpt": "正在生成PPT...",
     "exportAsVideo": "导出视频概览",
-    "exportingVideo": "正在生成视频...",
-    "pages": "页面",
-    "relatedFiles": "相关文件：",
-    "relatedPages": "相关页面：",
-    "selectPagePrompt": "从导航中选择一个页面以查看其内容",
-    "askAboutRepo": "询问关于此仓库的问题"
+    "exportingVideo": "正在生成视频..."
   },
-  "nav": {
-    "wikiProjects": "项目列表"
-  },
-  "projects": {
-    "title": "已处理的Wiki项目",
-    "searchPlaceholder": "按项目名称、所有者或仓库搜索...",
-    "noProjects": "服务器缓存中未找到项目。缓存可能为空或服务器遇到问题。",
-    "noSearchResults": "没有项目符合您的搜索条件。",
-    "processedOn": "处理时间:",
-    "loadingProjects": "正在加载项目...",
-    "errorLoading": "加载项目时出错:",
+  "nav": {},
+  "projects": {},
+  "pdfViewer": {
     "backToHome": "返回首页",
-    "browseExisting": "浏览现有项目",
-    "existingProjects": "现有项目",
-    "recentProjects": "最近项目"
+    "download": "下载PDF",
+    "loading": "正在加载PDF...",
+    "loadError": "PDF加载失败，请重新生成。",
+    "noPdf": "未找到PDF，请先生成PDF报告。",
+    "goGenerate": "去生成PDF"
+  },
+  "floatingChat": {
+    "title": "AI助手",
+    "toggleChat": "AI助手",
+    "placeholder": "询问关于此仓库的问题...",
+    "emptyState": "问我任何关于这个仓库的问题！",
+    "clearChat": "清除对话",
+    "changeModel": "切换模型"
   }
 }

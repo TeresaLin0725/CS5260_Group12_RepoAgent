@@ -30,7 +30,7 @@ const Markdown: React.FC<MarkdownProps> = ({ content }) => {
                 text.includes('Thought') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
                 text.includes('Action') ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                 text.includes('Observation') ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
-                text.includes('Answer') ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' :
+                text.includes('Answer') ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300' :
                 'dark:text-white'
               }`}
               {...props}
@@ -61,7 +61,7 @@ const Markdown: React.FC<MarkdownProps> = ({ content }) => {
       return (
         <a
           href={href}
-          className="text-purple-600 dark:text-purple-400 hover:underline font-medium"
+          className="text-[var(--link-color)] dark:text-[var(--link-color)] hover:underline font-medium"
           target="_blank"
           rel="noopener noreferrer"
           {...props}

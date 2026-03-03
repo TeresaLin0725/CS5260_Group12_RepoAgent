@@ -18,10 +18,6 @@ interface ConfigurationModalProps {
   setSelectedLanguage: (value: string) => void;
   supportedLanguages: Record<string, string>;
 
-  // Wiki type options
-  isComprehensiveView: boolean;
-  setIsComprehensiveView: (value: boolean) => void;
-
   // Model selection
   provider: string;
   setProvider: (value: string) => void;
@@ -50,29 +46,25 @@ interface ConfigurationModalProps {
   includedFiles: string;
   setIncludedFiles: (value: string) => void;
 
-  // Form submission
-  onSubmit: () => void;
-  isSubmitting: boolean;
-
   // Authentication
   authRequired?: boolean;
   authCode?: string;
   setAuthCode?: (code: string) => void;
   isAuthLoading?: boolean;
 
-  // Direct PDF generation (no wiki needed)
+  // Direct PDF generation
   onGeneratePdf?: () => void;
   isPdfGenerating?: boolean;
   pdfPhase?: string | null;
   pdfError?: string | null;
 
-  // Direct PPT generation (no wiki needed)
+  // Direct PPT generation
   onGeneratePpt?: () => void;
   isPptGenerating?: boolean;
   pptPhase?: string | null;
   pptError?: string | null;
 
-  // Direct Video generation (no wiki needed)
+  // Direct Video generation
   onGenerateVideo?: () => void;
   isVideoGenerating?: boolean;
   videoPhase?: string | null;
@@ -86,8 +78,6 @@ export default function ConfigurationModal({
   selectedLanguage,
   setSelectedLanguage,
   supportedLanguages,
-  isComprehensiveView,
-  setIsComprehensiveView,
   provider,
   setProvider,
   model,
@@ -108,8 +98,6 @@ export default function ConfigurationModal({
   setIncludedDirs,
   includedFiles,
   setIncludedFiles,
-  onSubmit,
-  isSubmitting,
   authRequired,
   authCode,
   setAuthCode,
@@ -141,7 +129,7 @@ export default function ConfigurationModal({
           {/* Modal header with close button */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
             <h3 className="text-lg font-medium text-[var(--accent-primary)]">
-              <span className="text-[var(--accent-primary)]">{t.form?.configureWiki || 'Configure Wiki'}</span>
+              <span className="text-[var(--accent-primary)]">{t.form?.configureExport || 'Configure Export'}</span>
             </h3>
             <button
               type="button"
@@ -169,7 +157,7 @@ export default function ConfigurationModal({
             {/* Language selection */}
             <div className="mb-4">
               <label htmlFor="language-select" className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                {t.form?.wikiLanguage || 'Wiki Language'}
+                {t.form?.wikiLanguage || t.form?.language || 'Language'}
               </label>
               <select
                 id="language-select"
@@ -181,62 +169,6 @@ export default function ConfigurationModal({
                   Object.entries(supportedLanguages).map(([key, value])=> <option key={key} value={key}>{value}</option>)
                 }
               </select>
-            </div>
-
-            {/* Wiki Type Selector - more compact version */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                {t.form?.wikiType || 'Wiki Type'}
-              </label>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsComprehensiveView(true)}
-                  className={`flex-1 flex items-center justify-between p-2 rounded-md border transition-colors ${
-                    isComprehensiveView
-                      ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]'
-                      : 'bg-[var(--background)]/50 border-[var(--border-color)] text-[var(--foreground)] hover:bg-[var(--background)]'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <div className="text-left">
-                      <div className="font-medium text-sm">{t.form?.comprehensive || 'Comprehensive'}</div>
-                      <div className="text-xs opacity-80">
-                        {t.form?.comprehensiveDescription || 'Detailed wiki with structured sections'}
-                      </div>
-                    </div>
-                  </div>
-                  {isComprehensiveView && (
-                    <div className="ml-2 h-4 w-4 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-[var(--accent-primary)]"></div>
-                    </div>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsComprehensiveView(false)}
-                  className={`flex-1 flex items-center justify-between p-2 rounded-md border transition-colors ${
-                    !isComprehensiveView
-                      ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]'
-                      : 'bg-[var(--background)]/50 border-[var(--border-color)] text-[var(--foreground)] hover:bg-[var(--background)]'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <div className="text-left">
-                      <div className="font-medium text-sm">{t.form?.concise || 'Concise'}</div>
-                      <div className="text-xs opacity-80">
-                        {t.form?.conciseDescription || 'Simplified wiki with fewer pages'}
-                      </div>
-                    </div>
-                  </div>
-                  {!isComprehensiveView && (
-                    <div className="ml-2 h-4 w-4 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center">
-                      <div className="h-2 w-2 rounded-full bg-[var(--accent-primary)]"></div>
-                    </div>
-                  )}
-                </button>
-              </div>
             </div>
 
             {/* Model Selector */}
@@ -298,7 +230,7 @@ export default function ConfigurationModal({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                   {t.form?.authorizationRequired || 'Authentication is required to generate the wiki.'}
+                   {t.form?.authorizationRequired || 'Authentication is required.'}
                 </div>
               </div>
             )}
@@ -333,7 +265,7 @@ export default function ConfigurationModal({
                 <button
                   type="button"
                   onClick={onGeneratePdf}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating || isSubmitting}
+                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaFilePdf className="text-xs" />
@@ -346,7 +278,7 @@ export default function ConfigurationModal({
                 <button
                   type="button"
                   onClick={onGeneratePpt}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating || isSubmitting}
+                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaFilePowerpoint className="text-xs" />
@@ -359,7 +291,7 @@ export default function ConfigurationModal({
                 <button
                   type="button"
                   onClick={onGenerateVideo}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating || isSubmitting}
+                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaFileVideo className="text-xs" />
@@ -368,14 +300,6 @@ export default function ConfigurationModal({
                     : (t.common?.generateVideo || 'Generate Video')}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={onSubmit}
-                disabled={isSubmitting || isPdfGenerating || isPptGenerating || isVideoGenerating}
-                className="px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-[var(--accent-primary)]/90 text-white hover:bg-[var(--accent-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (t.common?.processing || 'Processing...') : (t.common?.generateWiki || 'Generate Wiki')}
-              </button>
             </div>
           </div>
         </div>

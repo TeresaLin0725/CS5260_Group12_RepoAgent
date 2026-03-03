@@ -567,7 +567,7 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
               className="flex items-center text-[var(--foreground)] hover:text-[var(--accent-primary)] transition-colors"
             >
               <FaArrowLeft className="mr-2" />
-              <span>{messages.workshop?.backToWiki || 'Back to Wiki'}</span>
+              <span>{messages.workshop?.backToWiki || 'Back'}</span>
             </Link>
             <h1 className="text-xl font-bold text-[var(--accent-primary)]">
               {messages.workshop?.title || 'Workshop'}: {repo}

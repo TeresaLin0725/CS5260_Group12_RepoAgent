@@ -5,6 +5,7 @@ import Ask from '@/components/Ask';
 import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
 import ThemeToggle from '@/components/theme-toggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import WikiTreeView from '@/components/WikiTreeView';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
@@ -89,7 +90,7 @@ const wikiStyles = `
 
 // Helper function to generate cache key for localStorage
 const getCacheKey = (owner: string, repo: string, repoType: string, language: string, isComprehensive: boolean = true): string => {
-  return `deepwiki_cache_${repoType}_${owner}_${repo}_${language}_${isComprehensive ? 'comprehensive' : 'concise'}`;
+  return `repohelper_cache_${repoType}_${owner}_${repo}_${language}_${isComprehensive ? 'comprehensive' : 'concise'}`;
 };
 
 // Helper function to add tokens and other parameters to request body
@@ -1591,7 +1592,7 @@ IMPORTANT:
           repo_url: repoUrl,
           repo_name: repoName,
           pages: pagesToExport,
-          provider: selectedProviderState || 'ollama',
+          provider: selectedProviderState || 'openai',
           model: selectedModelState || null,
           language: language,
         }),
@@ -1666,7 +1667,7 @@ IMPORTANT:
           repo_url: repoUrl,
           repo_name: repoName,
           pages: pagesToExport,
-          provider: selectedProviderState || 'ollama',
+          provider: selectedProviderState || 'openai',
           model: selectedModelState || null,
           language: language,
         }),
@@ -1741,7 +1742,7 @@ IMPORTANT:
           repo_url: repoUrl,
           repo_name: repoName,
           pages: pagesToExport,
-          provider: selectedProviderState || 'ollama',
+          provider: selectedProviderState || 'openai',
           model: selectedModelState || null,
           language: language,
         }),
@@ -2151,22 +2152,23 @@ IMPORTANT:
   const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
 
   return (
-    <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
+    <div className="h-screen bg-[var(--background)] flex flex-col">
       <style>{wikiStyles}</style>
 
-      <header className="max-w-[90%] xl:max-w-[1400px] mx-auto mb-8 h-fit w-full">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-[var(--accent-primary)] hover:text-[var(--highlight)] flex items-center gap-1.5 transition-colors border-b border-[var(--border-color)] hover:border-[var(--accent-primary)] pb-0.5">
-              <FaHome /> {messages.repoPage?.home || 'Home'}
+      {/* Top navigation bar — same style as home page */}
+      <nav className="sticky top-0 z-30 backdrop-blur-md bg-[var(--background)]/80 border-b border-[var(--border-color)]">
+        <div className="max-w-[90%] xl:max-w-[1400px] mx-auto h-12 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-[var(--accent-primary)] hover:text-[var(--highlight)] flex items-center gap-1.5 transition-colors text-sm">
+              <FaHome className="text-xs" /> {messages.repoPage?.home || 'Home'}
             </Link>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="flex-1 max-w-[90%] xl:max-w-[1400px] mx-auto overflow-y-auto">
+      <main className="flex-1 max-w-[90%] xl:max-w-[1400px] mx-auto overflow-y-auto py-4">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-8 bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
+          <div className="flex flex-col items-center justify-center p-12 bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)]">
             <div className="relative mb-6">
               <div className="absolute -inset-4 bg-[var(--accent-primary)]/10 rounded-full blur-md animate-pulse"></div>
               <div className="relative flex items-center justify-center">
@@ -2248,9 +2250,9 @@ IMPORTANT:
             </div>
           </div>
         ) : wikiStructure ? (
-          <div className="h-full overflow-y-auto flex flex-col lg:flex-row gap-4 w-full overflow-hidden bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
+          <div className="h-full overflow-y-auto flex flex-col lg:flex-row gap-0 w-full overflow-hidden bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)]">
             {/* Wiki Navigation */}
-            <div className="h-full w-full lg:w-[280px] xl:w-[320px] flex-shrink-0 bg-[var(--background)]/50 rounded-lg rounded-r-none p-5 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto">
+            <div className="h-full w-full lg:w-[260px] xl:w-[300px] flex-shrink-0 bg-[var(--background)]/40 p-5 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto">
               <h3 className="text-lg font-bold text-[var(--foreground)] mb-3 font-serif">{wikiStructure.title}</h3>
               <p className="text-[var(--muted)] text-sm mb-5 leading-relaxed">{wikiStructure.description}</p>
 
@@ -2433,12 +2435,15 @@ IMPORTANT:
         ) : null}
       </main>
 
-      <footer className="max-w-[90%] xl:max-w-[1400px] mx-auto mt-8 flex flex-col gap-4 w-full">
-        <div className="flex justify-between items-center gap-4 text-center text-[var(--muted)] text-sm h-fit w-full bg-[var(--card-bg)] rounded-lg p-3 shadow-sm border border-[var(--border-color)]">
-          <p className="flex-1 font-serif">
-            {messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
+      <footer className="border-t border-[var(--border-color)] bg-[var(--card-bg)]">
+        <div className="max-w-[90%] xl:max-w-[1400px] mx-auto h-12 flex items-center justify-between">
+          <p className="text-[var(--muted)] text-xs">
+            {messages.footer?.copyright || 'RepoHelper - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
           </p>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </div>
       </footer>
 

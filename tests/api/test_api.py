@@ -1,70 +1,102 @@
-import requests
-import json
+#!/usr/bin/env python3
+"""
+API endpoint tests for RepoHelper backend.
+
+These tests require the FastAPI server to be running on port 8001.
+
+Usage:
+    # First start the backend server:
+    #   python -m api.main
+    # Then run tests:
+    pytest tests/api/test_api.py -v
+"""
+
+import os
 import sys
+import json
+import pytest
+import requests
+from pathlib import Path
 
-def test_streaming_endpoint(repo_url, query, file_path=None):
-    """
-    Test the streaming endpoint with a given repository URL and query.
-    
-    Args:
-        repo_url (str): The GitHub repository URL
-        query (str): The query to send
-        file_path (str, optional): Path to a file in the repository
-    """
-    # Define the API endpoint
-    url = "http://localhost:8000/chat/completions/stream"
-    
-    # Define the request payload
-    payload = {
-        "repo_url": repo_url,
-        "messages": [
-            {
-                "role": "user",
-                "content": query
-            }
-        ],
-        "filePath": file_path
-    }
-    
-    print(f"Testing streaming endpoint with:")
-    print(f"  Repository: {repo_url}")
-    print(f"  Query: {query}")
-    if file_path:
-        print(f"  File Path: {file_path}")
-    print("\nResponse:")
-    
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+BASE_URL = os.environ.get("REPOHELPER_API_URL", "http://localhost:8001")
+
+
+def _server_is_running() -> bool:
     try:
-        # Make the request with streaming enabled
-        response = requests.post(url, json=payload, stream=True)
-        
-        # Check if the request was successful
-        if response.status_code != 200:
-            print(f"Error: {response.status_code}")
-            try:
-                error_data = json.loads(response.content)
-                print(f"Error details: {error_data.get('detail', 'Unknown error')}")
-            except:
-                print(f"Error content: {response.content}")
-            return
-        
-        # Process the streaming response
-        for chunk in response.iter_content(chunk_size=None):
-            if chunk:
-                print(chunk.decode('utf-8'), end='', flush=True)
-        
-        print("\n\nStreaming completed successfully.")
-    
-    except Exception as e:
-        print(f"Error: {str(e)}")
+        r = requests.get(f"{BASE_URL}/health", timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
 
-if __name__ == "__main__":
-    # Get command line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python test_api.py <repo_url> <query> [file_path]")
-        sys.exit(1)
-    
-    repo_url = sys.argv[1]
-    query = sys.argv[2]
-    file_path = sys.argv[3] if len(sys.argv) > 3 else None
-    
-    test_streaming_endpoint(repo_url, query, file_path)
+
+skip_if_no_server = pytest.mark.skipif(
+    not _server_is_running(),
+    reason="Backend server is not running"
+)
+
+
+@skip_if_no_server
+class TestHealthEndpoint:
+    def test_health_returns_200(self):
+        r = requests.get(f"{BASE_URL}/health")
+        assert r.status_code == 200
+
+
+@skip_if_no_server
+class TestAuthEndpoints:
+    def test_auth_status(self):
+        r = requests.get(f"{BASE_URL}/auth/status")
+        assert r.status_code == 200
+        data = r.json()
+        assert "auth_required" in data
+        assert isinstance(data["auth_required"], bool)
+
+    def test_auth_validate_without_code(self):
+        r = requests.post(
+            f"{BASE_URL}/auth/validate",
+            json={"code": ""},
+        )
+        # Should return 200 with success=false, or 4xx depending on config
+        assert r.status_code in (200, 400, 422)
+
+
+@skip_if_no_server
+class TestModelConfigEndpoint:
+    def test_models_config_returns_providers(self):
+        r = requests.get(f"{BASE_URL}/models/config")
+        assert r.status_code == 200
+        data = r.json()
+        assert "providers" in data
+        assert "defaultProvider" in data
+        assert isinstance(data["providers"], list)
+        assert len(data["providers"]) > 0
+
+
+@skip_if_no_server
+class TestLangConfigEndpoint:
+    def test_lang_config(self):
+        r = requests.get(f"{BASE_URL}/lang/config")
+        assert r.status_code == 200
+        data = r.json()
+        # Should return language configuration
+        assert isinstance(data, dict)
+
+
+@skip_if_no_server
+class TestChatStreamEndpoint:
+    def test_stream_requires_repo_url(self):
+        """Chat stream should fail gracefully without a valid repo."""
+        r = requests.post(
+            f"{BASE_URL}/chat/completions/stream",
+            json={
+                "repo_url": "",
+                "messages": [{"role": "user", "content": "hello"}],
+            },
+            stream=True,
+            timeout=10,
+        )
+        # Should either return 4xx or start streaming an error
+        assert r.status_code in (200, 400, 422, 500)
