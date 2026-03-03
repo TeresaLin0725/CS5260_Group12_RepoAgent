@@ -46,6 +46,8 @@ wheels/
 # misc
 .DS_Store
 *.pem
+backend.log
+screenshots/
 
 # debug
 npm-debug.log*

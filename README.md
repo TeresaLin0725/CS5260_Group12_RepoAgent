@@ -59,8 +59,7 @@ pip install poetry==2.0.1 && poetry install -C api
 python -m api.main          # Starts on :8001
 
 # 2. Frontend
-yarn install                # or npm install
-yarn dev                    # Starts on :3000
+npm run dev             
 ```
 
 ---
@@ -72,19 +71,19 @@ graph TD
     A[User enters repo URL] --> B[Clone & index repository]
     B --> C[Create code embeddings]
     C --> D{Select LLM provider}
-    D --> E[Generate documentation]
-    D --> F[Generate diagrams]
-    E --> G[Structured Docs]
-    F --> G
-    G --> H[Interactive UI + AI Chat]
+    D --> E[Generate PDF report]
+    D --> F[Generate PPT slides]
+    D --> G[Generate Video overview]
+    E --> H[Interactive UI + AI Chat]
+    F --> H
+    G --> H
 ```
 
 1. Clone and analyze the repository (supports private repos with token auth)
 2. Create vector embeddings of the code for smart retrieval
-3. Generate documentation with context-aware AI
-4. Create visual diagrams to explain code relationships
-5. Organize everything into structured, navigable documentation
-6. Enable intelligent Q&A and deep research via the Ask feature
+3. Select an LLM provider (Google, OpenAI, OpenRouter, Ollama, etc.)
+4. Export as PDF report, PPT slides, or video overview
+5. Browse results in the interactive UI with AI-powered Q&A
 
 ---
 
@@ -273,8 +272,7 @@ pip install poetry==2.0.1 && poetry install -C api
 python -m api.main          # 启动在 :8001
 
 # 2. 前端
-yarn install                # 或 npm install
-yarn dev                    # 启动在 :3000
+npm run dev              # 或 npm install
 ```
 
 ---
@@ -286,19 +284,19 @@ graph TD
     A[用户输入仓库 URL] --> B[克隆并索引仓库]
     B --> C[创建代码向量嵌入]
     C --> D{选择 LLM 提供商}
-    D --> E[生成文档]
-    D --> F[生成图表]
-    E --> G[结构化文档]
-    F --> G
-    G --> H[交互式界面 + AI 问答]
+    D --> E[生成 PDF 报告]
+    D --> F[生成 PPT 演示文稿]
+    D --> G[生成视频概览]
+    E --> H[交互式界面 + AI 问答]
+    F --> H
+    G --> H
 ```
 
 1. 克隆并分析仓库（支持通过 Token 访问私有仓库）
 2. 创建代码向量嵌入，用于智能检索
-3. 使用上下文感知 AI 生成文档
-4. 创建可视化图表解释代码关系
-5. 将所有内容组织为结构化、可导航的技术文档
-6. 通过 Ask 功能提供智能问答和深度研究
+3. 选择 LLM 提供商（Google、OpenAI、OpenRouter、Ollama 等）
+4. 导出为 PDF 报告、PPT 演示文稿或视频概览
+5. 在交互式界面中浏览结果，并使用 AI 智能问答
 
 ---
 
