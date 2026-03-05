@@ -128,6 +128,11 @@
     "placeholder": "询问关于此仓库的问题...",
     "emptyState": "问我任何关于这个仓库的问题！",
     "clearChat": "清除对话",
-    "changeModel": "切换模型"
+    "changeModel": "切换模型",
+    "researchTooltip": "多轮深度研究（最多 5 轮迭代），AI 会自动续研直至得出最终结论。",
+    "researchPlanning": "正在规划研究…",
+    "researchIteration": "迭代",
+    "researchDone": "研究完成",
+    "researchContinuing": "正在继续研究…"
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Markdown from './Markdown';
 import ModelSelectionModal from './ModelSelectionModal';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,6 +22,13 @@ interface Provider {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface ResearchStage {
+  title: string;
+  content: string;
+  iteration: number;
+  type: 'plan' | 'update' | 'conclusion';
 }
 
 interface FloatingChatProps {
@@ -50,6 +58,13 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
 
+  // Deep Research state
+  const [deepResearch, setDeepResearch] = useState(false);
+  const [researchIteration, setResearchIteration] = useState(0);
+  const [researchComplete, setResearchComplete] = useState(false);
+  const [researchStages, setResearchStages] = useState<ResearchStage[]>([]);
+  const [currentStageIndex, setCurrentStageIndex] = useState(0);
+
   // Model selection state
   const [selectedProvider, setSelectedProvider] = useState(provider);
   const [selectedModel, setSelectedModel] = useState(model);
@@ -61,6 +76,18 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
+
+  // Refs to avoid stale closures in continueResearch / effects
+  const conversationHistoryRef = useRef(conversationHistory);
+  conversationHistoryRef.current = conversationHistory;
+  const researchIterationRef = useRef(researchIteration);
+  researchIterationRef.current = researchIteration;
+  const researchCompleteRef = useRef(researchComplete);
+  researchCompleteRef.current = researchComplete;
+  const isLoadingRef = useRef(isLoading);
+  isLoadingRef.current = isLoading;
+  const deepResearchRef = useRef(deepResearch);
+  deepResearchRef.current = deepResearch;
 
   // Fetch default model config if no provider/model supplied
   useEffect(() => {
@@ -100,16 +127,210 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     return () => { closeWebSocket(webSocketRef.current); };
   }, []);
 
+  // ── Deep Research helpers ──────────────────────────────────
+
+  const checkIfResearchComplete = (content: string): boolean => {
+    // Explicit final conclusion header — always terminal
+    if (content.includes('## Final Conclusion')) return true;
+
+    // Phrases that clearly signal continuation — if ANY is present, not done
+    const continuationSignals = [
+      'I will now proceed to',
+      'Next Steps',
+      'next iteration',
+      'final iteration',              // "In the final iteration, I will…"
+      'In the next',                   // "In the next iteration / section"
+      'I will focus on',
+      'I will synthesize',
+      'I will delve',
+      'I will explore',
+      'I will analyze',
+      'further investigation',
+      'further research',
+      'remaining questions',
+      'deeper into',
+    ];
+    const hasContinuation = continuationSignals.some(s => content.includes(s));
+
+    // "## Conclusion" / "## Summary" is only terminal when there is NO continuation language
+    if ((content.includes('## Conclusion') || content.includes('## Summary')) && !hasContinuation) {
+      return true;
+    }
+
+    // Other explicit completion phrases — still gated by no-continuation
+    if (!hasContinuation && (
+      content.includes('This concludes our research') ||
+      content.includes('This completes our investigation') ||
+      content.includes('This concludes the deep research process') ||
+      content.includes('Key Findings and Implementation Details')
+    )) return true;
+
+    return false;
+  };
+
+  const extractResearchStage = (content: string, iteration: number): ResearchStage | null => {
+    if (iteration === 1 && content.includes('## Research Plan')) {
+      return { title: 'Research Plan', content, iteration: 1, type: 'plan' };
+    }
+    if (iteration >= 1 && iteration <= 4) {
+      if (content.match(new RegExp(`## Research Update ${iteration}`))) {
+        return { title: `Research Update ${iteration}`, content, iteration, type: 'update' };
+      }
+    }
+    if (content.includes('## Final Conclusion')) {
+      return { title: 'Final Conclusion', content, iteration, type: 'conclusion' };
+    }
+    return null;
+  };
+
+  const upsertStage = (stage: ResearchStage) => {
+    setResearchStages(prev => {
+      const idx = prev.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
+      if (idx >= 0) { const n = [...prev]; n[idx] = stage; return n; }
+      return [...prev, stage];
+    });
+  };
+
+  // Navigate stages
+  const navigateToStage = (index: number) => {
+    if (index >= 0 && index < researchStages.length) setCurrentStageIndex(index);
+  };
+
+  // Auto-continue deep research (reads latest state via refs to avoid stale closures)
+  const continueResearch = async () => {
+    if (!deepResearchRef.current || researchCompleteRef.current || isLoadingRef.current) return;
+
+    setIsLoading(true);
+    setStreamingResponse('');
+
+    const continueMsg: Message = { role: 'user', content: '[DEEP RESEARCH] Continue the research' };
+    // Build from ref (synchronously up-to-date) — setState functional updater is async and would leave local var empty
+    const newHistory = [...conversationHistoryRef.current, continueMsg];
+    setConversationHistory(newHistory);
+
+    const newIteration = researchIterationRef.current + 1;
+    setResearchIteration(newIteration);
+
+    console.log(`[DeepResearch] continueResearch fired — iteration ${newIteration}, messages: ${newHistory.length}`);
+
+    const requestBody: ChatCompletionRequest = {
+      repo_url: repoUrl,
+      type: repoType,
+      messages: newHistory.map(msg => ({ role: msg.role, content: msg.content })),
+      provider: selectedProvider,
+      model: isCustomSelectedModel ? customSelectedModel : selectedModel,
+      language: language,
+    };
+    if (token) requestBody.token = token;
+
+    closeWebSocket(webSocketRef.current);
+    let fullResponse = '';
+
+    webSocketRef.current = createChatWebSocket(
+      requestBody,
+      (message: string) => {
+        fullResponse += message;
+        setStreamingResponse(fullResponse);
+        if (deepResearchRef.current) {
+          const stage = extractResearchStage(fullResponse, newIteration);
+          if (stage) { upsertStage(stage); setCurrentStageIndex(researchStages.length); }
+        }
+      },
+      (error: Event) => {
+        console.error('WebSocket error:', error);
+        fullResponse += '\n\nError: Connection failed. Trying HTTP fallback...';
+        setStreamingResponse(fullResponse);
+        fallbackToHttp(requestBody, newHistory, newIteration);
+      },
+      () => {
+        if (fullResponse) {
+          setConversationHistory(prev => [...prev, { role: 'assistant', content: fullResponse }]);
+          setStreamingResponse('');
+        }
+        const isComplete = checkIfResearchComplete(fullResponse);
+        const forceComplete = newIteration >= 5;
+        if (forceComplete && !isComplete) {
+          const note = '\n\n## Final Conclusion\nAfter multiple iterations of deep research, we\'ve gathered significant insights. This concludes the research process.';
+          setConversationHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+              updated[updated.length - 1] = { role: 'assistant', content: updated[updated.length - 1].content + note };
+            }
+            return updated;
+          });
+          setResearchComplete(true);
+        } else {
+          setResearchComplete(isComplete);
+        }
+        setIsLoading(false);
+      }
+    );
+  };
+
+  // Auto-continue effect
+  useEffect(() => {
+    if (!deepResearch || isLoading || researchComplete) return;
+    if (researchIteration <= 0 || researchIteration >= 5) return;
+
+    const lastMsg = conversationHistory[conversationHistory.length - 1];
+    if (lastMsg?.role !== 'assistant') return;
+
+    if (checkIfResearchComplete(lastMsg.content)) {
+      setResearchComplete(true);
+      return;
+    }
+
+    console.log(`[DeepResearch] scheduling continue — iteration ${researchIteration}, history len ${conversationHistory.length}`);
+    const timer = setTimeout(() => { continueResearch(); }, 2000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationHistory, isLoading, deepResearch, researchComplete, researchIteration]);
+
+  // Research stage extraction effect
+  useEffect(() => {
+    if (deepResearch && !isLoading && conversationHistory.length > 0) {
+      const lastMsg = conversationHistory[conversationHistory.length - 1];
+      if (lastMsg?.role === 'assistant') {
+        const stage = extractResearchStage(lastMsg.content, researchIteration || 1);
+        if (stage) {
+          upsertStage(stage);
+          setCurrentStageIndex(prev => {
+            const idx = researchStages.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
+            return idx >= 0 ? idx : prev;
+          });
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationHistory, isLoading, deepResearch, researchIteration]);
+
+  // Display helpers
+  const getDisplayContent = (msg: Message): string => {
+    return msg.role === 'user' ? msg.content.replace(/^\[DEEP RESEARCH\]\s*/, '') : msg.content;
+  };
+  const isAutoResearchContinue = (msg: Message): boolean => {
+    return msg.role === 'user' && msg.content === '[DEEP RESEARCH] Continue the research';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || isLoading) return;
 
-    const userMessage: Message = { role: 'user', content: question };
+    const actualContent = deepResearch ? `[DEEP RESEARCH] ${question}` : question;
+    const userMessage: Message = { role: 'user', content: actualContent };
     const newHistory = [...conversationHistory, userMessage];
     setConversationHistory(newHistory);
     setQuestion('');
     setIsLoading(true);
     setStreamingResponse('');
+
+    // Reset research state for new question
+    if (deepResearch) {
+      setResearchIteration(0);
+      setResearchComplete(false);
+      setResearchStages([]);
+      setCurrentStageIndex(0);
+    }
 
     const requestBody: ChatCompletionRequest = {
       repo_url: repoUrl,
@@ -145,12 +366,21 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
           setConversationHistory(prev => [...prev, { role: 'assistant', content: fullResponse }]);
           setStreamingResponse('');
         }
+        // Deep research: check if we need to continue
+        if (deepResearch) {
+          const isComplete = checkIfResearchComplete(fullResponse);
+          if (!isComplete) {
+            setResearchIteration(1);
+          } else {
+            setResearchComplete(true);
+          }
+        }
         setIsLoading(false);
       }
     );
   };
 
-  const fallbackToHttp = async (requestBody: ChatCompletionRequest, history: Message[]) => {
+  const fallbackToHttp = async (requestBody: ChatCompletionRequest, history: Message[], iteration?: number) => {
     try {
       const apiResponse = await fetch('/api/chat/stream', {
         method: 'POST',
@@ -170,13 +400,43 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         if (done) break;
         fullResponse += decoder.decode(value, { stream: true });
         setStreamingResponse(fullResponse);
+
+        // Extract research stages during HTTP streaming
+        if (deepResearch) {
+          const iter = iteration ?? researchIteration;
+          const stage = extractResearchStage(fullResponse, iter || 1);
+          if (stage) upsertStage(stage);
+        }
       }
 
       setConversationHistory([...history, { role: 'assistant', content: fullResponse }]);
       setStreamingResponse('');
+
+      // Deep research completion check for HTTP path
+      if (deepResearch) {
+        const isComplete = checkIfResearchComplete(fullResponse);
+        const iter = iteration ?? researchIteration;
+        const forceComplete = iter >= 5;
+        if (forceComplete && !isComplete) {
+          const note = '\n\n## Final Conclusion\nAfter multiple iterations of deep research, we\'ve gathered significant insights. This concludes the research process.';
+          setConversationHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+              updated[updated.length - 1] = { role: 'assistant', content: updated[updated.length - 1].content + note };
+            }
+            return updated;
+          });
+          setResearchComplete(true);
+        } else if (!isComplete && !iteration) {
+          setResearchIteration(1);
+        } else {
+          setResearchComplete(isComplete);
+        }
+      }
     } catch (error) {
       console.error('HTTP fallback error:', error);
       setStreamingResponse(prev => prev + '\n\nError: Failed to get response.');
+      if (deepResearch) setResearchComplete(true);
     } finally {
       setIsLoading(false);
     }
@@ -186,6 +446,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     setConversationHistory([]);
     setStreamingResponse('');
     setQuestion('');
+    setResearchIteration(0);
+    setResearchComplete(false);
+    setResearchStages([]);
+    setCurrentStageIndex(0);
   };
 
   const floatingChatMessages = i18n.floatingChat;
@@ -267,21 +531,29 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             )}
 
             {conversationHistory.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-teal-600 to-cyan-500 text-white rounded-br-md'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md'
-                  }`}
-                >
-                  {msg.role === 'assistant' ? (
-                    <Markdown content={msg.content} />
-                  ) : (
-                    <span>{msg.content}</span>
-                  )}
+              isAutoResearchContinue(msg) ? (
+                <div key={idx} className="flex justify-center">
+                  <span className="text-xs text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-full">
+                    {floatingChatMessages?.researchContinuing || 'Continuing research…'}
+                  </span>
                 </div>
-              </div>
+              ) : (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-br from-teal-600 to-cyan-500 text-white rounded-br-md'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md'
+                    }`}
+                  >
+                    {msg.role === 'assistant' ? (
+                      <Markdown content={msg.content} />
+                    ) : (
+                      <span>{getDisplayContent(msg)}</span>
+                    )}
+                  </div>
+                </div>
+              )
             ))}
 
             {/* Streaming response */}
@@ -297,10 +569,19 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             {isLoading && !streamingResponse && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-gray-100 dark:bg-gray-800">
-                  <div className="flex space-x-1.5">
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1.5">
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    {deepResearch && (
+                      <span className="text-xs text-teal-600 dark:text-teal-400">
+                        {researchIteration === 0
+                          ? (floatingChatMessages?.researchPlanning || 'Planning research…')
+                          : `${floatingChatMessages?.researchIteration || 'Iteration'} ${researchIteration}…`}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -309,8 +590,72 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Stage navigation bar */}
+          {deepResearch && researchStages.length > 1 && (
+            <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-t border-[var(--border-color,#e5e7eb)] dark:border-[var(--border-color,#374151)] bg-gray-50 dark:bg-gray-800/50">
+              <button
+                onClick={() => navigateToStage(currentStageIndex - 1)}
+                disabled={currentStageIndex === 0}
+                className={`p-1 rounded ${
+                  currentStageIndex === 0
+                    ? 'text-gray-300 dark:text-gray-600'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <FaChevronLeft size={10} />
+              </button>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {currentStageIndex + 1} / {researchStages.length}
+                <span className="ml-1.5">{researchStages[currentStageIndex]?.title}</span>
+              </span>
+              <button
+                onClick={() => navigateToStage(currentStageIndex + 1)}
+                disabled={currentStageIndex === researchStages.length - 1}
+                className={`p-1 rounded ${
+                  currentStageIndex === researchStages.length - 1
+                    ? 'text-gray-300 dark:text-gray-600'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <FaChevronRight size={10} />
+              </button>
+            </div>
+          )}
+
           {/* Input area */}
           <div className="border-t border-[var(--border-color,#e5e7eb)] dark:border-[var(--border-color,#374151)] p-3">
+            {/* Deep Research toggle */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="group relative">
+                <label className="flex items-center cursor-pointer">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 mr-1.5">Deep Research</span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={deepResearch}
+                      onChange={() => setDeepResearch(!deepResearch)}
+                      className="sr-only"
+                    />
+                    <div className={`w-8 h-4 rounded-full transition-colors ${deepResearch ? 'bg-teal-600' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                    <div className={`absolute left-0.5 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${deepResearch ? 'translate-x-4' : ''}`} />
+                  </div>
+                </label>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-56 z-10">
+                  <div className="relative">
+                    <div className="absolute -bottom-2 left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800" />
+                    <p>{floatingChatMessages?.researchTooltip || 'Multi-turn deep investigation (up to 5 iterations). The AI auto-continues until a final conclusion is reached.'}</p>
+                  </div>
+                </div>
+              </div>
+              {deepResearch && researchIteration > 0 && (
+                <span className="text-xs text-teal-600 dark:text-teal-400">
+                  {researchComplete
+                    ? (floatingChatMessages?.researchDone || 'Research complete')
+                    : `${floatingChatMessages?.researchIteration || 'Iteration'} ${researchIteration}/5`}
+                </span>
+              )}
+            </div>
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
                 ref={inputRef}

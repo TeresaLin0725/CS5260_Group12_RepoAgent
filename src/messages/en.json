@@ -137,6 +137,11 @@
     "placeholder": "Ask about this repository...",
     "emptyState": "Ask anything about this repository!",
     "clearChat": "Clear chat",
-    "changeModel": "Change model"
+    "changeModel": "Change model",
+    "researchTooltip": "Multi-turn deep investigation (up to 5 iterations). The AI auto-continues until a final conclusion is reached.",
+    "researchPlanning": "Planning research…",
+    "researchIteration": "Iteration",
+    "researchDone": "Research complete",
+    "researchContinuing": "Continuing research…"
   }
 }
