@@ -6,6 +6,7 @@
     "generatePdf": "Generate PDF",
     "generatePpt": "Generate PPT",
     "generateVideo": "Generate Video",
+    "startChat": "Start Chat",
     "processing": "Processing...",
     "error": "Error",
     "submit": "Submit",
@@ -142,6 +143,22 @@
     "researchPlanning": "Planning research…",
     "researchIteration": "Iteration",
     "researchDone": "Research complete",
-    "researchContinuing": "Continuing research…"
-  }
+    "researchContinuing": "Continuing research…"  },
+  "agentChat": {
+    "title": "Agent Chat",
+    "welcomeTitle": "Agent Chat",
+    "welcomeDesc": "Ask questions about this repository, or ask me to generate a PDF report, PPT presentation, or video overview.",
+    "placeholder": "Ask about this repository, or request a PDF/PPT/Video...",
+    "thinking": "Thinking...",
+    "generating": "Generating...",
+    "generatingPdf": "PDF Report",
+    "generatingPpt": "PPT Slides",
+    "generatingVideo": "Video Overview",
+    "downloadReady": "Downloaded!",
+    "exportInProgress": "Export in progress...",
+    "hintTools": "The agent can generate PDF, PPT, and Video when you ask.",
+    "suggestAnalyze": "Analyze this repository",
+    "suggestPdf": "Generate PDF report",
+    "suggestPpt": "Generate PPT slides",
+    "suggestVideo": "Generate video overview"  }
 }

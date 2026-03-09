@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from typing import List, Optional, Dict, Any
 from urllib.parse import unquote
 
@@ -24,12 +25,72 @@ from api.openrouter_client import OpenRouterClient
 from api.azureai_client import AzureAIClient
 from api.dashscope_client import DashscopeClient
 from api.rag import RAG
+from api.prompts import AGENT_CHAT_SYSTEM_PROMPT
+from api.agent.scheduler import AgentScheduler
+from api.simple_chat import chat_completions_stream as http_chat_completions_stream
+from api.simple_chat import ChatCompletionRequest as HttpChatCompletionRequest
 
 # Configure logging
 from api.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
+agent_scheduler = AgentScheduler.default()
+
+
+def _infer_language_code_from_query(query: str, requested_language: Optional[str]) -> str:
+    """Prefer Chinese response when the user query is in Chinese."""
+    text = query or ""
+    if re.search(r"[\u4e00-\u9fff]", text):
+        return "zh"
+    return requested_language or "en"
+
+
+def _build_one_shot_deep_research_prompt(
+    repo_type: str,
+    repo_url: str,
+    repo_name: str,
+    language_name: str,
+) -> str:
+    return f"""<role>
+You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).
+You are performing a Deep Research response in ONE SHOT for the user's latest question.
+IMPORTANT: You MUST respond in {language_name} language.
+</role>
+
+<guidelines>
+- Deliver one complete, high-quality answer in this response
+- Prioritize depth, accuracy, and readability
+- Do NOT use the heading "## Executive Summary"
+- Start directly with a concise opening paragraph (no mandatory heading)
+- Then provide:
+  1) "## Key Findings"
+  2) "## Architecture (Detailed)"
+  3) "## End-to-End Data Flow"
+  4) "## Core Modules and Responsibilities"
+  5) "## Design Trade-offs and Risks"
+  6) "## Practical Recommendations"
+- In architecture sections, explain:
+  - main layers/components and their boundaries
+  - how requests are routed across modules
+  - state management and error handling paths
+  - extension points and coupling hotspots
+- Use concrete code/file references where possible
+- Add at least 3 short analogies to clarify difficult concepts, and distribute them across different sections
+- For each major technical section, first explain in plain language, then provide technical details
+- Keep prose smooth and connected; avoid fragmented bullet-only output
+- Target a longer, educational explanation (roughly 1200-2200 Chinese characters, or equivalent detail in other languages)
+- Do NOT output iterative placeholders like "Research Update", "Next Steps", or "Continue research"
+- Be substantially more complete and organized than normal chat mode
+</guidelines>
+
+<style>
+- Clear, structured, and technically precise
+- Use natural transitions between sections
+- Avoid filler, repetition, and generic statements
+- If evidence is insufficient, state uncertainty explicitly
+- Prefer everyday wording over dense jargon; when jargon is necessary, explain it in one sentence
+</style>"""
 
 
 # Models for the API
@@ -71,6 +132,35 @@ async def handle_websocket_chat(websocket: WebSocket):
         # Receive and parse the request data
         request_data = await websocket.receive_json()
         request = ChatCompletionRequest(**request_data)
+
+        # For agent-mode requests, reuse the HTTP stream pipeline so the
+        # scheduling and stage-2 action inference live in one backend place.
+        pre_is_agent_mode = any(
+            bool(getattr(msg, "content", None)) and "[AGENT]" in msg.content
+            for msg in request.messages
+        )
+        if pre_is_agent_mode:
+            http_messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+            http_request = HttpChatCompletionRequest(
+                repo_url=request.repo_url,
+                messages=http_messages,
+                filePath=request.filePath,
+                token=request.token,
+                type=request.type,
+                provider=request.provider,
+                model=request.model,
+                language=request.language,
+                excluded_dirs=request.excluded_dirs,
+                excluded_files=request.excluded_files,
+                included_dirs=request.included_dirs,
+                included_files=request.included_files,
+            )
+            stream_response = await http_chat_completions_stream(http_request)
+            async for chunk in stream_response.body_iterator:
+                text = chunk.decode("utf-8", errors="ignore") if isinstance(chunk, bytes) else str(chunk)
+                await websocket.send_text(text)
+            await websocket.close()
+            return
 
         # Check if request contains very large input
         input_too_large = False
@@ -155,39 +245,38 @@ async def handle_websocket_chat(websocket: WebSocket):
 
         # Check if this is a Deep Research request
         is_deep_research = False
-        research_iteration = 1
+        is_agent_mode = False
 
-        # Process messages to detect Deep Research requests
+        # Process messages to detect Deep Research or Agent mode requests
         for msg in request.messages:
-            if hasattr(msg, 'content') and msg.content and "[DEEP RESEARCH]" in msg.content:
-                is_deep_research = True
-                # Only remove the tag from the last message
-                if msg == request.messages[-1]:
-                    # Remove the Deep Research tag
-                    msg.content = msg.content.replace("[DEEP RESEARCH]", "").strip()
+            if hasattr(msg, 'content') and msg.content:
+                if "[DEEP RESEARCH]" in msg.content:
+                    is_deep_research = True
+                    # Only remove the tag from the last message
+                    if msg == request.messages[-1]:
+                        msg.content = msg.content.replace("[DEEP RESEARCH]", "").strip()
+                if "[AGENT]" in msg.content:
+                    is_agent_mode = True
+                    # Only remove the tag from the last message
+                    if msg == request.messages[-1]:
+                        msg.content = msg.content.replace("[AGENT]", "").strip()
 
-        # Count research iterations if this is a Deep Research request
         if is_deep_research:
-            research_iteration = sum(1 for msg in request.messages if msg.role == 'assistant') + 1
-            logger.info(f"Deep Research request detected - iteration {research_iteration}")
-
-            # Check if this is a continuation request
-            if "continue" in last_message.content.lower() and "research" in last_message.content.lower():
-                # Find the original topic from the first user message
-                original_topic = None
-                for msg in request.messages:
-                    if msg.role == "user" and "continue" not in msg.content.lower():
-                        original_topic = msg.content.replace("[DEEP RESEARCH]", "").strip()
-                        logger.info(f"Found original research topic: {original_topic}")
-                        break
-
-                if original_topic:
-                    # Replace the continuation message with the original topic
-                    last_message.content = original_topic
-                    logger.info(f"Using original topic for research: {original_topic}")
+            logger.info("Deep Research one-shot mode enabled")
 
         # Get the query from the last message
         query = last_message.content
+
+        # Agent mode: schedule tool call before sending to LLM.
+        if is_agent_mode:
+            scheduled = agent_scheduler.schedule(query=query, language=request.language or "en")
+            for event in scheduled.events:
+                logger.info("agent_schedule event=%s message=%s tool=%s", event.event_type.value, event.message, event.tool_name)
+
+            if scheduled.handled and scheduled.content:
+                await websocket.send_text(scheduled.content)
+                await websocket.close()
+                return
 
         # Only retrieve documents if input is not too large
         context_text = ""
@@ -250,111 +339,28 @@ async def handle_websocket_chat(websocket: WebSocket):
         repo_type = request.type
 
         # Get language information
-        language_code = request.language or configs["lang_config"]["default"]
+        language_code = _infer_language_code_from_query(
+            query=query,
+            requested_language=request.language or configs["lang_config"]["default"],
+        )
         supported_langs = configs["lang_config"]["supported_languages"]
         language_name = supported_langs.get(language_code, "English")
 
         # Create system prompt
-        if is_deep_research:
-            # Check if this is the first iteration
-            is_first_iteration = research_iteration == 1
-
-            # Check if this is the final iteration
-            is_final_iteration = research_iteration >= 5
-
-            if is_first_iteration:
-                system_prompt = f"""<role>
-You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).
-You are conducting a multi-turn Deep Research process to thoroughly investigate the specific topic in the user's query.
-Your goal is to provide detailed, focused information EXCLUSIVELY about this topic.
-IMPORTANT:You MUST respond in {language_name} language.
-</role>
-
-<guidelines>
-- This is the first iteration of a multi-turn research process focused EXCLUSIVELY on the user's query
-- Start your response with "## Research Plan"
-- Outline your approach to investigating this specific topic
-- If the topic is about a specific file or feature (like "Dockerfile"), focus ONLY on that file or feature
-- Clearly state the specific topic you're researching to maintain focus throughout all iterations
-- Identify the key aspects you'll need to research
-- Provide initial findings based on the information available
-- End with "## Next Steps" indicating what you'll investigate in the next iteration
-- Do NOT provide a final conclusion yet - this is just the beginning of the research
-- Do NOT include general repository information unless directly relevant to the query
-- Focus EXCLUSIVELY on the specific topic being researched - do not drift to related topics
-- Your research MUST directly address the original question
-- NEVER respond with just "Continue the research" as an answer - always provide substantive research findings
-- Remember that this topic will be maintained across all research iterations
-</guidelines>
-
-<style>
-- Be concise but thorough
-- Use markdown formatting to improve readability
-- Cite specific files and code sections when relevant
-</style>"""
-            elif is_final_iteration:
-                system_prompt = f"""<role>
-You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).
-You are in the final iteration of a Deep Research process focused EXCLUSIVELY on the latest user query.
-Your goal is to synthesize all previous findings and provide a comprehensive conclusion that directly addresses this specific topic and ONLY this topic.
-IMPORTANT:You MUST respond in {language_name} language.
-</role>
-
-<guidelines>
-- This is the final iteration of the research process
-- CAREFULLY review the entire conversation history to understand all previous findings
-- Synthesize ALL findings from previous iterations into a comprehensive conclusion
-- Start with "## Final Conclusion"
-- Your conclusion MUST directly address the original question
-- Stay STRICTLY focused on the specific topic - do not drift to related topics
-- Include specific code references and implementation details related to the topic
-- Highlight the most important discoveries and insights about this specific functionality
-- Provide a complete and definitive answer to the original question
-- Do NOT include general repository information unless directly relevant to the query
-- Focus exclusively on the specific topic being researched
-- NEVER respond with "Continue the research" as an answer - always provide a complete conclusion
-- If the topic is about a specific file or feature (like "Dockerfile"), focus ONLY on that file or feature
-- Ensure your conclusion builds on and references key findings from previous iterations
-</guidelines>
-
-<style>
-- Be concise but thorough
-- Use markdown formatting to improve readability
-- Cite specific files and code sections when relevant
-- Structure your response with clear headings
-- End with actionable insights or recommendations when appropriate
-</style>"""
-            else:
-                system_prompt = f"""<role>
-You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).
-You are currently in iteration {research_iteration} of a Deep Research process focused EXCLUSIVELY on the latest user query.
-Your goal is to build upon previous research iterations and go deeper into this specific topic without deviating from it.
-IMPORTANT:You MUST respond in {language_name} language.
-</role>
-
-<guidelines>
-- CAREFULLY review the conversation history to understand what has been researched so far
-- Your response MUST build on previous research iterations - do not repeat information already covered
-- Identify gaps or areas that need further exploration related to this specific topic
-- Focus on one specific aspect that needs deeper investigation in this iteration
-- Start your response with "## Research Update {research_iteration}"
-- Clearly explain what you're investigating in this iteration
-- Provide new insights that weren't covered in previous iterations
-- If this is iteration 3, prepare for a final conclusion in the next iteration
-- Do NOT include general repository information unless directly relevant to the query
-- Focus EXCLUSIVELY on the specific topic being researched - do not drift to related topics
-- If the topic is about a specific file or feature (like "Dockerfile"), focus ONLY on that file or feature
-- NEVER respond with just "Continue the research" as an answer - always provide substantive research findings
-- Your research MUST directly address the original question
-- Maintain continuity with previous research iterations - this is a continuous investigation
-</guidelines>
-
-<style>
-- Be concise but thorough
-- Focus on providing new information, not repeating what's already been covered
-- Use markdown formatting to improve readability
-- Cite specific files and code sections when relevant
-</style>"""
+        if is_agent_mode:
+            system_prompt = AGENT_CHAT_SYSTEM_PROMPT.format(
+                repo_type=repo_type,
+                repo_url=repo_url,
+                repo_name=repo_name,
+                language_name=language_name
+            )
+        elif is_deep_research:
+            system_prompt = _build_one_shot_deep_research_prompt(
+                repo_type=repo_type,
+                repo_url=repo_url,
+                repo_name=repo_name,
+                language_name=language_name,
+            )
         else:
             system_prompt = f"""<role>
 You are an expert code analyst examining the {repo_type} repository: {repo_url} ({repo_name}).

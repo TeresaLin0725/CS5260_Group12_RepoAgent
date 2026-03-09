@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UserSelector from './UserSelector';
 import TokenInput from './TokenInput';
-import { FaFilePdf, FaFilePowerpoint, FaFileVideo } from 'react-icons/fa';
+import { FaComments } from 'react-icons/fa';
 
 interface ConfigurationModalProps {
   isOpen: boolean;
@@ -69,6 +69,9 @@ interface ConfigurationModalProps {
   isVideoGenerating?: boolean;
   videoPhase?: string | null;
   videoError?: string | null;
+
+  // Start chat mode
+  onStartChat?: () => void;
 }
 
 export default function ConfigurationModal({
@@ -102,18 +105,7 @@ export default function ConfigurationModal({
   authCode,
   setAuthCode,
   isAuthLoading,
-  onGeneratePdf,
-  isPdfGenerating,
-  pdfPhase,
-  pdfError,
-  onGeneratePpt,
-  isPptGenerating,
-  pptPhase,
-  pptError,
-  onGenerateVideo,
-  isVideoGenerating,
-  videoPhase,
-  videoError
+  onStartChat
 }: ConfigurationModalProps) {
   const { messages: t } = useLanguage();
 
@@ -238,22 +230,17 @@ export default function ConfigurationModal({
 
           {/* Modal footer */}
           <div className="flex flex-col gap-2 px-6 py-4 border-t border-[var(--border-color)]">
-            {/* Export generation status/error */}
-            {(pdfPhase || pptPhase || videoPhase) && (
-              <div className="text-xs text-[var(--accent-primary)] flex items-center gap-2">
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                {pdfPhase || pptPhase || videoPhase}
-              </div>
-            )}
-            {(pdfError || pptError || videoError) && (
-              <div className="text-xs text-[var(--highlight)]">
-                {pdfError || pptError || videoError}
-              </div>
-            )}
             <div className="flex items-center justify-end gap-2 flex-wrap">
+              {onStartChat && (
+                <button
+                  type="button"
+                  onClick={onStartChat}
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-md bg-gradient-to-r from-teal-600 to-cyan-500 text-white hover:shadow-md transition-all"
+                >
+                  <FaComments className="text-xs" />
+                  {t.common?.startChat || 'Start Chat'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -261,45 +248,6 @@ export default function ConfigurationModal({
               >
                 {t.common?.cancel || 'Cancel'}
               </button>
-              {onGeneratePdf && (
-                <button
-                  type="button"
-                  onClick={onGeneratePdf}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaFilePdf className="text-xs" />
-                  {isPdfGenerating
-                    ? (pdfPhase || (t.repoPage?.exportingPdf || 'Generating PDF...'))
-                    : (t.common?.generatePdf || 'Generate PDF')}
-                </button>
-              )}
-              {onGeneratePpt && (
-                <button
-                  type="button"
-                  onClick={onGeneratePpt}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaFilePowerpoint className="text-xs" />
-                  {isPptGenerating
-                    ? (pptPhase || (t.repoPage?.exportingPpt || 'Generating PPT...'))
-                    : (t.common?.generatePpt || 'Generate PPT')}
-                </button>
-              )}
-              {onGenerateVideo && (
-                <button
-                  type="button"
-                  onClick={onGenerateVideo}
-                  disabled={isPdfGenerating || isPptGenerating || isVideoGenerating}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-[var(--accent-primary)]/40 bg-[var(--background)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaFileVideo className="text-xs" />
-                  {isVideoGenerating
-                    ? (videoPhase || (t.repoPage?.exportingVideo || 'Generating Video...'))
-                    : (t.common?.generateVideo || 'Generate Video')}
-                </button>
-              )}
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@
     "generatePdf": "生成PDF",
     "generatePpt": "生成PPT",
     "generateVideo": "生成视频",
+    "startChat": "开始对话",
     "processing": "处理中...",
     "error": "错误",
     "submit": "提交",
@@ -133,6 +134,22 @@
     "researchPlanning": "正在规划研究…",
     "researchIteration": "迭代",
     "researchDone": "研究完成",
-    "researchContinuing": "正在继续研究…"
-  }
+    "researchContinuing": "正在继续研究…"  },
+  "agentChat": {
+    "title": "智能助手对话",
+    "welcomeTitle": "智能助手对话",
+    "welcomeDesc": "问我关于此仓库的问题，或让我生成 PDF 报告、PPT 演示文稿或视频概览。",
+    "placeholder": "询问关于此仓库的问题，或请求生成 PDF/PPT/视频...",
+    "thinking": "思考中...",
+    "generating": "生成中...",
+    "generatingPdf": "PDF 报告",
+    "generatingPpt": "PPT 演示",
+    "generatingVideo": "视频概览",
+    "downloadReady": "已下载！",
+    "exportInProgress": "导出进行中...",
+    "hintTools": "智能助手可以按你的请求生成 PDF、PPT 和视频。",
+    "suggestAnalyze": "分析此仓库",
+    "suggestPdf": "生成 PDF 报告",
+    "suggestPpt": "生成 PPT 演示",
+    "suggestVideo": "生成视频概览"  }
 }

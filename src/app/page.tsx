@@ -261,6 +261,46 @@ export default function Home() {
   // State for configuration modal
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
+  // Navigate to agent chatbox page
+  const handleStartChat = () => {
+    const parsedRepo = parseRepositoryInput(repositoryInput);
+    if (!parsedRepo) return;
+
+    const { type, localPath } = parsedRepo;
+    const repoUrl = localPath || repositoryInput.trim();
+    const repoNameStr = `${parsedRepo.owner}/${parsedRepo.repo}`;
+    const repoType = type === 'local' ? 'local' : selectedPlatform;
+
+    // Save config to cache
+    try {
+      const cachedConfigs = JSON.parse(localStorage.getItem(REPO_CONFIG_CACHE_KEY) || '{}');
+      cachedConfigs[repositoryInput.trim()] = {
+        selectedLanguage, provider, model, isCustomModel, customModel,
+        selectedPlatform, excludedDirs, excludedFiles, includedDirs, includedFiles,
+      };
+      localStorage.setItem(REPO_CONFIG_CACHE_KEY, JSON.stringify(cachedConfigs));
+    } catch { /* ignore */ }
+
+    const params = new URLSearchParams({
+      repoUrl,
+      repoType,
+      repoName: repoNameStr,
+      provider: provider || '',
+      model: (isCustomModel && customModel) ? customModel : (model || ''),
+      isCustomModel: String(isCustomModel),
+      customModel: customModel || '',
+      language: selectedLanguage,
+      ...(accessToken ? { token: accessToken } : {}),
+      ...(excludedDirs ? { excludedDirs } : {}),
+      ...(excludedFiles ? { excludedFiles } : {}),
+      ...(includedDirs ? { includedDirs } : {}),
+      ...(includedFiles ? { includedFiles } : {}),
+    });
+
+    setIsConfigModalOpen(false);
+    router.push(`/chat?${params.toString()}`);
+  };
+
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -656,6 +696,7 @@ export default function Home() {
         authCode={authCode}
         setAuthCode={setAuthCode}
         isAuthLoading={isAuthLoading}
+        onStartChat={handleStartChat}
         onGeneratePdf={handleGeneratePdf}
         isPdfGenerating={isPdfGenerating}
         pdfPhase={pdfPhase}
