@@ -28,6 +28,8 @@ class RuleBasedPlanner:
             "创建",
             "产出",
             "做一份",
+            "进行生成",
+            "来生成",
         )
         # Queries containing these hints should go through LLM reasoning first,
         # instead of being short-circuited by deterministic scheduler output.
