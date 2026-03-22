@@ -1,26 +1,17 @@
-"""
-Export Service — Unified Orchestration Layer
+﻿"""
+Export Service - Unified Orchestration Layer.
 
 Routes analyzed content to the appropriate renderer (PDF, PPT, Video).
 This is the single entry point for all export operations.
-
-Architecture:
-    Request → ContentAnalyzer (Phase 2a: structured JSON)
-            → Format Adapter (Phase 2b: format-specific transform)
-            → Renderer (Phase 3: binary output)
 """
 
+import inspect
 import logging
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from api.content_analyzer import (
-    AnalyzedContent,
-    RepoAnalysisRequest,
-    analyze_repo_content,
-)
+from api.content_analyzer import AnalyzedContent, RepoAnalysisRequest, analyze_repo_content
 
 logger = logging.getLogger(__name__)
 
@@ -39,37 +30,27 @@ class ExportResult(BaseModel):
     media_type: str = Field(..., description="MIME type for the response")
 
 
-# ---------------------------------------------------------------------------
-# Phase 2b adapters + Phase 3 renderer dispatch
-# ---------------------------------------------------------------------------
-
 def _render_pdf(analyzed: AnalyzedContent) -> ExportResult:
-    """Phase 2b-PDF (template assembly) + Phase 3 (fpdf2 render)."""
-    from api.pdf_export import render_pdf_from_analyzed
+    """Phase 2b-PDF plus Phase 3 PDF render."""
     from datetime import datetime
+    from api.pdf_export import render_pdf_from_analyzed
 
     pdf_bytes = render_pdf_from_analyzed(analyzed)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_summary_{timestamp}.pdf"
-
-    return ExportResult(
-        content_bytes=pdf_bytes,
-        filename=filename,
-        media_type="application/pdf",
-    )
+    return ExportResult(content_bytes=pdf_bytes, filename=filename, media_type="application/pdf")
 
 
 def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
-    """Phase 2b-PPT (structured → slide outline) + Phase 3 (pptx render)."""
-    from api.ppt_export import render_ppt_from_analyzed
+    """Phase 2b-PPT plus Phase 3 PPT render."""
     from datetime import datetime
+    from api.ppt_export import render_ppt_from_analyzed
 
     ppt_bytes = render_ppt_from_analyzed(analyzed)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_slides_{timestamp}.pptx"
-
     return ExportResult(
         content_bytes=ppt_bytes,
         filename=filename,
@@ -77,21 +58,16 @@ def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
     )
 
 
-def _render_video(analyzed: AnalyzedContent) -> ExportResult:
-    """Phase 2b-Video (LLM narration script) + Phase 3 (mp4 render)."""
-    from api.video_export import render_video_from_analyzed
+async def _render_video(analyzed: AnalyzedContent) -> ExportResult:
+    """Phase 2b-video plus Phase 3 MP4 render."""
     from datetime import datetime
+    from api.video_export import render_video_from_analyzed
 
-    video_bytes = render_video_from_analyzed(analyzed)
+    video_bytes = await render_video_from_analyzed(analyzed)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_overview_{timestamp}.mp4"
-
-    return ExportResult(
-        content_bytes=video_bytes,
-        filename=filename,
-        media_type="video/mp4",
-    )
+    return ExportResult(content_bytes=video_bytes, filename=filename, media_type="video/mp4")
 
 
 _RENDERERS = {
@@ -101,11 +77,10 @@ _RENDERERS = {
 }
 
 
-def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
-    """Pretty-print the AnalyzedContent structured fields to console & log."""
+def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat) -> None:
+    """Pretty-print the AnalyzedContent structured fields to console and log."""
     import json
 
-    # Build a dict of the structured fields (exclude raw_llm_text & summary_text)
     data = {
         "repo_name": analyzed.repo_name,
         "repo_url": analyzed.repo_url,
@@ -129,35 +104,23 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
     }
 
     json_str = json.dumps(data, ensure_ascii=False, indent=2)
-
-    header = f"\n{'='*60}\nAnalyzedContent (input to {fmt.value.upper()} renderer)\n{'='*60}"
+    header = f"\n{'=' * 60}\nAnalyzedContent (input to {fmt.value.upper()} renderer)\n{'=' * 60}"
     print(header)
     print(json_str)
-    print('='*60 + '\n')
-
+    print("=" * 60 + "\n")
     logger.info("AnalyzedContent for %s export:\n%s", fmt.value, json_str)
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-async def export_repo(
-    request: RepoAnalysisRequest,
-    fmt: ExportFormat = ExportFormat.PDF,
-) -> ExportResult:
-    """
-    Full pipeline: repo embeddings → analysis → render to the requested format.
-    """
+async def export_repo(request: RepoAnalysisRequest, fmt: ExportFormat = ExportFormat.PDF) -> ExportResult:
+    """Full pipeline: repo embeddings to analysis to render."""
     logger.info("Export repo as %s for %s", fmt.value, request.repo_name or request.repo_url)
-
     analyzed = await analyze_repo_content(request)
-
-    # ── Print AnalyzedContent (LLM structured output) ──
     _print_analyzed_content(analyzed, fmt)
 
     renderer = _RENDERERS[fmt]
     result = renderer(analyzed)
+    if (inspect.isawaitable(result)):
+        result = await result
 
-    logger.info("Export complete — format=%s, %d bytes", fmt.value, len(result.content_bytes))
+    logger.info("Export complete - format=%s, %d bytes", fmt.value, len(result.content_bytes))
     return result
