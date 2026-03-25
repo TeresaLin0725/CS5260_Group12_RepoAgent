@@ -212,6 +212,15 @@ Analyze the following repository content and produce a JSON object with this EXA
     "<2-3 sentences: other notable API surface — admin endpoints, health checks, monitoring.>"
   ],
   "target_users": "<4-6 sentences: who the target users are, 3-4 concrete usage scenarios, what value they get from each scenario, and what makes this tool indispensable.>",
+  "module_progression": [
+    {{
+      "name": "<module name>",
+      "stage": "<core or expansion>",
+      "role": "<1-2 sentences: what role this module plays in the system>",
+      "solves": "<1-2 sentences: what problem or need this module addresses>",
+      "position": "<1-2 sentences: where this module sits in the system and what it connects to>"
+    }}
+  ],
   "deployment_info": "<optional — 3-4 sentences on deployment strategy, containerization, CI/CD, scaling. null if not applicable>",
   "component_hierarchy": "<optional — 3-4 sentences on UI component tree, routing, state management. null if not applicable>",
   "data_schemas": "<optional — 3-4 sentences on key data models, database schema, validation. null if not applicable>"
@@ -227,6 +236,20 @@ Guidelines:
 - EVERY field must contain substantial, information-dense content — no filler, no vague generalities
 - Each bullet should be a full paragraph of 2-3 sentences, not a fragment
 - Write all content in {language_name}
+
+Module progression guidance (video-specific, keep separate from the general architecture summary):
+- module_progression should contain 4-6 modules total, not an exhaustive module list
+- Include at least 2 core modules and at least 2 expansion modules whenever the repository is large enough to support that distinction
+- Use this field to support a newcomer-friendly storyline: overview -> core modules -> expansion modules -> wrap-up
+- Mark each item as either core or expansion
+- core means the module belongs to the smallest useful backbone of the system and should be understood first
+- expansion means the module extends the core with an additional capability, output format, interface, or coordination layer
+- Prefer the best understanding order, not literal commit chronology
+- Do not simply repeat key_modules; this field should emphasize explanatory order and system growth
+- role should say what the module does in the system
+- solves should say why this module needs to exist and what problem it addresses
+- position should say where the module sits in the overall system and what modules or layers it connects to
+- Choose modules that make the project easier to explain to a non-expert, not necessarily every important file
 
 Depth emphasis by repo type (adjust section detail accordingly):
   library / sdk     -> Emphasise api_points, key_modules (with usage patterns). De-emphasise target_users, deployment_info.

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Export Service - Unified Orchestration Layer.
 
 Routes analyzed content to the appropriate renderer (PDF, PPT, Video).
@@ -98,6 +98,16 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat) -> Non
         "data_flow": analyzed.data_flow,
         "api_points": analyzed.api_points,
         "target_users": analyzed.target_users,
+        "module_progression": [
+            {
+                "name": m.name,
+                "stage": m.stage,
+                "role": m.role,
+                "solves": m.solves,
+                "position": m.position,
+            }
+            for m in analyzed.module_progression
+        ],
         "deployment_info": analyzed.deployment_info,
         "component_hierarchy": analyzed.component_hierarchy,
         "data_schemas": analyzed.data_schemas,

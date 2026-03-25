@@ -52,6 +52,16 @@ def _analysis_to_prompt_json(analyzed: "AnalyzedContent") -> str:
         "data_flow": analyzed.data_flow,
         "api_points": analyzed.api_points,
         "target_users": analyzed.target_users,
+        "module_progression": [
+            {
+                "name": m.name,
+                "stage": m.stage,
+                "role": m.role,
+                "solves": m.solves,
+                "position": m.position,
+            }
+            for m in analyzed.module_progression
+        ],
     }
     if analyzed.deployment_info:
         payload["deployment_info"] = analyzed.deployment_info

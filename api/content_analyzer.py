@@ -42,6 +42,15 @@ class TechStack(BaseModel):
     infrastructure: List[str] = Field(default_factory=list)
 
 
+class ModuleProgression(BaseModel):
+    """Lightweight module progression entry for video-oriented storytelling."""
+    name: str = ""
+    stage: str = ""  # core | expansion
+    role: str = ""
+    solves: str = ""
+    position: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Fallback: clean raw JSON text for display
 # ---------------------------------------------------------------------------
@@ -275,6 +284,9 @@ class AnalyzedContent(BaseModel):
     api_points: List[str] = Field(default_factory=list)
     target_users: str = ""
 
+    # Video-oriented module storyline support
+    module_progression: List[ModuleProgression] = Field(default_factory=list)
+
     # Optional deep-dive fields (populated based on repo_type_hint)
     deployment_info: Optional[str] = None
     component_hierarchy: Optional[str] = None
@@ -364,6 +376,12 @@ class AnalyzedContent(BaseModel):
         if self.target_users:
             lines.append("Target Users & Use Cases:")
             lines.append(self.target_users)
+            lines.append("")
+
+        if self.module_progression:
+            lines.append("Module Progression:")
+            for mod in self.module_progression:
+                lines.append(f"- {mod.name} [{mod.stage}]: role={mod.role}; solves={mod.solves}; position={mod.position}")
             lines.append("")
 
         # Append optional deep-dive sections when present
@@ -499,6 +517,12 @@ def _build_analyzed_content(
         elif isinstance(m, str):
             key_modules.append(ModuleInfo(name=m, responsibility=""))
 
+    # Parse module_progression
+    module_progression: list[ModuleProgression] = []
+    for m in raw_json.get("module_progression", []):
+        if isinstance(m, dict):
+            module_progression.append(ModuleProgression(**m))
+
     # Parse tech_stack
     ts_raw = raw_json.get("tech_stack", {})
     if isinstance(ts_raw, dict):
@@ -521,6 +545,7 @@ def _build_analyzed_content(
         tech_stack=tech_stack,
         key_modules=key_modules,
         data_flow=raw_json.get("data_flow", []),
+        module_progression=module_progression,
         api_points=raw_json.get("api_points", []),
         target_users=raw_json.get("target_users", ""),
         deployment_info=raw_json.get("deployment_info"),
