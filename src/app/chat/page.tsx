@@ -10,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { createChatWebSocket, closeWebSocket, ChatCompletionRequest } from '@/utils/websocketClient';
 
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
 }
@@ -19,9 +20,18 @@ type AgentAction = 'GENERATE_PDF' | 'GENERATE_PPT' | 'GENERATE_VIDEO';
 
 interface ActionStatus {
   type: AgentAction;
+  messageId?: string;
   status: 'pending' | 'running' | 'done' | 'error';
   phase?: string;
+  stepIndex?: number;
+  totalSteps?: number;
+  note?: string;
   error?: string;
+}
+
+interface ActionProgressStep {
+  afterMs: number;
+  message: string;
 }
 
 function AgentChatContent() {
@@ -60,6 +70,8 @@ function AgentChatContent() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const webSocketRef = useRef<WebSocket | null>(null);
+  const actionTimerRefs = useRef<Record<string, number>>({});
+  const messageIdRef = useRef(0);
 
   const t = i18n;
 
@@ -100,6 +112,13 @@ function AgentChatContent() {
     return () => { closeWebSocket(webSocketRef.current); };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      Object.values(actionTimerRefs.current).forEach((timerId) => window.clearInterval(timerId));
+      actionTimerRefs.current = {};
+    };
+  }, []);
+
   // ── Detect action tags in assistant response ─────────────
   const parseActions = (content: string): AgentAction[] => {
     const actions: AgentAction[] = [];
@@ -116,76 +135,10 @@ function AgentChatContent() {
     return content.replace(/\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO)\]/g, '').trim();
   };
 
-  // ── Execute an export action ─────────────────────────────
-  const executeAction = useCallback(async (action: AgentAction) => {
-    const exportModel = (isCustomModel && customModel) ? customModel : (selectedModel || null);
+  const nextMessageId = () => `msg-${++messageIdRef.current}`;
 
-    const bodyPayload = {
-      repo_url: repoUrl,
-      repo_name: repoName,
-      provider: selectedProvider || 'openai',
-      model: exportModel,
-      language: language,
-      repo_type: repoType,
-      access_token: token || null,
-      excluded_dirs: excludedDirs || null,
-      excluded_files: excludedFiles || null,
-      included_dirs: includedDirs || null,
-      included_files: includedFiles || null,
-    };
+  const actionKey = (action: AgentAction, messageId?: string) => `${messageId || 'global'}:${action}`;
 
-    let endpoint = '';
-    let defaultFilename = '';
-    if (action === 'GENERATE_PDF') {
-      endpoint = '/api/export/repo-pdf';
-      defaultFilename = `${repoName.split('/').pop() || 'repo'}_report.pdf`;
-    } else if (action === 'GENERATE_PPT') {
-      endpoint = '/api/export/repo-ppt';
-      defaultFilename = `${repoName.split('/').pop() || 'repo'}_slides.pptx`;
-    } else if (action === 'GENERATE_VIDEO') {
-      endpoint = '/api/export/repo-video';
-      defaultFilename = `${repoName.split('/').pop() || 'repo'}_overview.mp4`;
-    }
-
-    setActionStatuses(prev => [...prev.filter(a => a.type !== action), { type: action, status: 'running', phase: 'Generating...' }]);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Export failed: ${response.status} - ${errorText}`);
-      }
-
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = defaultFilename;
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename=(.+)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/"/g, '');
-        }
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      setActionStatuses(prev => prev.map(a => a.type === action ? { ...a, status: 'done', phase: undefined } : a));
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setActionStatuses(prev => prev.map(a => a.type === action ? { ...a, status: 'error', error: errorMessage, phase: undefined } : a));
-    }
-  }, [repoUrl, repoName, repoType, token, selectedProvider, selectedModel, isCustomModel, customModel, language, excludedDirs, excludedFiles, includedDirs, includedFiles]);
 
   // ── Handle chat submit ───────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,7 +147,7 @@ function AgentChatContent() {
 
     const modePrefix = useDeepResearch ? '[AGENT] [DEEP RESEARCH]' : '[AGENT]';
     const actualContent = `${modePrefix} ${question}`;
-    const userMessage: Message = { role: 'user', content: actualContent };
+    const userMessage: Message = { id: nextMessageId(), role: 'user', content: actualContent };
     const newHistory = [...conversationHistory, userMessage];
     setConversationHistory(newHistory);
     setQuestion('');
@@ -233,12 +186,12 @@ function AgentChatContent() {
       },
       () => {
         if (fullResponse) {
-          setConversationHistory(prev => [...prev, { role: 'assistant', content: fullResponse }]);
+          const assistantMessage: Message = { id: nextMessageId(), role: 'assistant', content: fullResponse };
+          setConversationHistory(prev => [...prev, assistantMessage]);
           setStreamingResponse('');
-          // Detect actions in response
           const actions = parseActions(fullResponse);
           if (actions.length > 0) {
-            actions.forEach(action => executeAction(action));
+            actions.forEach(action => executeAction(action, assistantMessage.id));
           }
         }
         setIsLoading(false);
@@ -268,11 +221,12 @@ function AgentChatContent() {
         setStreamingResponse(fullResponse);
       }
 
-      setConversationHistory([...history, { role: 'assistant', content: fullResponse }]);
+      const assistantMessage: Message = { id: nextMessageId(), role: 'assistant', content: fullResponse };
+      setConversationHistory([...history, assistantMessage]);
       setStreamingResponse('');
       const actions = parseActions(fullResponse);
       if (actions.length > 0) {
-        actions.forEach(action => executeAction(action));
+        actions.forEach(action => executeAction(action, assistantMessage.id));
       }
     } catch (error) {
       console.error('HTTP fallback error:', error);
@@ -303,6 +257,173 @@ function AgentChatContent() {
     };
     return labels[action];
   };
+
+  const actionRunningMessage = (action: AgentAction): string => {
+    if (action === 'GENERATE_VIDEO') {
+      return 'Generating video overview. This can take up to about 5 minutes, please keep this page open.';
+    }
+    if (action === 'GENERATE_PDF') {
+      return 'Generating PDF report. This usually finishes soon.';
+    }
+    return 'Generating PPT slides. This usually finishes soon.';
+  };
+
+  const actionProgressPlan = (action: AgentAction): ActionProgressStep[] => {
+    if (action === 'GENERATE_VIDEO') {
+      return [
+        { afterMs: 0, message: 'Analyzing repository structure and gathering context...' },
+        { afterMs: 12000, message: 'Writing narration and planning the walkthrough scenes...' },
+        { afterMs: 25000, message: 'Rendering visual scenes and slide layouts...' },
+        { afterMs: 60000, message: 'Composing the final MP4 video...' },
+        { afterMs: 180000, message: 'Finalizing the video file and preparing download...' },
+      ];
+    }
+    if (action === 'GENERATE_PDF') {
+      return [
+        { afterMs: 0, message: 'Analyzing repository structure...' },
+        { afterMs: 4000, message: 'Generating PDF content...' },
+        { afterMs: 10000, message: 'Finalizing PDF export...' },
+      ];
+    }
+    return [
+      { afterMs: 0, message: 'Analyzing repository structure...' },
+      { afterMs: 5000, message: 'Building slide content...' },
+      { afterMs: 12000, message: 'Finalizing presentation export...' },
+    ];
+  };
+
+  const startActionProgress = useCallback((action: AgentAction, messageId?: string) => {
+    const key = actionKey(action, messageId);
+    if (actionTimerRefs.current[key]) {
+      window.clearInterval(actionTimerRefs.current[key]);
+      delete actionTimerRefs.current[key];
+    }
+
+    const steps = actionProgressPlan(action);
+    const note = action === 'GENERATE_VIDEO'
+      ? 'Expected wait: up to about 5 minutes. Please keep this page open.'
+      : 'Expected wait: usually under a minute.';
+    const startedAt = Date.now();
+
+    setActionStatuses(prev => [
+      ...prev.filter(a => !(a.type === action && a.messageId === messageId)),
+      {
+        type: action,
+        messageId,
+        status: 'running',
+        phase: steps[0]?.message || actionRunningMessage(action),
+        stepIndex: 1,
+        totalSteps: steps.length,
+        note,
+      }
+    ]);
+
+    const timerId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      let activeIndex = 0;
+      for (let i = 0; i < steps.length; i += 1) {
+        if (elapsed >= steps[i].afterMs) {
+          activeIndex = i;
+        }
+      }
+
+      setActionStatuses(prev => prev.map((item) => (
+        item.type === action && item.messageId === messageId && item.status === 'running'
+          ? {
+              ...item,
+              phase: steps[activeIndex]?.message || item.phase,
+              stepIndex: activeIndex + 1,
+              totalSteps: steps.length,
+              note,
+            }
+          : item
+      )));
+    }, 1000);
+
+    actionTimerRefs.current[key] = timerId;
+  }, []);
+
+  const stopActionProgress = useCallback((action: AgentAction, messageId?: string) => {
+    const key = actionKey(action, messageId);
+    const timerId = actionTimerRefs.current[key];
+    if (timerId) {
+      window.clearInterval(timerId);
+      delete actionTimerRefs.current[key];
+    }
+  }, []);
+
+  // ?? Execute an export action ?????????????????????????????
+  const executeAction = useCallback(async (action: AgentAction, messageId?: string) => {
+    const exportModel = (isCustomModel && customModel) ? customModel : (selectedModel || null);
+
+    const bodyPayload = {
+      repo_url: repoUrl,
+      repo_name: repoName,
+      provider: selectedProvider || 'openai',
+      model: exportModel,
+      language: language,
+      repo_type: repoType,
+      access_token: token || null,
+      excluded_dirs: excludedDirs || null,
+      excluded_files: excludedFiles || null,
+      included_dirs: includedDirs || null,
+      included_files: includedFiles || null,
+    };
+
+    let endpoint = '';
+    let defaultFilename = '';
+    if (action === 'GENERATE_PDF') {
+      endpoint = '/api/export/repo-pdf';
+      defaultFilename = `${repoName.split('/').pop() || 'repo'}_report.pdf`;
+    } else if (action === 'GENERATE_PPT') {
+      endpoint = '/api/export/repo-ppt';
+      defaultFilename = `${repoName.split('/').pop() || 'repo'}_slides.pptx`;
+    } else if (action === 'GENERATE_VIDEO') {
+      endpoint = '/api/export/repo-video';
+      defaultFilename = `${repoName.split('/').pop() || 'repo'}_overview.mp4`;
+    }
+
+    startActionProgress(action, messageId);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`Export failed: ${response.status} - ${errorText}`);
+      }
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = defaultFilename;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      stopActionProgress(action, messageId);
+      setActionStatuses(prev => prev.map(a => a.type === action && a.messageId === messageId ? { ...a, status: 'done', phase: undefined, stepIndex: undefined, totalSteps: undefined, note: undefined } : a));
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      stopActionProgress(action, messageId);
+      setActionStatuses(prev => prev.map(a => a.type === action && a.messageId === messageId ? { ...a, status: 'error', error: errorMessage, phase: undefined, stepIndex: undefined, totalSteps: undefined, note: undefined } : a));
+    }
+  }, [repoUrl, repoName, repoType, token, selectedProvider, selectedModel, isCustomModel, customModel, language, excludedDirs, excludedFiles, includedDirs, includedFiles, startActionProgress, stopActionProgress]);
 
   const actionIcon = (action: AgentAction) => {
     if (action === 'GENERATE_PDF') return '📄';
@@ -403,8 +524,8 @@ function AgentChatContent() {
           )}
 
           {/* Conversation messages */}
-          {conversationHistory.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          {conversationHistory.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
                   msg.role === 'user'
@@ -417,27 +538,39 @@ function AgentChatContent() {
                     <Markdown content={stripActionTags(msg.content)} />
                     {/* Render action buttons inline */}
                     {parseActions(msg.content).map((action, ai) => {
-                      const status = actionStatuses.find(a => a.type === action);
+                      const status = actionStatuses.find(a => a.type === action && a.messageId === msg.id);
                       return (
                         <div key={ai} className="mt-3 pt-3 border-t border-[var(--border-color)]/50">
                           <div className="flex items-center gap-2">
                             <span className="text-base">{actionIcon(action)}</span>
                             {(!status || status.status === 'pending') && (
                               <button
-                                onClick={() => executeAction(action)}
+                                onClick={() => executeAction(action, msg.id)}
                                 className="text-xs px-3 py-1.5 rounded-md bg-gradient-to-r from-teal-600 to-cyan-500 text-white hover:shadow-md transition-all"
                               >
                                 {actionLabel(action)}
                               </button>
                             )}
                             {status?.status === 'running' && (
-                              <span className="text-xs text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
-                                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                {status.phase || (t?.agentChat?.generating || 'Generating...')}
-                              </span>
+                              <div className="text-xs text-teal-600 dark:text-teal-400 space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                  <span>{status.phase || (t?.agentChat?.generating || 'Generating...')}</span>
+                                </div>
+                                {status.stepIndex && status.totalSteps && (
+                                  <div className="text-[11px] text-teal-500/90 dark:text-teal-300/90">
+                                    Step {status.stepIndex}/{status.totalSteps}
+                                  </div>
+                                )}
+                                {status.note && (
+                                  <div className="text-[11px] text-teal-500/90 dark:text-teal-300/90">
+                                    {status.note}
+                                  </div>
+                                )}
+                              </div>
                             )}
                             {status?.status === 'done' && (
                               <span className="text-xs text-green-600 dark:text-green-400">
@@ -491,13 +624,28 @@ function AgentChatContent() {
 
         {/* Active actions status bar */}
         {actionStatuses.some(a => a.status === 'running') && (
-          <div className="px-4 py-2 border-t border-[var(--border-color)] bg-teal-50 dark:bg-teal-900/20">
-            <div className="flex items-center gap-3 text-xs text-teal-700 dark:text-teal-300">
-              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+          <div className="px-4 py-3 border-t border-[var(--border-color)] bg-teal-50 dark:bg-teal-900/20">
+            <div className="flex items-start gap-3 text-xs text-teal-700 dark:text-teal-300">
+              <svg className="animate-spin h-3.5 w-3.5 mt-0.5 flex-shrink-0" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              {actionStatuses.filter(a => a.status === 'running').map(a => actionLabel(a.type)).join(', ')} — {t?.agentChat?.exportInProgress || 'Export in progress...'}
+              <div className="space-y-1">
+                {actionStatuses.filter(a => a.status === 'running').map((a) => (
+                  <div key={a.type}>
+                    <div>
+                      <span className="font-medium">{actionLabel(a.type)}</span>
+                      {a.stepIndex && a.totalSteps && (
+                        <span> - Step {a.stepIndex}/{a.totalSteps}</span>
+                      )}
+                    </div>
+                    <div>{a.phase || (t?.agentChat?.exportInProgress || 'Export in progress...')}</div>
+                    {a.note && (
+                      <div className="text-[11px] text-teal-600/80 dark:text-teal-300/80">{a.note}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

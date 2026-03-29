@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import tempfile
+import time
 import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, List, Optional
@@ -23,12 +24,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 VIDEO_SIZE = (1280, 720)
-SCENE_DURATION_DEFAULT = 12
-SCENE_DURATION_MIN = 6
-SCENE_DURATION_MAX = 24
-MAX_SCENES = 8
-MAX_BULLETS = 4
-MAX_BULLET_CHARS = 140
+SCENE_DURATION_DEFAULT = 7
+SCENE_DURATION_MIN = 4
+SCENE_DURATION_MAX = 10
+MAX_SCENES = 6
+MAX_BULLETS = 3
+MAX_BULLET_CHARS = 48
+MAX_EXPANSION_SCENES = max(2, MAX_SCENES - 3)
+MAX_KEYWORDS = 4
+TRANSITION_SECONDS = 0.35
 
 
 # ---------------------------------------------------------------------------
@@ -87,24 +91,32 @@ async def generate_narration_script(
     from api.content_analyzer import _get_language_name
     from api.prompts import VIDEO_NARRATION_PROMPT
 
+    start = time.perf_counter()
     language_name = _get_language_name(analyzed.language)
     analysis_json = _analysis_to_prompt_json(analyzed)
     prompt = VIDEO_NARRATION_PROMPT.format(
         language_name=language_name,
         analysis_json=analysis_json,
     )
+    logger.info("Timing - video prompt assembly completed in %.2fs", time.perf_counter() - start)
 
+    llm_start = time.perf_counter()
     raw_text = await _call_llm_raw(
         prompt=prompt,
         provider=provider or "openai",
         model=model,
     )
+    logger.info("Timing - narration LLM call completed in %.2fs", time.perf_counter() - llm_start)
 
+    parse_start = time.perf_counter()
     scenes = _parse_scene_array(raw_text)
+    logger.info("Timing - narration parsing completed in %.2fs", time.perf_counter() - parse_start)
     if not scenes:
+        fallback_start = time.perf_counter()
         scenes = _fallback_narration_script(analyzed)
+        logger.info("Timing - narration fallback script built in %.2fs", time.perf_counter() - fallback_start)
 
-    logger.info("Narration script generated - %d scenes", len(scenes))
+    logger.info("Narration script generated - %d scenes (total %.2fs)", len(scenes), time.perf_counter() - start)
     return scenes
 
 
@@ -262,48 +274,323 @@ def _parse_scene_array(raw_text: str) -> List[dict]:
     return []
 
 
-def _fallback_narration_script(analyzed: "AnalyzedContent") -> List[dict]:
-    """Build a simple narration script directly from the structured data."""
+def _chunk_list(items: List[Any], chunk_size: int) -> List[List[Any]]:
+    return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+
+def _clean_keyword(text: str, max_chars: Optional[int] = MAX_BULLET_CHARS) -> str:
+    text = re.sub(r"[`*_]", "", text)
+    text = text.replace("_", " ").replace("/", " / ")
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"\s+", " ", text).strip(" .,:;-\n\t")
+    if max_chars is not None and len(text) > max_chars:
+        text = text[: max_chars - 3].rstrip() + "..."
+    return text
+
+
+def _clean_entity_label(text: str) -> str:
+    return _clean_keyword(text, max_chars=None)
+
+
+def _keyword_phrases(text: str, limit: int = MAX_KEYWORDS) -> List[str]:
+    if not text:
+        return []
+    parts = re.split(r"[.;:()\n]|\band\b|\bthat\b|\bwhich\b|\bwith\b", text, flags=re.IGNORECASE)
+    keywords: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        cleaned = _clean_keyword(part)
+        if not cleaned:
+            continue
+        words = cleaned.split()
+        if len(words) > 6:
+            cleaned = " ".join(words[:6])
+        lowered = cleaned.lower()
+        if lowered not in seen:
+            keywords.append(cleaned)
+            seen.add(lowered)
+        if len(keywords) >= limit:
+            break
+    return keywords
+
+
+def _module_lookup(analyzed: "AnalyzedContent") -> dict[str, Any]:
+    return {m.name: m for m in analyzed.module_progression}
+
+
+def _measure_lines(draw, text: str, font, max_width: int, max_lines: Optional[int] = None) -> List[str]:
+    words = _clean_keyword(text, max_chars=None).split()
+    if not words:
+        return []
+    lines: list[str] = []
+    current = words[0]
+    for word in words[1:]:
+        trial = f"{current} {word}"
+        if draw.textbbox((0, 0), trial, font=font)[2] <= max_width:
+            current = trial
+        else:
+            lines.append(current)
+            current = word
+            if max_lines and len(lines) >= max_lines:
+                return lines
+    lines.append(current)
+    if max_lines:
+        return lines[:max_lines]
+    return lines
+
+
+def _font_height(draw, font) -> int:
+    bbox = draw.textbbox((0, 0), "Ag", font=font)
+    return bbox[3] - bbox[1]
+
+
+def _fit_text_block(draw, text: str, max_width: int, max_height: int, preferred_font, min_size: int = 14, max_lines: int = 3):
+    from PIL import ImageFont
+
+    if not text:
+        return preferred_font, [], 0
+
+    font = preferred_font
+    font_path = getattr(preferred_font, 'path', None)
+    current_size = getattr(preferred_font, 'size', min_size)
+    while current_size >= min_size:
+        lines = _measure_lines(draw, text, font, max_width)
+        if lines and len(lines) <= max_lines:
+            line_height = _font_height(draw, font)
+            total_height = len(lines) * line_height + max(0, len(lines) - 1) * 8
+            widest = max(draw.textbbox((0, 0), line, font=font)[2] for line in lines)
+            if widest <= max_width and total_height <= max_height:
+                return font, lines, line_height
+        current_size -= 2
+        if font_path:
+            font = ImageFont.truetype(font_path, current_size)
+        else:
+            break
+
+    lines = _measure_lines(draw, text, font, max_width, max_lines=max_lines) or [text]
+    line_height = _font_height(draw, font)
+    return font, lines[:max_lines], line_height
+
+
+def _fit_text_lines(draw, text: str, font, max_width: int, max_lines: int) -> List[str]:
+    _, lines, _ = _fit_text_block(draw, text, max_width, 10_000, font, min_size=max(12, getattr(font, 'size', 18) - 14), max_lines=max_lines)
+    return lines
+
+
+def _rect_with_padding(rect: tuple[int, int, int, int], padding: int = 8) -> tuple[int, int, int, int]:
+    return (rect[0] - padding, rect[1] - padding, rect[2] + padding, rect[3] + padding)
+
+
+def _rects_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    return not (a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3])
+
+
+def _find_clear_label_rect(label_size: tuple[int, int], anchor: tuple[int, int], blocked: List[tuple[int, int, int, int]], canvas: tuple[int, int], padding: int = 8) -> tuple[int, int, int, int]:
+    width, height = label_size
+    ax, ay = anchor
+    candidates = [
+        (ax - width // 2, ay - height - 18),
+        (ax - width // 2, ay + 18),
+        (ax + 18, ay - height // 2),
+        (ax - width - 18, ay - height // 2),
+        (ax - width // 2, ay - height // 2),
+    ]
+    canvas_w, canvas_h = canvas
+    for x, y in candidates:
+        x = max(24, min(x, canvas_w - width - 24))
+        y = max(110, min(y, canvas_h - height - 24))
+        rect = (x, y, x + width, y + height)
+        padded = _rect_with_padding(rect, padding)
+        if not any(_rects_overlap(padded, _rect_with_padding(other, padding)) for other in blocked):
+            return rect
+    x = max(24, min(ax - width // 2, canvas_w - width - 24))
+    y = max(110, min(ay + 18, canvas_h - height - 24))
+    return (x, y, x + width, y + height)
+
+
+def _draw_fitted_text(draw, text: str, rect: tuple[int, int, int, int], font, fill, align: str = 'left', valign: str = 'middle', max_lines: int = 3) -> tuple[int, int, int, int]:
+    max_width = max(20, rect[2] - rect[0])
+    max_height = max(20, rect[3] - rect[1])
+    fitted_font, lines, line_height = _fit_text_block(draw, text, max_width, max_height, font, max_lines=max_lines)
+    total_height = len(lines) * line_height + max(0, len(lines) - 1) * 8
+    if valign == 'top':
+        y = rect[1]
+    elif valign == 'bottom':
+        y = rect[3] - total_height
+    else:
+        y = rect[1] + max(0, (max_height - total_height) // 2)
+    used_left = rect[2]
+    used_right = rect[0]
+    for line in lines:
+        line_width = draw.textbbox((0, 0), line, font=fitted_font)[2]
+        if align == 'center':
+            x = rect[0] + max(0, (max_width - line_width) // 2)
+        elif align == 'right':
+            x = rect[2] - line_width
+        else:
+            x = rect[0]
+        draw.text((x, y), line, font=fitted_font, fill=fill)
+        used_left = min(used_left, x)
+        used_right = max(used_right, x + line_width)
+        y += line_height + 8
+    return (used_left, rect[1], used_right, rect[1] + total_height)
+
+
+def _draw_boxed_keywords(draw, title: str, items: List[str], rect: tuple[int, int, int, int], title_font, item_font, colors: tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]]) -> None:
+    fill, outline, text_fill = colors
+    draw.rounded_rectangle(rect, radius=18, fill=fill, outline=outline, width=2)
+    draw.text((rect[0] + 18, rect[1] + 14), title, font=title_font, fill=text_fill)
+    y = rect[1] + 50
+    max_width = rect[2] - rect[0] - 58
+    for item in items[:3]:
+        lines = _fit_text_lines(draw, item, item_font, max_width, 1)
+        if not lines:
+            continue
+        draw.ellipse((rect[0] + 22, y + 12, rect[0] + 30, y + 20), fill=text_fill)
+        draw.text((rect[0] + 42, y + 7), lines[0], font=item_font, fill=(235, 241, 248))
+        y += 46
+        if y > rect[3] - 44:
+            break
+
+
+def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict]) -> List[dict]:
+    """Force a stable walkthrough structure: overview -> core -> expansion* -> summary."""
+
+    def _pick_scene(section: str) -> Optional[dict]:
+        for scene in raw_scenes:
+            if str(scene.get("section") or "").strip().lower() == section:
+                return scene
+        return None
+
+    overview_scene = _pick_scene("overview")
+    core_scene = _pick_scene("core")
+    summary_scene = _pick_scene("summary")
+    expansion_seed_scenes = [
+        scene for scene in raw_scenes if str(scene.get("section") or "").strip().lower() == "expansion"
+    ]
+
+    core_modules = [m for m in analyzed.module_progression if getattr(m, "stage", "") == "core"]
+    expansion_modules = [m for m in analyzed.module_progression if getattr(m, "stage", "") == "expansion"]
+
     scenes: list[dict] = []
 
+    tech_anchor: list[str] = []
+    tech_anchor.extend(analyzed.tech_stack.languages[:2])
+    tech_anchor.extend(analyzed.tech_stack.frameworks[:2])
+    overview_narration = (
+        str((overview_scene or {}).get("narration") or "").strip()
+        or f"{analyzed.project_overview.strip()} {'Built with ' + ', '.join(tech_anchor[:4]) + '.' if tech_anchor else ''}".strip()
+    )
     scenes.append(
         {
-            "title": analyzed.repo_name,
-            "narration": (
-                f"Welcome. Let's walk through {analyzed.repo_name}. "
-                f"{analyzed.project_overview[:200] if analyzed.project_overview else ''}"
-            ).strip(),
-            "duration_seconds": 15,
+            "title": str((overview_scene or {}).get("title") or (analyzed.repo_name or "Repository Overview")).strip(),
+            "section": "overview",
+            "visual_type": "overview_map",
+            "visual_motif": str((overview_scene or {}).get("visual_motif") or "diagram").strip().lower(),
+            "entities": (overview_scene or {}).get("entities") or [
+                {"label": _clean_entity_label(analyzed.repo_name or "Repository"), "kind": "file"},
+                {"label": "Core path", "kind": "concept"},
+                {"label": "Users", "kind": "user"},
+                {"label": "Outputs", "kind": "concept"},
+            ],
+            "relations": (overview_scene or {}).get("relations") or [
+                {"from": _clean_entity_label(analyzed.repo_name or "Repository"), "to": "Core path", "type": "feeds"},
+                {"from": "Core path", "to": "Outputs", "type": "extends"},
+                {"from": "Outputs", "to": "Users", "type": "helps"},
+            ],
+            "narration": overview_narration[:700],
+            "duration_seconds": (overview_scene or {}).get("duration_seconds", 6),
+            "focus_modules": [],
         }
     )
 
-    if analyzed.architecture:
-        narration = "Here is the high-level architecture. " + " ".join(analyzed.architecture[:3])
-        scenes.append({"title": "Architecture", "narration": narration[:400], "duration_seconds": 20})
-
-    if analyzed.tech_stack and (analyzed.tech_stack.languages or analyzed.tech_stack.frameworks):
-        items = analyzed.tech_stack.languages + analyzed.tech_stack.frameworks
-        narration = "The project uses: " + ", ".join(items[:6]) + "."
-        scenes.append({"title": "Tech Stack", "narration": narration, "duration_seconds": 15})
-
-    if analyzed.key_modules:
-        mods = ", ".join(m.name for m in analyzed.key_modules[:5])
-        narration = f"The key modules are: {mods}."
-        scenes.append({"title": "Key Modules", "narration": narration, "duration_seconds": 15})
-
-    if analyzed.data_flow:
-        narration = "Let's trace the data flow. " + " Then, ".join(analyzed.data_flow[:4]) + "."
-        scenes.append({"title": "Data Flow", "narration": narration[:400], "duration_seconds": 20})
-
+    core_focus = core_modules[:3]
+    if core_focus:
+        core_names = ", ".join(m.name for m in core_focus)
+        core_default = (
+            f"The core backbone centers on {core_names}. "
+            + " ".join(f"{m.name} {m.role} {m.position}" for m in core_focus[:2])
+        )
+    else:
+        core_default = "This scene explains the minimum backbone that makes the repository useful."
     scenes.append(
         {
-            "title": "Thank You",
-            "narration": f"That is a quick overview of {analyzed.repo_name}. Thanks for watching!",
-            "duration_seconds": 10,
+            "title": str((core_scene or {}).get("title") or "The Core Backbone").strip(),
+            "section": "core",
+            "visual_type": "core_diagram",
+            "visual_motif": str((core_scene or {}).get("visual_motif") or "relay").strip().lower(),
+            "entities": (core_scene or {}).get("entities") or [
+                {"label": _clean_entity_label(m.name), "kind": "file"} for m in core_focus[:3]
+            ],
+            "relations": (core_scene or {}).get("relations") or [
+                {"from": _clean_entity_label(core_focus[i].name), "to": _clean_entity_label(core_focus[i + 1].name), "type": "calls"}
+                for i in range(max(0, len(core_focus) - 1))
+            ],
+            "narration": (str((core_scene or {}).get("narration") or "").strip() or core_default)[:700],
+            "duration_seconds": (core_scene or {}).get("duration_seconds", 7),
+            "focus_modules": [m.name for m in core_focus],
         }
     )
 
-    return scenes
+    expansion_groups = _chunk_list(expansion_modules[:MAX_EXPANSION_SCENES], 1)
+    for index, group in enumerate(expansion_groups, start=1):
+        seed = expansion_seed_scenes[index - 1] if index - 1 < len(expansion_seed_scenes) else {}
+        names = ", ".join(m.name for m in group)
+        default_narration = (
+            f"After the backbone is in place, the system expands with {names}. "
+            + " ".join(f"{m.name} {m.solves}" for m in group)
+        )
+        scenes.append(
+            {
+                "title": str(seed.get("title") or f"Expansion Layer {index}").strip(),
+                "section": "expansion",
+                "visual_type": "expansion_ladder",
+                "visual_motif": str(seed.get("visual_motif") or "dialogue").strip().lower(),
+                "entities": seed.get("entities") or [
+                    {"label": _clean_entity_label(group[0].name), "kind": "file"},
+                    {"label": "Core path", "kind": "concept"},
+                    {"label": _clean_entity_label(_keyword_phrases(group[0].solves, 1)[0] if _keyword_phrases(group[0].solves, 1) else 'Capability'), "kind": "concept"},
+                ],
+                "relations": seed.get("relations") or [
+                    {"from": "Core path", "to": _clean_entity_label(group[0].name), "type": "extends"},
+                    {"from": _clean_entity_label(group[0].name), "to": _clean_entity_label(_keyword_phrases(group[0].solves, 1)[0] if _keyword_phrases(group[0].solves, 1) else 'Capability'), "type": "helps"},
+                ],
+                "narration": (str(seed.get("narration") or "").strip() or default_narration)[:700],
+                "duration_seconds": seed.get("duration_seconds", 6),
+                "focus_modules": [m.name for m in group],
+            }
+        )
+
+    summary_default = (
+        f"Taken together, {analyzed.repo_name} becomes a complete system rather than a loose set of files. "
+        + (analyzed.target_users[:320] if analyzed.target_users else "It supports its main users through a full workflow.")
+    )
+    scenes.append(
+        {
+            "title": str((summary_scene or {}).get("title") or "Complete System and Use Cases").strip(),
+            "section": "summary",
+            "visual_type": "summary_usecases",
+            "visual_motif": str((summary_scene or {}).get("visual_motif") or "usecases").strip().lower(),
+            "entities": (summary_scene or {}).get("entities") or [
+                {"label": "Users", "kind": "user"},
+                {"label": "Workflow", "kind": "concept"},
+                {"label": "Outcome", "kind": "concept"},
+            ],
+            "relations": (summary_scene or {}).get("relations") or [
+                {"from": "Users", "to": "Workflow", "type": "calls"},
+                {"from": "Workflow", "to": "Outcome", "type": "helps"},
+            ],
+            "narration": (str((summary_scene or {}).get("narration") or "").strip() or summary_default)[:700],
+            "duration_seconds": (summary_scene or {}).get("duration_seconds", 6),
+            "focus_modules": [],
+        }
+    )
+    return scenes[:MAX_SCENES]
+
+
+def _fallback_narration_script(analyzed: "AnalyzedContent") -> List[dict]:
+    """Build a deterministic storyline-first script directly from structured data."""
+    return _build_storyline_scenes(analyzed, raw_scenes=[])
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +620,12 @@ def _normalize_scenes(raw_scenes: List[dict], repo_name: str) -> List[dict]:
         normalized.append(
             {
                 "title": title[:80],
+                "section": str(raw_scene.get("section") or "").strip().lower(),
+                "visual_type": str(raw_scene.get("visual_type") or "").strip().lower(),
+                "visual_motif": str(raw_scene.get("visual_motif") or "").strip().lower(),
+                "focus_modules": [str(item).strip() for item in raw_scene.get("focus_modules", []) if str(item).strip()],
+                "entities": [item for item in raw_scene.get("entities", []) if isinstance(item, dict)],
+                "relations": [item for item in raw_scene.get("relations", []) if isinstance(item, dict)],
                 "narration": narration[:1200],
                 "duration_seconds": duration,
             }
@@ -341,12 +634,16 @@ def _normalize_scenes(raw_scenes: List[dict], repo_name: str) -> List[dict]:
     if normalized:
         return normalized
 
-    # Keep the renderer robust even if the LLM returns unusable data.
-    # A single generic scene is better than failing the whole export path.
     fallback_title = repo_name or "Repository Overview"
     return [
         {
             "title": fallback_title,
+            "section": "overview",
+            "visual_type": "overview_map",
+            "visual_motif": "diagram",
+            "focus_modules": [],
+            "entities": [],
+            "relations": [],
             "narration": f"This video provides a quick overview of {fallback_title}.",
             "duration_seconds": SCENE_DURATION_DEFAULT,
         }
@@ -380,15 +677,69 @@ def _split_narration_to_bullets(narration: str) -> List[str]:
     return [compact]
 
 
-def _scene_to_card_content(scene: dict, repo_name: str, index: int, total: int) -> dict:
-    """Create a simple visual card representation for one scene."""
-    # Baseline v1 uses a deterministic card layout:
-    # title + subtitle + short bullets + footer progress indicator.
+def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int, total: int) -> dict:
+    """Create a visual scene plan with keyword-first metadata for the renderer."""
+    section = scene.get("section") or "overview"
+    visual_type = scene.get("visual_type") or {
+        "overview": "overview_map",
+        "core": "core_diagram",
+        "expansion": "expansion_ladder",
+        "summary": "summary_usecases",
+    }.get(section, "overview_map")
+
+    focus_modules = scene.get("focus_modules") or []
+    modules = _module_lookup(analyzed)
+    scene_entities = [item for item in scene.get("entities", []) if isinstance(item, dict)]
+    scene_relations = [item for item in scene.get("relations", []) if isinstance(item, dict)]
+    tech_chips = [_clean_keyword(item, 24) for item in (analyzed.tech_stack.languages + analyzed.tech_stack.frameworks)[:4]]
+
+    screen_keywords: list[str] = []
+    for module_name in focus_modules:
+        module = modules.get(module_name)
+        if module:
+            screen_keywords.append(_clean_keyword(module.name, 26))
+            screen_keywords.extend(_keyword_phrases(module.solves, limit=2))
+            screen_keywords.extend(_keyword_phrases(module.role, limit=1))
+        else:
+            screen_keywords.append(_clean_keyword(module_name, 26))
+
+    if scene_entities:
+        screen_keywords = [_clean_keyword(item.get("label", ""), 28) for item in scene_entities[:MAX_KEYWORDS]]
+    elif section == "overview":
+        screen_keywords = _keyword_phrases(analyzed.project_overview, limit=3) + tech_chips[:2]
+    elif section == "summary":
+        screen_keywords = _keyword_phrases(analyzed.target_users or scene["narration"], limit=4)
+
+    deduped_keywords: list[str] = []
+    for item in screen_keywords:
+        cleaned = _clean_keyword(item, 32)
+        if cleaned and cleaned.lower() not in {x.lower() for x in deduped_keywords}:
+            deduped_keywords.append(cleaned)
+
+    use_cases = [_clean_keyword(item, 34) for item in _keyword_phrases(analyzed.target_users or scene["narration"], limit=3)]
+    microcopy = [_clean_keyword(item, 42) for item in _keyword_phrases(scene["narration"], limit=3)]
+
     return {
-        "title": scene["title"],
-        "subtitle": repo_name or "Repository Walkthrough",
-        "bullets": _split_narration_to_bullets(scene["narration"]),
-        "footer": f"{repo_name or 'Repo'}  |  Scene {index}/{total}",
+        "title": _clean_keyword(scene["title"], 50),
+        "subtitle": _clean_keyword(analyzed.repo_name or "Repository Walkthrough", 36),
+        "section": section,
+        "visual_type": visual_type,
+        "visual_motif": str(scene.get("visual_motif") or "").strip().lower(),
+        "focus_modules": [_clean_keyword(item, 26) for item in focus_modules[:3]],
+        "entities": [{"label": _clean_entity_label(item.get("label", "")), "kind": item.get("kind", "concept")} for item in scene_entities[:4]],
+        "relations": [
+            {
+                "from": _clean_entity_label(item.get("from", "")),
+                "to": _clean_entity_label(item.get("to", "")),
+                "type": _clean_keyword(item.get("type", ""), 18),
+            }
+            for item in scene_relations[:4]
+        ],
+        "tech_chips": tech_chips,
+        "keywords": deduped_keywords[:MAX_KEYWORDS],
+        "microcopy": microcopy[:3],
+        "use_cases": use_cases[:3],
+        "footer": f"{analyzed.repo_name or 'Repo'} | {index}/{total}",
     }
 
 
@@ -431,39 +782,146 @@ def _draw_wrapped_text(draw, text: str, font, x: int, y: int, fill, line_spacing
 
 
 def _render_scene_card_image(card: dict, output_path: str, width: int = VIDEO_SIZE[0], height: int = VIDEO_SIZE[1]) -> None:
-    """Render a single scene card to a PNG image."""
+    """Render a single scene card to a PNG image with measured, conflict-aware layouts."""
     try:
         from PIL import Image, ImageDraw
     except ImportError as exc:
         raise ImportError("Pillow is required for video export. Install pillow.") from exc
 
-    image = Image.new("RGB", (width, height), color=(11, 18, 32))
+    image = Image.new("RGB", (width, height), color=(10, 16, 28))
     draw = ImageDraw.Draw(image)
     title_font, body_font, small_font = _load_fonts()
+    visual_type = card.get("visual_type", "overview_map")
+    visual_motif = card.get("visual_motif", "diagram")
+    entities = card.get("entities") or []
+    relations = card.get("relations") or []
+    blocked_rects: list[tuple[int, int, int, int]] = []
 
-    # The baseline visual language is intentionally simple:
-    # one framed card, one accent bar, and text-heavy content for clarity.
-    draw.rounded_rectangle(
-        (50, 50, width - 50, height - 50),
-        radius=32,
-        fill=(19, 32, 56),
-        outline=(64, 98, 142),
-        width=3,
-    )
-    draw.rectangle((90, 120, width - 90, 126), fill=(62, 207, 142))
+    def register(rect: tuple[int, int, int, int], padding: int = 10) -> None:
+        blocked_rects.append(_rect_with_padding(rect, padding))
 
-    y = 165
-    draw.text((90, y), card["subtitle"], font=small_font, fill=(155, 193, 229))
-    y += 48
-    y = _draw_wrapped_text(draw, card["title"], title_font, 90, y, (242, 247, 255), line_spacing=14)
-    y += 18
+    def draw_node(rect: tuple[int, int, int, int], label: str, fill, outline, text_fill, max_lines: int = 3) -> tuple[int, int, int, int]:
+        draw.rounded_rectangle(rect, radius=20, fill=fill, outline=outline, width=3)
+        _draw_fitted_text(draw, label, (rect[0] + 18, rect[1] + 16, rect[2] - 18, rect[3] - 16), body_font, text_fill, align='center', valign='middle', max_lines=max_lines)
+        register(rect)
+        return rect
 
-    for bullet in card["bullets"]:
-        draw.ellipse((96, y + 10, 112, y + 26), fill=(62, 207, 142))
-        y = _draw_wrapped_text(draw, bullet, body_font, 132, y, (222, 230, 242), line_spacing=12)
-        y += 12
+    def draw_relation_label(anchor: tuple[int, int], text_label: str, fill_color, text_color) -> None:
+        label = _clean_keyword(text_label, 20)
+        if not label:
+            return
+        font, lines, line_height = _fit_text_block(draw, label, 180, 72, small_font, min_size=14, max_lines=2)
+        if not lines:
+            return
+        label_width = max(draw.textbbox((0, 0), line, font=font)[2] for line in lines) + 24
+        label_height = len(lines) * line_height + max(0, len(lines) - 1) * 8 + 18
+        label_rect = _find_clear_label_rect((label_width, label_height), anchor, blocked_rects, (width, height), padding=10)
+        draw.rounded_rectangle(label_rect, radius=14, fill=fill_color, outline=text_color, width=2)
+        _draw_fitted_text(draw, label, (label_rect[0] + 12, label_rect[1] + 9, label_rect[2] - 12, label_rect[3] - 9), font, text_color, align='center', valign='middle', max_lines=2)
+        register(label_rect, padding=6)
 
-    draw.text((90, height - 95), card["footer"], font=small_font, fill=(140, 157, 184))
+    def connect(rect1: tuple[int, int, int, int], rect2: tuple[int, int, int, int], color, label: str) -> None:
+        x1, y1 = rect1[2], (rect1[1] + rect1[3]) // 2
+        x2, y2 = rect2[0], (rect2[1] + rect2[3]) // 2
+        draw.line((x1, y1, x2, y2), fill=color, width=5)
+        draw.polygon([(x2, y2), (x2 - 16, y2 - 10), (x2 - 16, y2 + 10)], fill=color)
+        draw_relation_label(((x1 + x2) // 2, (y1 + y2) // 2), label, (18, 32, 52), color)
+
+    draw.rectangle((0, 0, width, height), fill=(10, 16, 28))
+    draw.rectangle((0, 0, width, 112), fill=(14, 24, 40))
+    draw.text((56, 28), card["subtitle"], font=small_font, fill=(165, 186, 214))
+    title_lines = _fit_text_lines(draw, card["title"], title_font, width - 112, 2)
+    title_y = 66
+    for line in title_lines:
+        draw.text((56, title_y), line, font=title_font, fill=(244, 248, 255))
+        title_y += 54
+    register((40, 20, width - 40, 130), padding=4)
+
+    if visual_type == "overview_map":
+        labels = [item.get("label", "Node") for item in entities[:4]] or ["Repo", "Core path", "Users", "Outputs"]
+        rects = [
+            (96, 210, 332, 338),
+            (392, 168, 700, 312),
+            (392, 356, 700, 500),
+            (884, 240, 1188, 384),
+        ]
+        node_map = {}
+        palette = [((24, 40, 68), (93, 155, 255), (238, 244, 255)), ((20, 48, 54), (94, 214, 160), (240, 246, 255)), ((60, 41, 25), (255, 168, 76), (252, 241, 228)), ((54, 41, 82), (201, 141, 255), (244, 237, 255))]
+        for idx, label in enumerate(labels[:len(rects)]):
+            rect = draw_node(rects[idx], label, *palette[idx], max_lines=3)
+            node_map[label] = rect
+        for relation in relations[:3]:
+            if relation.get("from") in node_map and relation.get("to") in node_map:
+                connect(node_map[relation["from"]], node_map[relation["to"]], (93, 155, 255), relation.get("type", "flows"))
+        _draw_boxed_keywords(draw, "Keywords", card.get("keywords", []), (760, 430, 1192, 644), small_font, small_font, ((19, 35, 57), (82, 122, 172), (120, 223, 191)))
+        _draw_boxed_keywords(draw, "Tech", card.get("tech_chips", []), (84, 520, 520, 650), small_font, small_font, ((20, 36, 60), (93, 155, 255), (176, 204, 236)))
+
+    elif visual_type == "core_diagram":
+        labels = [item.get("label", "Core") for item in entities[:3]] or card.get("focus_modules")[:3] or ["Core A", "Core B", "Core C"]
+        box_w = 300
+        gap = 54
+        left = 78
+        top = 270
+        node_rects = []
+        for i, label in enumerate(labels[:3]):
+            x1 = left + i * (box_w + gap)
+            rect = (x1, top, x1 + box_w, top + 128)
+            node_rects.append(draw_node(rect, label, (21, 53, 66), (94, 214, 160), (240, 246, 255), max_lines=3))
+        node_map = {labels[i]: node_rects[i] for i in range(min(len(labels), len(node_rects)))}
+        for relation in relations[:3]:
+            if relation.get("from") in node_map and relation.get("to") in node_map:
+                connect(node_map[relation["from"]], node_map[relation["to"]], (94, 214, 160), relation.get("type", "calls"))
+        _draw_boxed_keywords(draw, "Core jobs", card.get("keywords", []), (84, 454, 500, 648), small_font, small_font, ((20, 44, 54), (94, 214, 160), (166, 225, 206)))
+        _draw_boxed_keywords(draw, "Signals", card.get("microcopy", []), (540, 454, 1194, 648), small_font, small_font, ((20, 44, 54), (94, 214, 160), (166, 225, 206)))
+
+    elif visual_type == "expansion_ladder" and visual_motif == "dialogue":
+        speaker_a = entities[0].get("label", "Core path") if entities else "Core path"
+        speaker_b = entities[1].get("label", "Expansion") if len(entities) > 1 else "Expansion"
+        draw.ellipse((120, 292, 284, 456), fill=(24, 54, 72), outline=(93, 155, 255), width=3)
+        draw.ellipse((992, 292, 1156, 456), fill=(72, 47, 27), outline=(255, 168, 76), width=3)
+        register((120, 292, 284, 456))
+        register((992, 292, 1156, 456))
+        _draw_fitted_text(draw, speaker_a, (86, 470, 320, 550), body_font, (235, 241, 248), align='center', valign='top', max_lines=2)
+        _draw_fitted_text(draw, speaker_b, (958, 470, 1190, 550), body_font, (252, 241, 228), align='center', valign='top', max_lines=2)
+        left_bubble = (286, 224, 620, 372)
+        right_bubble = (660, 224, 994, 372)
+        draw.rounded_rectangle(left_bubble, radius=22, fill=(26, 40, 67), outline=(93, 155, 255), width=3)
+        draw.rounded_rectangle(right_bubble, radius=22, fill=(60, 41, 25), outline=(255, 168, 76), width=3)
+        register(left_bubble)
+        register(right_bubble)
+        left_text = relations[0].get("type", "hands off") if relations else (card.get("keywords") or ["core handoff"])[0]
+        right_text = (card.get("keywords") or ["new capability"])[1] if len(card.get("keywords") or []) > 1 else (card.get("keywords") or ["new capability"])[0]
+        _draw_fitted_text(draw, left_text, (left_bubble[0] + 22, left_bubble[1] + 20, left_bubble[2] - 22, left_bubble[3] - 20), body_font, (238, 244, 255), align='center', valign='middle', max_lines=3)
+        _draw_fitted_text(draw, right_text, (right_bubble[0] + 22, right_bubble[1] + 20, right_bubble[2] - 22, right_bubble[3] - 20), body_font, (252, 241, 228), align='center', valign='middle', max_lines=3)
+        _draw_boxed_keywords(draw, "Adds", card.get("keywords", []), (388, 478, 892, 652), small_font, small_font, ((60, 41, 25), (255, 168, 76), (255, 214, 173)))
+
+    elif visual_type == "expansion_ladder" and visual_motif == "analogy":
+        analogy_labels = [item.get("label", "Capability") for item in entities[:3]] or ["Backbone", "Extension", "Outcome"]
+        rects = [(90, 286, 350, 482), (500, 286, 780, 482), (890, 286, 1170, 482)]
+        colors = ((72, 47, 27), (255, 168, 76), (252, 241, 228))
+        for rect, label in zip(rects, analogy_labels[:3]):
+            draw_node(rect, label, *colors, max_lines=4)
+        connect(rects[0], rects[1], (255, 168, 76), relations[0].get('type', 'extends') if relations else 'extends')
+        connect(rects[1], rects[2], (255, 168, 76), relations[1].get('type', 'enables') if len(relations) > 1 else 'enables')
+        _draw_boxed_keywords(draw, "Analogy", card.get("microcopy", []), (220, 520, 1040, 650), small_font, small_font, ((60, 41, 25), (255, 168, 76), (255, 214, 173)))
+
+    elif visual_type == "expansion_ladder":
+        core_rect = draw_node((86, 256, 340, 520), entities[1].get('label', 'Core path') if len(entities) > 1 else 'Core path', (24, 54, 72), (93, 155, 255), (235, 241, 248), max_lines=3)
+        module_label = entities[0].get('label', 'Expansion') if entities else (card.get('focus_modules') or ['Expansion Module'])[0]
+        expansion_rect = draw_node((514, 250, 1160, 408), module_label, (72, 47, 27), (255, 168, 76), (252, 241, 228), max_lines=3)
+        connect(core_rect, expansion_rect, (255, 168, 76), relations[0].get('type', 'extends') if relations else 'extends')
+        _draw_boxed_keywords(draw, "Adds", card.get("keywords", []), (514, 434, 842, 652), small_font, small_font, ((60, 41, 25), (255, 168, 76), (255, 214, 173)))
+        _draw_boxed_keywords(draw, "Why it matters", card.get("microcopy", []), (870, 434, 1192, 652), small_font, small_font, ((60, 41, 25), (255, 168, 76), (255, 214, 173)))
+
+    else:
+        draw.text((88, 244), "Complete system", font=body_font, fill=(240, 231, 252))
+        use_cases = card.get("use_cases") or [item.get("label", "Use case") for item in entities[:3]] or ["Primary audience", "Main workflow", "Expected value"]
+        card_rects = [(86, 320, 386, 544), (490, 320, 790, 544), (894, 320, 1194, 544)]
+        for rect, label in zip(card_rects, use_cases[:3]):
+            draw_node(rect, label, (54, 41, 82), (201, 141, 255), (244, 237, 255), max_lines=4)
+        _draw_boxed_keywords(draw, "Takeaway", card.get("keywords", []), (86, 574, 780, 652), small_font, small_font, ((54, 41, 82), (201, 141, 255), (229, 204, 255)))
+
+    draw.text((56, height - 48), card["footer"], font=small_font, fill=(140, 157, 184))
     image.save(output_path, format="PNG")
 
 
@@ -472,7 +930,7 @@ def _render_scene_card_image(card: dict, output_path: str, width: int = VIDEO_SI
 # ---------------------------------------------------------------------------
 
 def _build_scene_clip(image_path: str, duration: int):
-    """Create a moviepy clip from a rendered image card."""
+    """Create a moviepy clip from a rendered image card with light transitions."""
     try:
         from moviepy import ImageClip
     except ImportError:
@@ -488,7 +946,7 @@ def _build_scene_clip(image_path: str, duration: int):
         clip = clip.set_duration(duration)
 
     if hasattr(clip, "fadein"):
-        clip = clip.fadein(0.25).fadeout(0.25)
+        clip = clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
     return clip
 
 
@@ -502,9 +960,20 @@ def _compose_final_video(clips: List[Any], output_path: str) -> None:
         except ImportError as exc:
             raise ImportError("moviepy is required for video export. Install moviepy.") from exc
 
-    final_clip = concatenate_videoclips(clips, method="compose")
     try:
-        final_clip.write_videofile(output_path, fps=24, codec="libx264", audio=False, logger=None)
+        final_clip = concatenate_videoclips(clips, method="compose", padding=-TRANSITION_SECONDS)
+    except TypeError:
+        final_clip = concatenate_videoclips(clips, method="compose")
+    try:
+        final_clip.write_videofile(
+            output_path,
+            fps=8,
+            codec="libx264",
+            audio=False,
+            preset="ultrafast",
+            bitrate="700k",
+            logger=None,
+        )
     except Exception as exc:
         raise RuntimeError(
             "Failed to render MP4 video. Ensure ffmpeg is installed and available to moviepy."
@@ -538,13 +1007,18 @@ async def render_video_from_analyzed(
     """
     Phase 2b-video plus Phase 3: AnalyzedContent to MP4 bytes.
 
-    Baseline v1 renderer: create slide-style cards from the narration script
-    and compose them into an MP4 walkthrough.
+    Baseline v1 renderer: create section-specific visuals from the narration
+    script and compose them into an MP4 walkthrough.
     """
+    overall_start = time.perf_counter()
     logger.info("Video export requested for %s - baseline renderer", analyzed.repo_name)
 
+    narration_start = time.perf_counter()
     raw_scenes = await generate_narration_script(analyzed, provider=provider, model=model)
-    scenes = _normalize_scenes(raw_scenes, analyzed.repo_name)
+    normalized_raw = _normalize_scenes(raw_scenes, analyzed.repo_name)
+    scenes = _build_storyline_scenes(analyzed, normalized_raw)
+    scenes = _normalize_scenes(scenes, analyzed.repo_name)
+    logger.info("Timing - video narration + storyline planning completed in %.2fs", time.perf_counter() - narration_start)
     total = len(scenes)
 
     if total == 0:
@@ -554,18 +1028,41 @@ async def render_video_from_analyzed(
         tmp_path = Path(tmpdir)
         clips = []
 
-        # Render each narration scene into a static card image, then wrap that
-        # image in a timed movie clip. Baseline v1 stays deterministic on
-        # purpose so the export always reflects the actual repo analysis.
         for index, scene in enumerate(scenes, start=1):
-            card = _scene_to_card_content(scene, analyzed.repo_name, index, total)
+            scene_start = time.perf_counter()
+            logger.info("Rendering video scene %d/%d: %s", index, total, scene.get("title", f"Scene {index}"))
+            card = _scene_to_card_content(scene, analyzed, index, total)
             image_path = tmp_path / f"scene_{index:02d}.png"
             _render_scene_card_image(card, str(image_path))
+            render_image_elapsed = time.perf_counter() - scene_start
+
+            clip_start = time.perf_counter()
             clips.append(_build_scene_clip(str(image_path), scene["duration_seconds"]))
+            logger.info(
+                "Timing - scene %d/%d image=%.2fs clip=%.2fs total=%.2fs",
+                index,
+                total,
+                render_image_elapsed,
+                time.perf_counter() - clip_start,
+                time.perf_counter() - scene_start,
+            )
 
         output_path = tmp_path / "repo_overview.mp4"
+        compose_start = time.perf_counter()
+        logger.info("Composing final MP4 for %s with %d scenes", analyzed.repo_name, total)
         _compose_final_video(clips, str(output_path))
-        return _read_file_bytes(str(output_path))
+        logger.info("Timing - final MP4 composition completed in %.2fs", time.perf_counter() - compose_start)
+
+        read_start = time.perf_counter()
+        payload = _read_file_bytes(str(output_path))
+        logger.info(
+            "Final MP4 composed for %s (%d bytes, readback %.2fs, total %.2fs)",
+            analyzed.repo_name,
+            len(payload),
+            time.perf_counter() - read_start,
+            time.perf_counter() - overall_start,
+        )
+        return payload
 
 
 # ---------------------------------------------------------------------------

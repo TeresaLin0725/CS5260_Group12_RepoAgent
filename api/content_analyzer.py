@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, computed_field
@@ -848,8 +849,9 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
     Full Phase 1 + Phase 2a pipeline for direct-repo-embedding exports.
 
     Phase 1: FAISS retrieval of representative code chunks (pure Python).
-    Phase 2a: Single LLM call → structured JSON → AnalyzedContent.
+    Phase 2a: Single LLM call -> structured JSON -> AnalyzedContent.
     """
+    overall_start = time.perf_counter()
     logger.info("analyze_repo_content: repo=%s", request.repo_name)
 
     from api.rag import RAG
@@ -862,6 +864,7 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
     included_dirs = [d.strip() for d in request.included_dirs.split(",") if d.strip()] if request.included_dirs else None
     included_files = [f.strip() for f in request.included_files.split(",") if f.strip()] if request.included_files else None
 
+    prepare_start = time.perf_counter()
     rag.prepare_retriever(
         request.repo_url,
         type=request.repo_type,
@@ -871,14 +874,18 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
         included_dirs=included_dirs,
         included_files=included_files,
     )
+    logger.info("Timing - prepare_retriever completed in %.2fs", time.perf_counter() - prepare_start)
 
     # Phase 1
+    context_start = time.perf_counter()
     context_text = _extract_repo_context(rag, request.repo_name)
+    logger.info("Timing - extract_repo_context completed in %.2fs (chars=%d)", time.perf_counter() - context_start, len(context_text))
     if not context_text.strip():
         logger.warning("No repo content retrieved; returning empty AnalyzedContent")
         return AnalyzedContent(repo_name=request.repo_name, repo_url=request.repo_url, language=request.language)
 
     # Phase 2a
+    llm_start = time.perf_counter()
     raw_text = await _run_llm_structured_analysis(
         input_context=context_text,
         repo_name=request.repo_name,
@@ -886,18 +893,22 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
         provider=request.provider,
         model=request.model,
     )
+    logger.info("Timing - structured analysis LLM completed in %.2fs", time.perf_counter() - llm_start)
 
+    build_start = time.perf_counter()
     raw_json = _extract_json_from_llm(raw_text)
     analyzed = _build_analyzed_content(raw_json, request.repo_name, request.repo_url, request.language, raw_llm_text=raw_text)
+    logger.info("Timing - build_analyzed_content completed in %.2fs", time.perf_counter() - build_start)
 
     # Post-process raw_llm_text for fallback rendering
     if analyzed.raw_llm_text:
         analyzed.raw_llm_text = _postprocess_summary(analyzed.raw_llm_text)
 
     logger.info(
-        "analyze_repo_content complete: repo_type_hint=%s, modules=%d, has_overview=%s",
+        "analyze_repo_content complete: repo_type_hint=%s, modules=%d, has_overview=%s, total=%.2fs",
         analyzed.repo_type_hint,
         len(analyzed.key_modules),
         bool(analyzed.project_overview),
+        time.perf_counter() - overall_start,
     )
     return analyzed

@@ -7,6 +7,7 @@ This is the single entry point for all export operations.
 
 import inspect
 import logging
+import time
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -123,14 +124,28 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat) -> Non
 
 async def export_repo(request: RepoAnalysisRequest, fmt: ExportFormat = ExportFormat.PDF) -> ExportResult:
     """Full pipeline: repo embeddings to analysis to render."""
+    overall_start = time.perf_counter()
     logger.info("Export repo as %s for %s", fmt.value, request.repo_name or request.repo_url)
+
+    analysis_start = time.perf_counter()
     analyzed = await analyze_repo_content(request)
+    analysis_elapsed = time.perf_counter() - analysis_start
+    logger.info("Timing - export analysis completed in %.2fs", analysis_elapsed)
     _print_analyzed_content(analyzed, fmt)
 
     renderer = _RENDERERS[fmt]
+    render_start = time.perf_counter()
     result = renderer(analyzed)
-    if (inspect.isawaitable(result)):
+    if inspect.isawaitable(result):
         result = await result
+    render_elapsed = time.perf_counter() - render_start
 
-    logger.info("Export complete - format=%s, %d bytes", fmt.value, len(result.content_bytes))
+    total_elapsed = time.perf_counter() - overall_start
+    logger.info(
+        "Export complete - format=%s, %d bytes, render=%.2fs, total=%.2fs",
+        fmt.value,
+        len(result.content_bytes),
+        render_elapsed,
+        total_elapsed,
+    )
     return result
