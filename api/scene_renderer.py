@@ -248,7 +248,6 @@ def _render_overview_html(card, p):
     relations = card.get("relations") or []
     tech_chips = card.get("tech_chips") or []
     overview_descs = card.get("overview_descriptions") or []
-    narration = card.get("narration", "")
 
     nodes_html = []
     for i, ent in enumerate(entities[:4]):
@@ -284,10 +283,6 @@ def _render_overview_html(card, p):
         + badges + '</div>'
         + '<div style="display:flex;align-items:center;justify-content:center;gap:0;flex:1;padding:10px 0;">'
         + ''.join(flow) + '</div>'
-        + '<div style="background:rgba(93,155,255,0.08);border:1px solid rgba(93,155,255,0.25);'
-        + 'border-radius:12px;padding:14px 22px;margin-top:16px;font-size:15px;line-height:1.5;'
-        + 'color:' + p['text_dim'] + ';overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;'
-        + '-webkit-box-orient:vertical;">' + _esc(narration) + '</div>'
         + '</div>'
     )
 
@@ -323,8 +318,6 @@ def _render_core_html(card, p):
                 + '</div>'
             )
 
-    # Use narration as the bottom info bar
-    narration = card.get("narration", "")
     return (
         '<div class="content">'
         + '<div style="text-align:center;font-size:15px;color:' + p['accent']
@@ -332,10 +325,6 @@ def _render_core_html(card, p):
         + 'Minimum Viable System</div>'
         + '<div style="display:flex;align-items:center;justify-content:center;gap:0;flex:1;padding:20px 0;">'
         + ''.join(flow) + '</div>'
-        + '<div style="background:rgba(94,214,160,0.08);border:1px solid rgba(94,214,160,0.2);'
-        + 'border-radius:12px;padding:14px 22px;margin-top:10px;font-size:14px;line-height:1.5;'
-        + 'color:' + p['text_dim'] + ';overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;'
-        + '-webkit-box-orient:vertical;">' + _esc(narration) + '</div>'
         + '</div>'
     )
 
@@ -344,7 +333,6 @@ def _render_expansion_html(card, p, expansion_index=1):
     entities = card.get("entities") or []
     focus_modules = card.get("focus_modules") or []
     module_details = card.get("module_details") or []
-    narration = card.get("narration", "")
 
     # Use module_details for accurate data
     if module_details:
@@ -391,11 +379,6 @@ def _render_expansion_html(card, p, expansion_index=1):
             + '</div>'
             + '</div>'
             + '</div>'
-            # Narration bar
-            + '<div style="background:rgba(255,168,76,0.06);border:1px solid rgba(255,168,76,0.2);'
-            + 'border-radius:12px;padding:12px 20px;margin-top:14px;font-size:14px;line-height:1.5;'
-            + 'color:' + p['text_dim'] + ';overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;'
-            + '-webkit-box-orient:vertical;">' + _esc(narration) + '</div>'
             + '</div>'
         )
     else:
@@ -526,7 +509,6 @@ def _render_summary_html(card, p):
     entities = card.get("entities") or []
     use_cases = card.get("use_cases") or []
     keywords = card.get("keywords") or []
-    narration = card.get("narration", "")
 
     labels = [_esc(ent.get("label", "Step")) for ent in entities[:4]]
     if not labels:
@@ -570,10 +552,6 @@ def _render_summary_html(card, p):
         + ''.join(flow) + '</div>'
         + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;justify-content:center;">'
         + badges + '</div>'
-        + '<div style="background:rgba(201,141,255,0.06);border:1px solid rgba(201,141,255,0.2);'
-        + 'border-radius:12px;padding:12px 20px;margin-top:14px;font-size:14px;line-height:1.5;'
-        + 'color:' + p['text_dim'] + ';overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;'
-        + '-webkit-box-orient:vertical;">' + _esc(narration) + '</div>'
         + '</div>'
     )
 
