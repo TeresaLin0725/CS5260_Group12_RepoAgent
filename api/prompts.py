@@ -244,15 +244,15 @@ Module progression guidance (video-specific, keep separate from the general arch
 - Mark each item as either core or expansion
 - Use specific module identifiers whenever possible, preferably concrete file paths or precise module names such as api/rag.py or api/export_service.py
 - Avoid overly broad labels like api, backend, frontend, utils, services, or components unless the repository truly uses that exact module boundary as a first-class unit
-- core means the module belongs to the smallest useful backbone of the system and should be understood first
-- Treat modules on the main repository analysis, retrieval, orchestration, or request-handling path as core when the system cannot deliver its central value without them
+- core means the module belongs to the smallest useful backbone — the minimum set required to deliver the system's central value
 - expansion means the module extends the core with an additional capability, output format, interface, or coordination layer
-- Treat export adapters, optional output formats, agent layers, and secondary interaction surfaces as expansion unless they are clearly part of the minimum backbone
 - Prefer the best understanding order, not literal commit chronology
 - Do not simply repeat key_modules; this field should emphasize explanatory order and system growth
-- role should say what the module does in the system
-- solves should say why this module needs to exist and what problem it addresses
-- position should say where the module sits in the overall system and what modules or layers it connects to
+- role: what this module does in the system (1-2 sentences)
+- solves: CRITICAL — describe the specific gap or pain point that exists WITHOUT this module. Frame as: "Without this, [concrete limitation]. This module solves it by [mechanism]." Do NOT write generic descriptions like "handles X" — explain WHY the system needs it.
+- position: where the module sits in the system and what it connects to
+- For core modules: explain what the minimum viable system looks like — what can users already do with just the core?
+- For expansion modules: explain what breaks, what is missing, or what user pain exists before this module is added
 - Choose modules that make the project easier to explain to a non-expert, not necessarily every important file
 
 Depth emphasis by repo type (adjust section detail accordingly):
@@ -278,17 +278,23 @@ PDF_ONEPAGE_SUMMARY_PROMPT = STRUCTURED_ANALYSIS_PROMPT
 # Phase 2b: Format-specific adapter prompts
 # ---------------------------------------------------------------------------
 
-VIDEO_NARRATION_PROMPT = """You are a technical narrator creating a newcomer-friendly repository walkthrough video. Convert the structured project analysis below into a short guided story rather than a generic architecture checklist. Respond in {language_name}.
+VIDEO_NARRATION_PROMPT = """You are a senior engineer explaining a codebase to a new teammate in a short walkthrough video. Your tone is conversational and direct — like a 1-on-1 onboarding session, not a conference talk. Respond in {language_name}.
 
-Write the script as a sequence of scenes. Each scene has:
-- A title shown on screen
-- A section label
-- A visual type hint for the renderer
-- A visual motif that suggests how to stage the scene
-- A small set of entities to place on screen
-- Explicit relations between those entities
-- Narration text spoken aloud in a conversational tone
-- A duration hint in seconds
+The narration will be read aloud by a text-to-speech engine, so:
+- Write natural spoken sentences, not bullet points or document-style prose
+- Avoid abbreviations, parenthetical asides, and markdown formatting in narration text
+- Keep each narration 3-5 sentences, around 40-80 words — enough to fill 10-20 seconds of speech
+- Use casual connectors: "So basically...", "The key thing here is...", "Now once that's working..."
+
+Write the script as a JSON array of scenes. Each scene has:
+- title: short label for on-screen display
+- section: overview | core | expansion | summary
+- visual_type: overview_map | core_diagram | expansion_ladder | summary_usecases
+- visual_motif: diagram | relay | dialogue | analogy | usecases
+- entities: 2-4 items to place on screen (label + kind)
+- relations: 1-3 connections between entities
+- narration: what the narrator says aloud (3-5 spoken sentences)
+- duration_seconds: estimated time in seconds
 
 Respond ONLY with a valid JSON array (no markdown fences):
 [
@@ -298,32 +304,46 @@ Respond ONLY with a valid JSON array (no markdown fences):
     "visual_type": "<overview_map | core_diagram | expansion_ladder | summary_usecases>",
     "visual_motif": "<diagram | relay | dialogue | analogy | usecases>",
     "entities": [
-      {{"label": "<entity label>", "kind": "<module | class | file | concept | user>"}}
+      {{"label": "<short entity label>", "kind": "<module | class | file | concept | user>"}}
     ],
     "relations": [
       {{"from": "<entity label>", "to": "<entity label>", "type": "<feeds | calls | extends | depends_on | explains | helps>"}}
     ],
-    "narration": "<what the narrator says, 2-3 sentences, conversational tone>",
+    "narration": "<spoken narration, 3-5 sentences, conversational>",
     "duration_seconds": <number>
   }}
 ]
 
-Story structure requirements:
+Story structure — each scene type has a specific narrative job:
+
+SCENE 1 — overview (overview_map):
+  "Imagine you just cloned this repo. What is it, who built it, and what does it actually do?"
+  Narration must: name the project, state the core problem it solves, mention who uses it, and give one concrete example of what it produces.
+  Do NOT list technologies here — save that for the core scene.
+
+SCENE 2 — core (core_diagram):
+  "What is the absolute minimum that makes this repo useful? Walk me through the foundational path."
+  Narration must: identify the 2-3 modules that form the minimum viable system, trace a request from input to output through them, and explain what a user can already do with just this backbone.
+  Mention key technologies only where they explain WHY this design works.
+
+SCENES 3 to N-1 — expansion (expansion_ladder), one per expansion module:
+  "Now the base works, but there's a gap. This module fills it."
+  Each expansion narration MUST start by naming the specific pain point or limitation that exists without this module, THEN explain how the module solves it.
+  Pattern: "At this point [what's missing or broken]. [Module name] solves this by [mechanism]. This means users can now [new capability]."
+  Do NOT merge multiple expansion modules into one scene — each gets its own scene.
+  Vary visual_motif: use dialogue for interaction-heavy modules, analogy when a metaphor helps, relay/diagram for data flow chains.
+
+FINAL SCENE — summary (summary_usecases):
+  "Put it all together — what does the complete system enable?"
+  Narration must use a concrete user story: "A [specific role] wants to [specific goal]. They [step 1], then [step 2], and get [concrete outcome]."
+  Do NOT use generic phrases like "complete system", "various features", "robust architecture".
+
+Additional rules:
 - Target 5-6 scenes total
-- Scene 1 must be section=overview and visual_type=overview_map
-- Scene 2 must be section=core and visual_type=core_diagram
-- Each scene should use 2-4 entities and 1-3 explicit relations; prefer entities at a granularity between function/class and file, not huge subsystems
-- Scenes 3 to n-1 must be multiple section=expansion scenes whenever the repository has multiple expansion modules; do not merge all expansion content into one scene
-- The final scene must be section=summary and visual_type=summary_usecases
-- Use module_progression as the primary storyline: first explain the core backbone, then show how expansion modules add capabilities
-- The summary scene should explain the complete system and its main use cases or audience
-- Do not produce a flat list of architecture bullets, tech-stack bullets, and data-flow bullets
-- Keep narration compact because the renderer will emphasize diagrams, module relationships, flow order, and use-case views
-- Prefer keywords, short phrases, and concise labels over full explanatory sentences for anything that will appear on screen
-- Do not output on-screen labels that are too long to fit naturally inside a node or speech bubble; shorten while preserving the original meaning
-- For expansion scenes, vary the visual motif based on relation type: use relay/diagram for dependency chains, dialogue for interaction-heavy relations, and analogy when a real-world metaphor would help a non-expert
-- Prefer explanation of growth and system roles over generic summary language
-- Use architecture, data_flow, and key_modules only to support the progression storyline
+- Use module_progression as the primary storyline driver
+- On-screen labels must be short (fit in a node or bubble) — use full names only in narration
+- Entities should be at module/file granularity, not huge subsystems
+- architecture, data_flow, and key_modules are supporting context, not the storyline itself
 
 Project analysis:
 {analysis_json}

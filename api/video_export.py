@@ -26,13 +26,16 @@ logger = logging.getLogger(__name__)
 VIDEO_SIZE = (1280, 720)
 SCENE_DURATION_DEFAULT = 7
 SCENE_DURATION_MIN = 4
-SCENE_DURATION_MAX = 10
+SCENE_DURATION_MAX = 30
+AUDIO_PADDING_SECONDS = 1.0
 MAX_SCENES = 6
 MAX_BULLETS = 3
 MAX_BULLET_CHARS = 48
 MAX_EXPANSION_SCENES = max(2, MAX_SCENES - 3)
 MAX_KEYWORDS = 4
 TRANSITION_SECONDS = 0.35
+VIDEO_FPS = 24
+NARRATION_MAX_CHARS = 280
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +277,23 @@ def _parse_scene_array(raw_text: str) -> List[dict]:
     return []
 
 
+def _truncate_narration(text: str, max_chars: int = NARRATION_MAX_CHARS) -> str:
+    """Truncate narration at a sentence boundary to fit TTS duration target."""
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    # Try to cut at a sentence boundary
+    truncated = text[:max_chars]
+    last_period = truncated.rfind(". ")
+    if last_period > max_chars // 3:
+        return truncated[: last_period + 1]
+    # Fall back to word boundary
+    last_space = truncated.rfind(" ")
+    if last_space > 0:
+        return truncated[:last_space].rstrip(",.;:") + "."
+    return truncated + "."
+
+
 def _chunk_list(items: List[Any], chunk_size: int) -> List[List[Any]]:
     return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
@@ -477,9 +497,14 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
     tech_anchor: list[str] = []
     tech_anchor.extend(analyzed.tech_stack.languages[:2])
     tech_anchor.extend(analyzed.tech_stack.frameworks[:2])
+    overview_fallback = (
+        f"So what is {analyzed.repo_name or 'this project'}? "
+        f"{analyzed.project_overview.strip()} "
+        f"{'It is built with ' + ', '.join(tech_anchor[:4]) + '.' if tech_anchor else ''}"
+    ).strip()
     overview_narration = (
         str((overview_scene or {}).get("narration") or "").strip()
-        or f"{analyzed.project_overview.strip()} {'Built with ' + ', '.join(tech_anchor[:4]) + '.' if tech_anchor else ''}".strip()
+        or overview_fallback
     )
     scenes.append(
         {
@@ -498,7 +523,7 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
                 {"from": "Core path", "to": "Outputs", "type": "extends"},
                 {"from": "Outputs", "to": "Users", "type": "helps"},
             ],
-            "narration": overview_narration[:700],
+            "narration": _truncate_narration(overview_narration),
             "duration_seconds": (overview_scene or {}).get("duration_seconds", 6),
             "focus_modules": [],
         }
@@ -506,13 +531,20 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
 
     core_focus = core_modules[:3]
     if core_focus:
-        core_names = ", ".join(m.name for m in core_focus)
+        core_names = " and ".join(m.name for m in core_focus)
+        core_roles = " ".join(
+            f"{m.name} {m.role.rstrip('.')}." for m in core_focus[:2]
+        )
         core_default = (
-            f"The core backbone centers on {core_names}. "
-            + " ".join(f"{m.name} {m.role} {m.position}" for m in core_focus[:2])
+            f"The minimum viable system is built on {core_names}. "
+            f"{core_roles} "
+            f"With just these pieces, users can already get the core value out of {analyzed.repo_name or 'the project'}."
         )
     else:
-        core_default = "This scene explains the minimum backbone that makes the repository useful."
+        core_default = (
+            f"Let's look at the foundation. The smallest useful version of {analyzed.repo_name or 'this project'} "
+            f"needs just a few key modules working together to deliver its core value."
+        )
     scenes.append(
         {
             "title": str((core_scene or {}).get("title") or "The Core Backbone").strip(),
@@ -526,7 +558,7 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
                 {"from": _clean_entity_label(core_focus[i].name), "to": _clean_entity_label(core_focus[i + 1].name), "type": "calls"}
                 for i in range(max(0, len(core_focus) - 1))
             ],
-            "narration": (str((core_scene or {}).get("narration") or "").strip() or core_default)[:700],
+            "narration": _truncate_narration(str((core_scene or {}).get("narration") or "").strip() or core_default),
             "duration_seconds": (core_scene or {}).get("duration_seconds", 7),
             "focus_modules": [m.name for m in core_focus],
         }
@@ -535,10 +567,13 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
     expansion_groups = _chunk_list(expansion_modules[:MAX_EXPANSION_SCENES], 1)
     for index, group in enumerate(expansion_groups, start=1):
         seed = expansion_seed_scenes[index - 1] if index - 1 < len(expansion_seed_scenes) else {}
-        names = ", ".join(m.name for m in group)
+        module = group[0]
+        solves_text = module.solves.rstrip('.') if module.solves else "a gap in the system"
+        role_text = module.role.rstrip('.') if module.role else "extends the core"
         default_narration = (
-            f"After the backbone is in place, the system expands with {names}. "
-            + " ".join(f"{m.name} {m.solves}" for m in group)
+            f"At this point the core works, but there is a problem: {solves_text}. "
+            f"{module.name} addresses this. It {role_text}. "
+            f"With this in place, the system becomes more capable."
         )
         scenes.append(
             {
@@ -555,16 +590,23 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
                     {"from": "Core path", "to": _clean_entity_label(group[0].name), "type": "extends"},
                     {"from": _clean_entity_label(group[0].name), "to": _clean_entity_label(_keyword_phrases(group[0].solves, 1)[0] if _keyword_phrases(group[0].solves, 1) else 'Capability'), "type": "helps"},
                 ],
-                "narration": (str(seed.get("narration") or "").strip() or default_narration)[:700],
+                "narration": _truncate_narration(str(seed.get("narration") or "").strip() or default_narration),
                 "duration_seconds": seed.get("duration_seconds", 6),
                 "focus_modules": [m.name for m in group],
             }
         )
 
-    summary_default = (
-        f"Taken together, {analyzed.repo_name} becomes a complete system rather than a loose set of files. "
-        + (analyzed.target_users[:320] if analyzed.target_users else "It supports its main users through a full workflow.")
-    )
+    user_story = analyzed.target_users[:320] if analyzed.target_users else ""
+    if user_story:
+        summary_default = (
+            f"Now let's put it all together. {user_story} "
+            f"That is what {analyzed.repo_name or 'this project'} enables end to end."
+        )
+    else:
+        summary_default = (
+            f"With all these pieces in place, {analyzed.repo_name or 'this project'} "
+            f"goes from a collection of files to a working system that users can rely on for their day to day workflow."
+        )
     scenes.append(
         {
             "title": str((summary_scene or {}).get("title") or "Complete System and Use Cases").strip(),
@@ -580,7 +622,7 @@ def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict])
                 {"from": "Users", "to": "Workflow", "type": "calls"},
                 {"from": "Workflow", "to": "Outcome", "type": "helps"},
             ],
-            "narration": (str((summary_scene or {}).get("narration") or "").strip() or summary_default)[:700],
+            "narration": _truncate_narration(str((summary_scene or {}).get("narration") or "").strip() or summary_default),
             "duration_seconds": (summary_scene or {}).get("duration_seconds", 6),
             "focus_modules": [],
         }
@@ -626,7 +668,7 @@ def _normalize_scenes(raw_scenes: List[dict], repo_name: str) -> List[dict]:
                 "focus_modules": [str(item).strip() for item in raw_scene.get("focus_modules", []) if str(item).strip()],
                 "entities": [item for item in raw_scene.get("entities", []) if isinstance(item, dict)],
                 "relations": [item for item in raw_scene.get("relations", []) if isinstance(item, dict)],
-                "narration": narration[:1200],
+                "narration": _truncate_narration(narration),
                 "duration_seconds": duration,
             }
         )
@@ -719,6 +761,37 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
     use_cases = [_clean_keyword(item, 34) for item in _keyword_phrases(analyzed.target_users or scene["narration"], limit=3)]
     microcopy = [_clean_keyword(item, 42) for item in _keyword_phrases(scene["narration"], limit=3)]
 
+    # Build rich module details for expansion scenes
+    module_details: list[dict] = []
+    for module_name in focus_modules:
+        module = modules.get(module_name)
+        if module:
+            module_details.append({
+                "name": module.name,
+                "role": module.role or "",
+                "solves": module.solves or "",
+                "stage": getattr(module, "stage", ""),
+                "position": getattr(module, "position", ""),
+            })
+
+    # For overview, build richer node descriptions from key_modules
+    overview_descriptions: list[str] = []
+    if section == "overview":
+        overview_descriptions = [
+            analyzed.project_overview[:120] if analyzed.project_overview else "",
+            ", ".join(analyzed.tech_stack.frameworks[:2] + analyzed.tech_stack.languages[:1]),
+            analyzed.target_users[:80] if analyzed.target_users else "",
+            ", ".join(f.responsibility[:60] for f in analyzed.key_modules[:2]) if analyzed.key_modules else "",
+        ]
+
+    # For core, build descriptions from module roles
+    core_descriptions: list[str] = []
+    if section == "core":
+        for m_name in focus_modules:
+            m = modules.get(m_name)
+            if m:
+                core_descriptions.append(m.role or "")
+
     return {
         "title": _clean_keyword(scene["title"], 50),
         "subtitle": _clean_keyword(analyzed.repo_name or "Repository Walkthrough", 36),
@@ -739,6 +812,9 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
         "keywords": deduped_keywords[:MAX_KEYWORDS],
         "microcopy": microcopy[:3],
         "use_cases": use_cases[:3],
+        "module_details": module_details,
+        "overview_descriptions": overview_descriptions,
+        "core_descriptions": core_descriptions,
         "footer": f"{analyzed.repo_name or 'Repo'} | {index}/{total}",
     }
 
@@ -929,13 +1005,13 @@ def _render_scene_card_image(card: dict, output_path: str, width: int = VIDEO_SI
 # Phase 3 helpers: video composition
 # ---------------------------------------------------------------------------
 
-def _build_scene_clip(image_path: str, duration: int):
-    """Create a moviepy clip from a rendered image card with light transitions."""
+def _build_scene_clip(image_path: str, duration: float, audio_path: Optional[str] = None):
+    """Create a moviepy clip from a rendered image card, optionally with TTS audio."""
     try:
-        from moviepy import ImageClip
+        from moviepy import ImageClip, AudioFileClip
     except ImportError:
         try:
-            from moviepy.editor import ImageClip
+            from moviepy.editor import ImageClip, AudioFileClip
         except ImportError as exc:
             raise ImportError("moviepy is required for video export. Install moviepy.") from exc
 
@@ -945,12 +1021,23 @@ def _build_scene_clip(image_path: str, duration: int):
     else:
         clip = clip.set_duration(duration)
 
+    if audio_path and os.path.exists(audio_path):
+        try:
+            audio_clip = AudioFileClip(audio_path)
+            if hasattr(clip, "with_audio"):
+                clip = clip.with_audio(audio_clip)
+            else:
+                clip = clip.set_audio(audio_clip)
+            logger.info("Audio attached to scene clip: %s (%.2fs)", audio_path, audio_clip.duration)
+        except Exception as e:
+            logger.warning("Failed to attach audio to scene clip: %s", e)
+
     if hasattr(clip, "fadein"):
         clip = clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
     return clip
 
 
-def _compose_final_video(clips: List[Any], output_path: str) -> None:
+def _compose_final_video(clips: List[Any], output_path: str, has_audio: bool = False) -> None:
     """Concatenate scene clips and write the final MP4 to disk."""
     try:
         from moviepy import concatenate_videoclips
@@ -965,15 +1052,20 @@ def _compose_final_video(clips: List[Any], output_path: str) -> None:
     except TypeError:
         final_clip = concatenate_videoclips(clips, method="compose")
     try:
-        final_clip.write_videofile(
-            output_path,
-            fps=8,
-            codec="libx264",
-            audio=False,
-            preset="ultrafast",
-            bitrate="700k",
-            logger=None,
-        )
+        write_kwargs = {
+            "fps": VIDEO_FPS,
+            "codec": "libx264",
+            "preset": "ultrafast",
+            "bitrate": "700k",
+            "logger": None,
+        }
+        if has_audio:
+            write_kwargs["audio"] = True
+            write_kwargs["audio_codec"] = "aac"
+            write_kwargs["audio_bitrate"] = "128k"
+        else:
+            write_kwargs["audio"] = False
+        final_clip.write_videofile(output_path, **write_kwargs)
     except Exception as exc:
         raise RuntimeError(
             "Failed to render MP4 video. Ensure ffmpeg is installed and available to moviepy."
@@ -999,7 +1091,7 @@ def _read_file_bytes(path: str) -> bytes:
 # Phase 3 entry point: narration scenes -> MP4 bytes
 # ---------------------------------------------------------------------------
 
-async def render_video_from_analyzed(
+async def render_video_from_analyzed(  # noqa: C901
     analyzed: "AnalyzedContent",
     provider: Optional[str] = None,
     model: Optional[str] = None,
@@ -1007,11 +1099,12 @@ async def render_video_from_analyzed(
     """
     Phase 2b-video plus Phase 3: AnalyzedContent to MP4 bytes.
 
-    Baseline v1 renderer: create section-specific visuals from the narration
-    script and compose them into an MP4 walkthrough.
+    Renderer with TTS narration: generates scene-specific visuals and
+    TTS audio, then composes them into an MP4 walkthrough.
+    Falls back to silent video if TTS is unavailable.
     """
     overall_start = time.perf_counter()
-    logger.info("Video export requested for %s - baseline renderer", analyzed.repo_name)
+    logger.info("Video export requested for %s", analyzed.repo_name)
 
     narration_start = time.perf_counter()
     raw_scenes = await generate_narration_script(analyzed, provider=provider, model=model)
@@ -1026,39 +1119,98 @@ async def render_video_from_analyzed(
 
     with tempfile.TemporaryDirectory(prefix="repohelper_video_") as tmpdir:
         tmp_path = Path(tmpdir)
+
+        # --- TTS audio generation ---
+        tts_start = time.perf_counter()
+        has_audio = False
+        try:
+            from api.tts_service import generate_all_scene_audio
+            audio_paths = await generate_all_scene_audio(
+                scenes, str(tmp_path), language=analyzed.language,
+            )
+            has_audio = any(p is not None for p in audio_paths)
+            logger.info(
+                "Timing - TTS generation completed in %.2fs (%d/%d scenes with audio)",
+                time.perf_counter() - tts_start,
+                sum(1 for p in audio_paths if p),
+                total,
+            )
+        except Exception as e:
+            logger.warning("TTS generation failed, falling back to silent video: %s", e)
+            audio_paths = [None] * total
+
+        # --- Update scene durations based on audio length ---
+        for scene in scenes:
+            audio_duration = scene.get("audio_duration")
+            if audio_duration and audio_duration > 0:
+                scene["duration_seconds"] = max(
+                    SCENE_DURATION_MIN,
+                    min(audio_duration + AUDIO_PADDING_SECONDS, SCENE_DURATION_MAX),
+                )
+
+        # --- Render scene images + build clips ---
         clips = []
+        expansion_counter = 0
+        use_playwright = True
+        try:
+            from api.scene_renderer import render_scene_to_png, close_browser
+        except ImportError:
+            use_playwright = False
+            logger.warning("Playwright renderer not available, falling back to Pillow")
 
         for index, scene in enumerate(scenes, start=1):
             scene_start = time.perf_counter()
             logger.info("Rendering video scene %d/%d: %s", index, total, scene.get("title", f"Scene {index}"))
             card = _scene_to_card_content(scene, analyzed, index, total)
+            card["narration"] = scene.get("narration", "")
             image_path = tmp_path / f"scene_{index:02d}.png"
-            _render_scene_card_image(card, str(image_path))
+
+            if scene.get("section") == "expansion":
+                expansion_counter += 1
+
+            if use_playwright:
+                try:
+                    await render_scene_to_png(card, str(image_path), expansion_index=expansion_counter or 1)
+                except Exception as render_err:
+                    logger.warning("Playwright render failed for scene %d, falling back to Pillow: %s", index, render_err)
+                    _render_scene_card_image(card, str(image_path))
+            else:
+                _render_scene_card_image(card, str(image_path))
             render_image_elapsed = time.perf_counter() - scene_start
 
             clip_start = time.perf_counter()
-            clips.append(_build_scene_clip(str(image_path), scene["duration_seconds"]))
+            audio_path = audio_paths[index - 1] if index - 1 < len(audio_paths) else None
+            clips.append(_build_scene_clip(str(image_path), scene["duration_seconds"], audio_path=audio_path))
             logger.info(
-                "Timing - scene %d/%d image=%.2fs clip=%.2fs total=%.2fs",
+                "Timing - scene %d/%d image=%.2fs clip=%.2fs audio=%s total=%.2fs",
                 index,
                 total,
                 render_image_elapsed,
                 time.perf_counter() - clip_start,
+                "yes" if audio_path else "no",
                 time.perf_counter() - scene_start,
             )
 
+        # Clean up Playwright browser
+        if use_playwright:
+            try:
+                await close_browser()
+            except Exception:
+                pass
+
         output_path = tmp_path / "repo_overview.mp4"
         compose_start = time.perf_counter()
-        logger.info("Composing final MP4 for %s with %d scenes", analyzed.repo_name, total)
-        _compose_final_video(clips, str(output_path))
+        logger.info("Composing final MP4 for %s with %d scenes (audio=%s)", analyzed.repo_name, total, has_audio)
+        _compose_final_video(clips, str(output_path), has_audio=has_audio)
         logger.info("Timing - final MP4 composition completed in %.2fs", time.perf_counter() - compose_start)
 
         read_start = time.perf_counter()
         payload = _read_file_bytes(str(output_path))
         logger.info(
-            "Final MP4 composed for %s (%d bytes, readback %.2fs, total %.2fs)",
+            "Final MP4 composed for %s (%d bytes, audio=%s, readback %.2fs, total %.2fs)",
             analyzed.repo_name,
             len(payload),
+            has_audio,
             time.perf_counter() - read_start,
             time.perf_counter() - overall_start,
         )

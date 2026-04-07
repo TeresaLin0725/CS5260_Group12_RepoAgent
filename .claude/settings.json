@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Admin/.claude/**)",
+      "Bash(.venv/bin/python -m pip install edge-tts)",
+      "Bash(ls .venv/bin/python*)",
+      "Read(///wsl.localhost/Ubuntu/home/seakon-ai/nus/CS5260_Group12_RepoAgent/api/**)",
+      "Bash(xxd //wsl.localhost/Ubuntu/home/seakon-ai/nus/CS5260_Group12_RepoAgent/api/video_export.py)"
+    ],
+    "additionalDirectories": [
+      "\\\\wsl.localhost\\Ubuntu\\home\\seakon-ai\\nus\\CS5260_Group12_RepoAgent\\.local",
+      "C:\\Users\\Admin\\.claude\\projects\\--wsl-localhost-Ubuntu-home-seakon-ai-nus-CS5260-Group12-RepoAgent"
+    ]
+  }
+}

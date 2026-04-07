@@ -123,4 +123,6 @@ websockets==15.0.1
 yarl==1.22.0
 zipp==3.23.0
 moviepy==2.2.1
+edge-tts==6.1.19
+playwright==1.58.0
 
