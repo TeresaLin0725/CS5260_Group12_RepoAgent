@@ -295,7 +295,7 @@ def _truncate_narration(text: str, max_chars: int = NARRATION_MAX_CHARS) -> str:
     return truncated + "."
 
 
-MAX_SUBTITLE_CHARS = 80
+MAX_SUBTITLE_CHARS = 160
 
 
 def _segment_narration(narration: str, entities: List[dict]) -> List[dict]:

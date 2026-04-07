@@ -179,7 +179,8 @@ def _base_css(p):
         position: absolute; bottom: 36px; left: 48px; right: 48px;
         background: rgba(0,0,0,0.72); border-radius: 10px; padding: 12px 24px;
         font-size: 17px; color: #fff; text-align: center; line-height: 1.5;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }}
     .comic-panel {{
         flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
