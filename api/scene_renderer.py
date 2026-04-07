@@ -64,6 +64,75 @@ _PALETTES = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Inline SVG stick-figure illustrations (120x120 viewBox, currentColor stroke)
+# ---------------------------------------------------------------------------
+
+SVG_PERSON_THINKING = '''<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="60" cy="28" r="14"/>
+  <line x1="60" y1="42" x2="60" y2="78"/>
+  <line x1="60" y1="78" x2="44" y2="105"/>
+  <line x1="60" y1="78" x2="76" y2="105"/>
+  <line x1="60" y1="55" x2="38" y2="48"/>
+  <line x1="60" y1="55" x2="82" y2="42"/>
+  <circle cx="92" cy="22" r="8" stroke-dasharray="4 3" opacity="0.6"/>
+  <text x="89" y="26" font-size="12" fill="currentColor" stroke="none" text-anchor="middle">?</text>
+</svg>'''
+
+SVG_PERSON_AT_DESK = '''<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="45" cy="25" r="12"/>
+  <line x1="45" y1="37" x2="45" y2="68"/>
+  <line x1="45" y1="68" x2="32" y2="92"/>
+  <line x1="45" y1="68" x2="58" y2="92"/>
+  <line x1="45" y1="50" x2="30" y2="58"/>
+  <line x1="45" y1="50" x2="65" y2="52"/>
+  <rect x="60" y="40" width="36" height="26" rx="3"/>
+  <line x1="60" y1="66" x2="96" y2="66"/>
+  <line x1="68" y1="66" x2="62" y2="76"/>
+  <line x1="88" y1="66" x2="94" y2="76"/>
+  <line x1="66" y1="50" x2="90" y2="50" stroke-dasharray="3 2" opacity="0.5"/>
+  <line x1="66" y1="56" x2="84" y2="56" stroke-dasharray="3 2" opacity="0.5"/>
+</svg>'''
+
+SVG_PERSON_HAPPY = '''<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="60" cy="28" r="14"/>
+  <line x1="60" y1="42" x2="60" y2="78"/>
+  <line x1="60" y1="78" x2="44" y2="105"/>
+  <line x1="60" y1="78" x2="76" y2="105"/>
+  <line x1="60" y1="52" x2="36" y2="36"/>
+  <line x1="60" y1="52" x2="84" y2="36"/>
+  <path d="M52 30 Q60 38 68 30" fill="none"/>
+  <circle cx="90" cy="18" r="5" fill="currentColor" opacity="0.3"/>
+  <circle cx="98" cy="28" r="3" fill="currentColor" opacity="0.2"/>
+  <text x="30" y="30" font-size="14" fill="currentColor" stroke="none">!</text>
+</svg>'''
+
+SVG_PROCESS_GEAR = '''<svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="60" cy="60" r="18"/>
+  <circle cx="60" cy="60" r="8"/>
+  <line x1="60" y1="38" x2="60" y2="30"/>
+  <line x1="60" y1="82" x2="60" y2="90"/>
+  <line x1="38" y1="60" x2="30" y2="60"/>
+  <line x1="82" y1="60" x2="90" y2="60"/>
+  <line x1="44.4" y1="44.4" x2="38.4" y2="38.4"/>
+  <line x1="75.6" y1="75.6" x2="81.6" y2="81.6"/>
+  <line x1="44.4" y1="75.6" x2="38.4" y2="81.6"/>
+  <line x1="75.6" y1="44.4" x2="81.6" y2="38.4"/>
+</svg>'''
+
+_SVG_MAP = {
+    "person_thinking": SVG_PERSON_THINKING,
+    "person_at_desk": SVG_PERSON_AT_DESK,
+    "person_happy": SVG_PERSON_HAPPY,
+    "process_gear": SVG_PROCESS_GEAR,
+}
+
+SVG_ARROW_RIGHT = '''<svg viewBox="0 0 60 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+  <line x1="4" y1="12" x2="48" y2="12"/>
+  <polyline points="42,6 48,12 42,18"/>
+</svg>'''
+
+
 def _esc(text):
     return html.escape(str(text or ""), quote=True)
 
@@ -92,7 +161,7 @@ def _base_css(p):
         line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }}
     .footer {{ position: absolute; bottom: 12px; left: 48px; font-size: 14px; color: {p['text_dim']}88; }}
-    .content {{ padding: 28px 48px 48px; height: calc(100% - 88px); display: flex; flex-direction: column; }}
+    .content {{ padding: 20px 48px 28px; height: calc(100% - 88px); display: flex; flex-direction: column; }}
     .node {{
         background: {p['node_bg']}; border: 2px solid {p['node_border']};
         border-radius: 14px; padding: 16px 20px; text-align: center;
@@ -104,7 +173,51 @@ def _base_css(p):
         font-size: 13px; color: {p['text_dim']}; margin-top: 6px; line-height: 1.4;
         overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
     }}
-    .highlight {{ box-shadow: 0 0 20px {p['accent']}66, 0 0 40px {p['accent']}22; border-color: {p['accent']}; }}
+    .highlight {{ box-shadow: 0 0 20px {p['accent']}66, 0 0 40px {p['accent']}22; border-color: {p['accent']}; transform: scale(1.05); transition: all 0.2s; }}
+    .dim {{ opacity: 0.4; transition: opacity 0.2s; }}
+    .subtitle-bar {{
+        position: absolute; bottom: 36px; left: 48px; right: 48px;
+        background: rgba(0,0,0,0.72); border-radius: 10px; padding: 12px 24px;
+        font-size: 17px; color: #fff; text-align: center; line-height: 1.5;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }}
+    .comic-panel {{
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-width: 0; max-width: 340px; text-align: center; padding: 0 8px;
+        transition: opacity 0.2s, transform 0.2s;
+        border: none; background: none;
+    }}
+    .comic-panel.highlight {{
+        box-shadow: none; border: none; transform: scale(1.08);
+    }}
+    .comic-panel.highlight .comic-bubble {{
+        box-shadow: 0 0 24px {p['accent']}66, 0 0 48px {p['accent']}22;
+        border-color: {p['accent']};
+    }}
+    .comic-panel.highlight .comic-svg {{ filter: drop-shadow(0 0 8px {p['accent']}88); }}
+    .comic-panel.highlight .comic-label {{ color: {p['accent']}; }}
+    .comic-panel.dim {{ opacity: 0.35; transform: scale(0.95); }}
+    .comic-bubble {{
+        position: relative; background: {p['node_bg']}; border: 2px solid {p['node_border']};
+        border-radius: 16px; padding: 14px 20px; margin-bottom: 16px;
+        font-size: 16px; color: {p['text']}; line-height: 1.4; text-align: center;
+        max-width: 280px; word-break: break-word;
+    }}
+    .comic-bubble::after {{
+        content: ''; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+        border-left: 10px solid transparent; border-right: 10px solid transparent;
+        border-top: 12px solid {p['node_border']};
+    }}
+    .comic-bubble-inner::after {{
+        content: ''; position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%);
+        border-left: 8px solid transparent; border-right: 8px solid transparent;
+        border-top: 10px solid {p['node_bg']};
+    }}
+    .comic-svg {{ width: 90px; height: 90px; margin-bottom: 8px; }}
+    .comic-svg svg {{ width: 100%; height: 100%; }}
+    .comic-label {{ font-size: 16px; font-weight: 700; color: {p['accent']}; letter-spacing: 0.5px; }}
+    .comic-arrow {{ flex-shrink: 0; width: 50px; padding: 0 2px; display: flex; align-items: center; }}
+    .comic-arrow svg {{ width: 100%; height: 24px; }}
     .badge {{
         display: inline-block; background: {p['accent']}22; border: 1px solid {p['accent']}66;
         border-radius: 20px; padding: 5px 14px; font-size: 13px;
@@ -321,6 +434,93 @@ def _render_expansion_html(card, p, expansion_index=1):
         )
 
 
+def _render_comic_panels_html(personas, p, tech_chips=None, section_label="", subtitle_text="", highlight_labels=None):
+    """Shared comic renderer: stick figures with speech bubbles above them."""
+    highlight_labels = highlight_labels or []
+    tech_chips = tech_chips or []
+
+    panels = []
+    for i, persona in enumerate(personas[:3]):
+        svg_key = persona.get("svg", "person_thinking")
+        svg_html = _SVG_MAP.get(svg_key, SVG_PERSON_THINKING)
+        label = _esc(persona.get("label", ""))
+        caption = _esc(persona.get("caption", ""))
+        hl_class = ""
+        if highlight_labels:
+            if label.lower() in [h.lower() for h in highlight_labels]:
+                hl_class = " highlight"
+            else:
+                hl_class = " dim"
+
+        # Speech bubble above the figure, then SVG, then label below
+        bubble_border = p['accent'] if hl_class == " highlight" else p['node_border']
+        panels.append(
+            '<div class="comic-panel' + hl_class + '">'
+            + '<div class="comic-bubble" style="border-color:' + bubble_border + ';">'
+            + '<span class="comic-bubble-inner"></span>'
+            + caption
+            + '</div>'
+            + '<div class="comic-svg" style="color:' + p['accent'] + ';">' + svg_html + '</div>'
+            + '<div class="comic-label">' + label + '</div>'
+            + '</div>'
+        )
+
+    flow = []
+    for i, panel in enumerate(panels):
+        flow.append(panel)
+        if i < len(panels) - 1:
+            flow.append(
+                '<div class="comic-arrow" style="color:' + p['arrow'] + ';">' + SVG_ARROW_RIGHT + '</div>'
+            )
+
+    badges = ''.join('<span class="badge">' + _esc(t) + '</span>' for t in tech_chips[:6])
+    section_header = ""
+    if section_label:
+        section_header = (
+            '<div style="text-align:center;font-size:14px;color:' + p['accent']
+            + ';margin-bottom:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;">'
+            + _esc(section_label) + '</div>'
+        )
+
+    subtitle_html = ""
+    if subtitle_text:
+        subtitle_html = '<div class="subtitle-bar">' + _esc(subtitle_text) + '</div>'
+
+    return (
+        '<div class="content" style="justify-content:center;align-items:center;padding-bottom:64px;">'
+        + section_header
+        + '<div style="display:flex;align-items:center;justify-content:center;gap:0;flex:1;padding:0 20px;">'
+        + ''.join(flow) + '</div>'
+        + ('<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:center;">'
+           + badges + '</div>' if badges else '')
+        + '</div>'
+        + subtitle_html
+    )
+
+
+def _render_overview_comic_html(card, p, subtitle_text="", highlight_labels=None):
+    """Comic-style overview: stick figures with speech bubbles."""
+    return _render_comic_panels_html(
+        card.get("personas") or [],
+        p,
+        tech_chips=card.get("tech_chips"),
+        subtitle_text=subtitle_text,
+        highlight_labels=highlight_labels,
+    )
+
+
+def _render_summary_comic_html(card, p, subtitle_text="", highlight_labels=None):
+    """Comic-style summary: user journey with stick figures and speech bubbles."""
+    return _render_comic_panels_html(
+        card.get("personas") or [],
+        p,
+        tech_chips=card.get("keywords"),
+        section_label="End-to-End Journey",
+        subtitle_text=subtitle_text,
+        highlight_labels=highlight_labels,
+    )
+
+
 def _render_summary_html(card, p):
     entities = card.get("entities") or []
     use_cases = card.get("use_cases") or []
@@ -377,20 +577,25 @@ def _render_summary_html(card, p):
     )
 
 
-def build_scene_html(card, expansion_index=1):
+def build_scene_html(card, expansion_index=1, subtitle_text="", highlight_labels=None):
     section = card.get("section", "overview")
     p = _get_palette(section)
+    highlight_labels = highlight_labels or []
 
     if section == "overview":
-        content = _render_overview_html(card, p)
+        content = _render_overview_comic_html(card, p, subtitle_text=subtitle_text, highlight_labels=highlight_labels)
     elif section == "core":
         content = _render_core_html(card, p)
     elif section == "expansion":
         content = _render_expansion_html(card, p, expansion_index)
     elif section == "summary":
-        content = _render_summary_html(card, p)
+        content = _render_summary_comic_html(card, p, subtitle_text=subtitle_text, highlight_labels=highlight_labels)
     else:
-        content = _render_overview_html(card, p)
+        content = _render_overview_comic_html(card, p, subtitle_text=subtitle_text, highlight_labels=highlight_labels)
+
+    # For non-comic templates, append subtitle bar if provided
+    if section in ("core", "expansion") and subtitle_text:
+        content += '<div class="subtitle-bar">' + _esc(subtitle_text) + '</div>'
 
     return (
         '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
@@ -433,8 +638,8 @@ async def _get_browser():
         return _browser_instance
 
 
-async def render_scene_to_png(card, output_path, expansion_index=1):
-    html_content = build_scene_html(card, expansion_index)
+async def render_scene_to_png(card, output_path, expansion_index=1, subtitle_text="", highlight_labels=None):
+    html_content = build_scene_html(card, expansion_index, subtitle_text=subtitle_text, highlight_labels=highlight_labels)
     browser = await _get_browser()
     page = await browser.new_page(viewport={"width": VIDEO_WIDTH, "height": VIDEO_HEIGHT})
     try:

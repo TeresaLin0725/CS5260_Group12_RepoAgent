@@ -2,7 +2,8 @@
 End-to-end test for the video pipeline with TTS + Playwright rendering.
 
 Bypasses LLM and FAISS — uses a mock AnalyzedContent with realistic data
-to test: fallback narration -> TTS generation -> HTML/Playwright rendering -> MoviePy composition.
+to test: fallback narration -> TTS generation -> multi-frame Playwright rendering
+        -> subtitle/highlight sync -> MoviePy composition.
 
 Usage:
     cd /home/seakon-ai/nus/CS5260_Group12_RepoAgent
@@ -12,6 +13,7 @@ Usage:
 
 import asyncio
 import os
+import shutil
 import sys
 import time
 
@@ -127,20 +129,30 @@ async def run_test():
         SCENE_DURATION_MIN,
         SCENE_DURATION_MAX,
         AUDIO_PADDING_SECONDS,
+        TRANSITION_SECONDS,
     )
     from api.tts_service import generate_all_scene_audio
     from api.scene_renderer import render_scene_to_png, close_browser
     import tempfile
     from pathlib import Path
 
+    try:
+        from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+    except ImportError:
+        from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
+
     analyzed = build_mock_analyzed()
-    output_file = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "test_output_video.mp4",
-    )
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_file = os.path.join(project_root, "test_output_video.mp4")
+    preview_dir = os.path.join(project_root, "test_scene_previews")
+
+    # Clean and recreate preview dir
+    if os.path.exists(preview_dir):
+        shutil.rmtree(preview_dir)
+    os.makedirs(preview_dir)
 
     print("=" * 60)
-    print("Video Pipeline E2E Test (Playwright + TTS)")
+    print("Video Pipeline E2E Test (Multi-frame + Comic + Subtitles)")
     print("=" * 60)
 
     # Step 1: Build fallback narration (no LLM)
@@ -176,27 +188,90 @@ async def run_test():
         for i, s in enumerate(scenes, 1):
             print(f"  Scene {i}: {s['duration_seconds']:.1f}s")
 
-        # Step 4: Render images with Playwright + build clips
+        # Step 4: Multi-frame rendering with subtitles + highlights
         step_start = time.perf_counter()
         total = len(scenes)
         clips = []
         expansion_counter = 0
+        total_frames = 0
+
         for index, scene in enumerate(scenes, start=1):
             card = _scene_to_card_content(scene, analyzed, index, total)
             card["narration"] = scene.get("narration", "")
-            image_path = tmp_path / f"scene_{index:02d}.png"
 
             if scene.get("section") == "expansion":
                 expansion_counter += 1
 
-            await render_scene_to_png(card, str(image_path), expansion_index=expansion_counter or 1)
-
+            scene_duration = scene["duration_seconds"]
             audio_path = audio_paths[index - 1] if index - 1 < len(audio_paths) else None
-            clips.append(_build_scene_clip(str(image_path), scene["duration_seconds"], audio_path=audio_path))
-            print(f"  Scene {index}/{total}: [{scene['section']}] rendered via Playwright")
+            segments = card.get("narration_segments") or [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+            print(f"  Scene {index}/{total}: [{scene['section']}] {len(segments)} frames")
+            for seg_idx, seg in enumerate(segments):
+                print(f"    Frame {seg_idx}: subtitle=\"{seg['text'][:50]}...\" highlight={seg['highlight_labels']}")
+
+            if len(segments) > 1:
+                # Multi-frame path
+                sub_clips = []
+                for seg_idx, seg in enumerate(segments):
+                    frame_path = tmp_path / f"scene_{index:02d}_f{seg_idx:02d}.png"
+                    seg_duration = max(0.5, scene_duration * seg["duration_fraction"])
+
+                    await render_scene_to_png(
+                        card, str(frame_path),
+                        expansion_index=expansion_counter or 1,
+                        subtitle_text=seg["text"],
+                        highlight_labels=seg["highlight_labels"],
+                    )
+
+                    # Save first frame as preview
+                    if seg_idx == 0:
+                        preview_path = os.path.join(preview_dir, f"scene_{index:02d}_{scene['section']}.png")
+                        shutil.copy2(str(frame_path), preview_path)
+                    # Also save all frames for inspection
+                    all_frame_preview = os.path.join(preview_dir, f"scene_{index:02d}_f{seg_idx:02d}.png")
+                    shutil.copy2(str(frame_path), all_frame_preview)
+
+                    sub_clip = ImageClip(str(frame_path))
+                    if hasattr(sub_clip, "with_duration"):
+                        sub_clip = sub_clip.with_duration(seg_duration)
+                    else:
+                        sub_clip = sub_clip.set_duration(seg_duration)
+                    sub_clips.append(sub_clip)
+                    total_frames += 1
+
+                scene_clip = concatenate_videoclips(sub_clips, method="compose")
+
+                if audio_path and os.path.exists(audio_path):
+                    try:
+                        audio_clip = AudioFileClip(audio_path)
+                        if hasattr(scene_clip, "with_audio"):
+                            scene_clip = scene_clip.with_audio(audio_clip)
+                        else:
+                            scene_clip = scene_clip.set_audio(audio_clip)
+                    except Exception as e:
+                        print(f"    Warning: audio attach failed: {e}")
+
+                if hasattr(scene_clip, "fadein"):
+                    scene_clip = scene_clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
+                clips.append(scene_clip)
+            else:
+                # Single frame path
+                image_path = tmp_path / f"scene_{index:02d}.png"
+                await render_scene_to_png(
+                    card, str(image_path),
+                    expansion_index=expansion_counter or 1,
+                    subtitle_text=segments[0]["text"],
+                    highlight_labels=segments[0]["highlight_labels"],
+                )
+                preview_path = os.path.join(preview_dir, f"scene_{index:02d}_{scene['section']}.png")
+                shutil.copy2(str(image_path), preview_path)
+
+                clips.append(_build_scene_clip(str(image_path), scene_duration, audio_path=audio_path))
+                total_frames += 1
 
         await close_browser()
-        print(f"\n[4/5] Rendered {len(clips)} scene images + clips ({time.perf_counter() - step_start:.2f}s)")
+        print(f"\n[4/5] Rendered {total_frames} frames across {len(clips)} scenes ({time.perf_counter() - step_start:.2f}s)")
 
         # Step 5: Compose final video
         step_start = time.perf_counter()
@@ -213,7 +288,8 @@ async def run_test():
     size_kb = len(payload) / 1024
     print(f"\n{'=' * 60}")
     print(f"SUCCESS! Video saved to: {output_file}")
-    print(f"Size: {size_kb:.1f} KB, Audio: {has_audio}")
+    print(f"Size: {size_kb:.1f} KB, Audio: {has_audio}, Total frames: {total_frames}")
+    print(f"Previews saved to: {preview_dir}/")
     print(f"{'=' * 60}")
 
 

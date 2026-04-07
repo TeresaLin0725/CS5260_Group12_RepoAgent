@@ -36,6 +36,7 @@ MAX_KEYWORDS = 4
 TRANSITION_SECONDS = 0.35
 VIDEO_FPS = 24
 NARRATION_MAX_CHARS = 280
+MAX_NODE_DESC_CHARS = 30
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +295,97 @@ def _truncate_narration(text: str, max_chars: int = NARRATION_MAX_CHARS) -> str:
     return truncated + "."
 
 
+MAX_SUBTITLE_CHARS = 80
+
+
+def _segment_narration(narration: str, entities: List[dict]) -> List[dict]:
+    """Split narration into 2-4 segments, each mapped to entities to highlight.
+
+    Returns list of dicts with keys: text, highlight_labels, duration_fraction.
+    """
+    if not narration or not narration.strip():
+        return [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+    # Split into sentences
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", narration.strip()) if s.strip()]
+    if not sentences:
+        return [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+    # Group sentences into 2-4 segments
+    n_segments = min(max(2, len(sentences)), 4)
+    segments: List[List[str]] = [[] for _ in range(n_segments)]
+    for i, sentence in enumerate(sentences):
+        segments[i % n_segments].append(sentence)
+
+    entity_labels = [ent.get("label", "").lower() for ent in entities if ent.get("label")]
+
+    result = []
+    total_chars = sum(len(" ".join(seg)) for seg in segments) or 1
+    for seg_sentences in segments:
+        if not seg_sentences:
+            continue
+        text = " ".join(seg_sentences)
+        # Truncate subtitle display text
+        display_text = text[:MAX_SUBTITLE_CHARS].rstrip() + ("..." if len(text) > MAX_SUBTITLE_CHARS else "")
+
+        # Match entity labels mentioned in this segment
+        text_lower = text.lower()
+        highlight = [ent.get("label", "") for ent in entities
+                     if ent.get("label") and ent["label"].lower() in text_lower]
+
+        # If no match found, highlight by index position
+        if not highlight and entities:
+            seg_idx = len(result)
+            if seg_idx < len(entities):
+                highlight = [entities[seg_idx].get("label", "")]
+
+        result.append({
+            "text": display_text,
+            "highlight_labels": highlight,
+            "duration_fraction": len(text) / total_chars,
+        })
+
+    return result if result else [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+
+def _segment_narration_sequential(narration: str, panel_labels: List[str]) -> List[dict]:
+    """Split narration into N segments matching panel count, highlight panels sequentially.
+
+    Used for comic-style scenes where each narration segment maps 1:1 to a panel.
+    """
+    if not narration or not narration.strip():
+        return [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", narration.strip()) if s.strip()]
+    if not sentences:
+        return [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+    n_panels = len(panel_labels) or 3
+    # Distribute sentences evenly across panels
+    segments: List[List[str]] = [[] for _ in range(n_panels)]
+    for i, sentence in enumerate(sentences):
+        segments[i % n_panels].append(sentence)
+
+    result = []
+    total_chars = sum(len(" ".join(seg)) for seg in segments) or 1
+    for i, seg_sentences in enumerate(segments):
+        if not seg_sentences:
+            continue
+        text = " ".join(seg_sentences)
+        display_text = text[:MAX_SUBTITLE_CHARS].rstrip() + ("..." if len(text) > MAX_SUBTITLE_CHARS else "")
+
+        # Sequential: highlight the panel at this index
+        highlight = [panel_labels[i]] if i < len(panel_labels) else []
+
+        result.append({
+            "text": display_text,
+            "highlight_labels": highlight,
+            "duration_fraction": len(text) / total_chars,
+        })
+
+    return result if result else [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+
 def _chunk_list(items: List[Any], chunk_size: int) -> List[List[Any]]:
     return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
@@ -332,6 +424,40 @@ def _keyword_phrases(text: str, limit: int = MAX_KEYWORDS) -> List[str]:
         if len(keywords) >= limit:
             break
     return keywords
+
+
+def _short_desc(text: str, max_chars: int = MAX_NODE_DESC_CHARS) -> str:
+    """Extract the shortest meaningful keyword phrase from text for on-screen display."""
+    if not text:
+        return ""
+    phrases = _keyword_phrases(text, limit=1)
+    if phrases:
+        return _clean_keyword(phrases[0], max_chars)
+    return _clean_keyword(text, max_chars)
+
+
+def _bubble_caption(text: str, max_words: int = 3, max_chars: int = 22) -> str:
+    """Extract a very short caption (2-3 key words) for speech bubbles.
+
+    More aggressive than _short_desc — strips filler words and takes only
+    the most meaningful nouns/adjectives.
+    """
+    if not text:
+        return ""
+    # Remove common filler words
+    filler = {"is", "an", "a", "the", "it", "this", "that", "of", "for", "to",
+              "and", "or", "in", "on", "by", "via", "with", "from", "who", "want",
+              "repo", "helper", "repository", "so", "what", "how", "where"}
+    words = _clean_keyword(text, None).split()
+    key_words = [w for w in words if w.lower() not in filler and len(w) > 1]
+    if not key_words:
+        key_words = words[:max_words]
+    caption = " ".join(key_words[:max_words])
+    if len(caption) > max_chars:
+        # Truncate at word boundary
+        truncated = caption[:max_chars - 2].rsplit(" ", 1)[0]
+        return truncated.rstrip(",.;:") if len(truncated) > 3 else caption[:max_chars]
+    return caption
 
 
 def _module_lookup(analyzed: "AnalyzedContent") -> dict[str, Any]:
@@ -768,29 +894,73 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
         if module:
             module_details.append({
                 "name": module.name,
-                "role": module.role or "",
-                "solves": module.solves or "",
+                "role": _clean_keyword(module.role or "", 40),
+                "solves": _clean_keyword(module.solves or "", 40),
                 "stage": getattr(module, "stage", ""),
-                "position": getattr(module, "position", ""),
+                "position": _clean_keyword(getattr(module, "position", ""), 40),
             })
 
-    # For overview, build richer node descriptions from key_modules
+    # For overview, build keyword-only node descriptions (full text goes to audio narration)
     overview_descriptions: list[str] = []
     if section == "overview":
         overview_descriptions = [
-            analyzed.project_overview[:120] if analyzed.project_overview else "",
+            _short_desc(analyzed.project_overview) if analyzed.project_overview else "",
             ", ".join(analyzed.tech_stack.frameworks[:2] + analyzed.tech_stack.languages[:1]),
-            analyzed.target_users[:80] if analyzed.target_users else "",
-            ", ".join(f.responsibility[:60] for f in analyzed.key_modules[:2]) if analyzed.key_modules else "",
+            _short_desc(analyzed.target_users) if analyzed.target_users else "",
+            ", ".join(_short_desc(f.responsibility) for f in analyzed.key_modules[:2]) if analyzed.key_modules else "",
         ]
 
-    # For core, build descriptions from module roles
+    # For core, build keyword descriptions from module roles (full text goes to audio)
     core_descriptions: list[str] = []
     if section == "core":
         for m_name in focus_modules:
             m = modules.get(m_name)
             if m:
-                core_descriptions.append(m.role or "")
+                core_descriptions.append(_short_desc(m.role, 40))
+
+    # Build personas for comic-style overview and summary scenes
+    # Labels: single word. Captions: one short phrase for the speech bubble.
+    personas: list[dict] = []
+    if section == "overview":
+        # Extract a single-word user role from target_users
+        user_role = "Developer"
+        if analyzed.target_users:
+            first_word = analyzed.target_users.split()[0:2]
+            user_role = " ".join(first_word).rstrip("s,.")  # e.g. "Developer"
+            if len(user_role) > 12:
+                user_role = "Developer"
+        # Compose short purposeful captions from structured data
+        tech_names = analyzed.tech_stack.frameworks[:2]
+        tech_caption = " + ".join(t.split()[0] for t in tech_names) if tech_names else "Code"
+        # What this repo produces (from key_libraries or overview keywords)
+        output_types = []
+        for kw in ["doc", "diagram", "video", "chat", "pdf", "ppt", "export"]:
+            if kw in (analyzed.project_overview or "").lower():
+                output_types.append(kw.capitalize())
+        output_caption = " & ".join(output_types[:2]) if output_types else "Documentation"
+        personas = [
+            {"svg": "person_thinking", "label": user_role, "caption": "What is this repo?"},
+            {"svg": "person_at_desk", "label": "Analyze", "caption": tech_caption},
+            {"svg": "person_happy", "label": "Understand", "caption": output_caption},
+        ]
+    elif section == "summary":
+        # User journey: fixed purposeful captions (who → action → result)
+        personas = [
+            {"svg": "person_at_desk", "label": "User", "caption": "Submit repo URL"},
+            {"svg": "process_gear", "label": "Process", "caption": "AI analysis"},
+            {"svg": "person_happy", "label": "Result", "caption": "Get walkthrough"},
+        ]
+
+    built_entities = [{"label": _clean_entity_label(item.get("label", "")), "kind": item.get("kind", "concept")} for item in scene_entities[:4]]
+    narration_text = scene.get("narration", "")
+
+    # For comic scenes, use sequential highlighting (panel 1→2→3) instead of text matching
+    if section in ("overview", "summary") and personas:
+        narration_segments = _segment_narration_sequential(
+            narration_text, [p["label"] for p in personas]
+        )
+    else:
+        narration_segments = _segment_narration(narration_text, built_entities)
 
     return {
         "title": _clean_keyword(scene["title"], 50),
@@ -799,7 +969,7 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
         "visual_type": visual_type,
         "visual_motif": str(scene.get("visual_motif") or "").strip().lower(),
         "focus_modules": [_clean_keyword(item, 26) for item in focus_modules[:3]],
-        "entities": [{"label": _clean_entity_label(item.get("label", "")), "kind": item.get("kind", "concept")} for item in scene_entities[:4]],
+        "entities": built_entities,
         "relations": [
             {
                 "from": _clean_entity_label(item.get("from", "")),
@@ -815,6 +985,8 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
         "module_details": module_details,
         "overview_descriptions": overview_descriptions,
         "core_descriptions": core_descriptions,
+        "personas": personas,
+        "narration_segments": narration_segments,
         "footer": f"{analyzed.repo_name or 'Repo'} | {index}/{total}",
     }
 
@@ -1148,7 +1320,7 @@ async def render_video_from_analyzed(  # noqa: C901
                     min(audio_duration + AUDIO_PADDING_SECONDS, SCENE_DURATION_MAX),
                 )
 
-        # --- Render scene images + build clips ---
+        # --- Render scene images + build clips (multi-frame with subtitles) ---
         clips = []
         expansion_counter = 0
         use_playwright = True
@@ -1158,37 +1330,92 @@ async def render_video_from_analyzed(  # noqa: C901
             use_playwright = False
             logger.warning("Playwright renderer not available, falling back to Pillow")
 
+        try:
+            from moviepy import ImageClip, AudioFileClip, concatenate_videoclips as _concat
+        except ImportError:
+            from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips as _concat
+
         for index, scene in enumerate(scenes, start=1):
             scene_start = time.perf_counter()
             logger.info("Rendering video scene %d/%d: %s", index, total, scene.get("title", f"Scene {index}"))
             card = _scene_to_card_content(scene, analyzed, index, total)
             card["narration"] = scene.get("narration", "")
-            image_path = tmp_path / f"scene_{index:02d}.png"
 
             if scene.get("section") == "expansion":
                 expansion_counter += 1
 
-            if use_playwright:
-                try:
-                    await render_scene_to_png(card, str(image_path), expansion_index=expansion_counter or 1)
-                except Exception as render_err:
-                    logger.warning("Playwright render failed for scene %d, falling back to Pillow: %s", index, render_err)
-                    _render_scene_card_image(card, str(image_path))
-            else:
-                _render_scene_card_image(card, str(image_path))
-            render_image_elapsed = time.perf_counter() - scene_start
-
-            clip_start = time.perf_counter()
+            scene_duration = scene["duration_seconds"]
             audio_path = audio_paths[index - 1] if index - 1 < len(audio_paths) else None
-            clips.append(_build_scene_clip(str(image_path), scene["duration_seconds"], audio_path=audio_path))
+            segments = card.get("narration_segments") or [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+
+            if use_playwright and len(segments) > 1:
+                # Multi-frame path: one PNG per narration segment
+                sub_clips = []
+                for seg_idx, seg in enumerate(segments):
+                    frame_path = tmp_path / f"scene_{index:02d}_f{seg_idx:02d}.png"
+                    seg_duration = max(0.5, scene_duration * seg["duration_fraction"])
+                    try:
+                        await render_scene_to_png(
+                            card, str(frame_path),
+                            expansion_index=expansion_counter or 1,
+                            subtitle_text=seg["text"],
+                            highlight_labels=seg["highlight_labels"],
+                        )
+                    except Exception as render_err:
+                        logger.warning("Playwright render failed for scene %d frame %d: %s", index, seg_idx, render_err)
+                        _render_scene_card_image(card, str(frame_path))
+
+                    sub_clip = ImageClip(str(frame_path))
+                    if hasattr(sub_clip, "with_duration"):
+                        sub_clip = sub_clip.with_duration(seg_duration)
+                    else:
+                        sub_clip = sub_clip.set_duration(seg_duration)
+                    sub_clips.append(sub_clip)
+
+                # Concatenate sub-frames (no fade within a scene)
+                scene_clip = _concat(sub_clips, method="compose")
+
+                # Attach audio to the scene-level clip
+                if audio_path and os.path.exists(audio_path):
+                    try:
+                        audio_clip = AudioFileClip(audio_path)
+                        if hasattr(scene_clip, "with_audio"):
+                            scene_clip = scene_clip.with_audio(audio_clip)
+                        else:
+                            scene_clip = scene_clip.set_audio(audio_clip)
+                    except Exception as e:
+                        logger.warning("Failed to attach audio to scene %d: %s", index, e)
+
+                # Apply fade transitions between scenes
+                if hasattr(scene_clip, "fadein"):
+                    scene_clip = scene_clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
+                clips.append(scene_clip)
+            else:
+                # Single-frame path (Pillow fallback or single segment)
+                image_path = tmp_path / f"scene_{index:02d}.png"
+                subtitle_text = segments[0]["text"] if segments else ""
+                highlight_labels = segments[0]["highlight_labels"] if segments else []
+
+                if use_playwright:
+                    try:
+                        await render_scene_to_png(
+                            card, str(image_path),
+                            expansion_index=expansion_counter or 1,
+                            subtitle_text=subtitle_text,
+                            highlight_labels=highlight_labels,
+                        )
+                    except Exception as render_err:
+                        logger.warning("Playwright render failed for scene %d, falling back to Pillow: %s", index, render_err)
+                        _render_scene_card_image(card, str(image_path))
+                else:
+                    _render_scene_card_image(card, str(image_path))
+
+                clips.append(_build_scene_clip(str(image_path), scene_duration, audio_path=audio_path))
+
             logger.info(
-                "Timing - scene %d/%d image=%.2fs clip=%.2fs audio=%s total=%.2fs",
-                index,
-                total,
-                render_image_elapsed,
-                time.perf_counter() - clip_start,
-                "yes" if audio_path else "no",
-                time.perf_counter() - scene_start,
+                "Timing - scene %d/%d rendered in %.2fs (%d frames, audio=%s)",
+                index, total, time.perf_counter() - scene_start,
+                len(segments), "yes" if audio_path else "no",
             )
 
         # Clean up Playwright browser
