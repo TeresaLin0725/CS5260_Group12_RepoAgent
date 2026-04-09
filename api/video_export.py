@@ -23,12 +23,47 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Job progress tracking (in-memory, keyed by job_id)
+# ---------------------------------------------------------------------------
+_job_progress: dict[str, dict] = {}
+
+PROGRESS_STEPS = [
+    "Analyzing repository structure...",
+    "Generating narration script...",
+    "Generating TTS audio...",
+    "Rendering scene images...",
+    "Composing final MP4...",
+]
+
+
+def update_progress(job_id: Optional[str], step: int, message: Optional[str] = None) -> None:
+    """Update progress for a job. step is 1-based index into PROGRESS_STEPS."""
+    if not job_id:
+        return
+    total = len(PROGRESS_STEPS)
+    _job_progress[job_id] = {
+        "step": step,
+        "total": total,
+        "message": message or (PROGRESS_STEPS[step - 1] if 1 <= step <= total else "Working..."),
+        "done": step > total,
+    }
+
+
+def get_progress(job_id: str) -> Optional[dict]:
+    return _job_progress.get(job_id)
+
+
+def clear_progress(job_id: str) -> None:
+    _job_progress.pop(job_id, None)
+
+
 VIDEO_SIZE = (1280, 720)
 SCENE_DURATION_DEFAULT = 7
 SCENE_DURATION_MIN = 4
 SCENE_DURATION_MAX = 30
 AUDIO_PADDING_SECONDS = 1.0
-MAX_SCENES = 6
+MAX_SCENES = 10
 MAX_BULLETS = 3
 MAX_BULLET_CHARS = 48
 MAX_EXPANSION_SCENES = max(2, MAX_SCENES - 3)
@@ -600,160 +635,202 @@ def _draw_boxed_keywords(draw, title: str, items: List[str], rect: tuple[int, in
 
 
 def _build_storyline_scenes(analyzed: "AnalyzedContent", raw_scenes: List[dict]) -> List[dict]:
-    """Force a stable walkthrough structure: overview -> core -> expansion* -> summary."""
+    """Build walkthrough scenes: trust LLM scene decisions, fill gaps with fallbacks.
 
-    def _pick_scene(section: str) -> Optional[dict]:
-        for scene in raw_scenes:
-            if str(scene.get("section") or "").strip().lower() == section:
-                return scene
-        return None
+    When raw_scenes from the LLM are available, respect the LLM's choices for
+    scene count, entity count, and expansion grouping. Only generate fallback
+    scenes for sections the LLM missed entirely (overview/core/summary).
+    """
 
-    overview_scene = _pick_scene("overview")
-    core_scene = _pick_scene("core")
-    summary_scene = _pick_scene("summary")
-    expansion_seed_scenes = [
-        scene for scene in raw_scenes if str(scene.get("section") or "").strip().lower() == "expansion"
-    ]
+    def _pick_scenes(section: str) -> List[dict]:
+        return [s for s in raw_scenes if str(s.get("section") or "").strip().lower() == section]
+
+    llm_overview = _pick_scenes("overview")
+    llm_core = _pick_scenes("core")
+    llm_expansion = _pick_scenes("expansion")
+    llm_summary = _pick_scenes("summary")
 
     core_modules = [m for m in analyzed.module_progression if getattr(m, "stage", "") == "core"]
     expansion_modules = [m for m in analyzed.module_progression if getattr(m, "stage", "") == "expansion"]
 
     scenes: list[dict] = []
 
-    tech_anchor: list[str] = []
-    tech_anchor.extend(analyzed.tech_stack.languages[:2])
-    tech_anchor.extend(analyzed.tech_stack.frameworks[:2])
-    overview_fallback = (
-        f"So what is {analyzed.repo_name or 'this project'}? "
-        f"{analyzed.project_overview.strip()} "
-        f"{'It is built with ' + ', '.join(tech_anchor[:4]) + '.' if tech_anchor else ''}"
-    ).strip()
-    overview_narration = (
-        str((overview_scene or {}).get("narration") or "").strip()
-        or overview_fallback
-    )
-    scenes.append(
-        {
-            "title": str((overview_scene or {}).get("title") or (analyzed.repo_name or "Repository Overview")).strip(),
+    # --- Overview: use LLM scene or generate fallback ---
+    if llm_overview:
+        for s in llm_overview:
+            scenes.append(_adopt_llm_scene(s, "overview", "overview_map", analyzed))
+    else:
+        tech_anchor: list[str] = []
+        tech_anchor.extend(analyzed.tech_stack.languages[:2])
+        tech_anchor.extend(analyzed.tech_stack.frameworks[:2])
+        overview_fallback = (
+            f"So what is {analyzed.repo_name or 'this project'}? "
+            f"{analyzed.project_overview.strip()} "
+            f"{'It is built with ' + ', '.join(tech_anchor[:4]) + '.' if tech_anchor else ''}"
+        ).strip()
+        scenes.append({
+            "title": analyzed.repo_name or "Repository Overview",
             "section": "overview",
             "visual_type": "overview_map",
-            "visual_motif": str((overview_scene or {}).get("visual_motif") or "diagram").strip().lower(),
-            "entities": (overview_scene or {}).get("entities") or [
+            "visual_motif": "diagram",
+            "entities": [
                 {"label": _clean_entity_label(analyzed.repo_name or "Repository"), "kind": "file"},
                 {"label": "Core path", "kind": "concept"},
                 {"label": "Users", "kind": "user"},
                 {"label": "Outputs", "kind": "concept"},
             ],
-            "relations": (overview_scene or {}).get("relations") or [
+            "relations": [
                 {"from": _clean_entity_label(analyzed.repo_name or "Repository"), "to": "Core path", "type": "feeds"},
                 {"from": "Core path", "to": "Outputs", "type": "extends"},
                 {"from": "Outputs", "to": "Users", "type": "helps"},
             ],
-            "narration": _truncate_narration(overview_narration),
-            "duration_seconds": (overview_scene or {}).get("duration_seconds", 6),
+            "narration": _truncate_narration(overview_fallback),
+            "duration_seconds": 6,
             "focus_modules": [],
-        }
-    )
+        })
 
-    core_focus = core_modules[:3]
-    if core_focus:
-        core_names = " and ".join(m.name for m in core_focus)
-        core_roles = " ".join(
-            f"{m.name} {m.role.rstrip('.')}." for m in core_focus[:2]
-        )
-        core_default = (
-            f"The minimum viable system is built on {core_names}. "
-            f"{core_roles} "
-            f"With just these pieces, users can already get the core value out of {analyzed.repo_name or 'the project'}."
-        )
+    # --- Core: use LLM scenes (1 or 2) or generate fallback ---
+    if llm_core:
+        for s in llm_core:
+            focus = [m.name for m in core_modules] if core_modules else []
+            scenes.append(_adopt_llm_scene(s, "core", "core_diagram", analyzed, focus_modules=focus))
     else:
-        core_default = (
-            f"Let's look at the foundation. The smallest useful version of {analyzed.repo_name or 'this project'} "
-            f"needs just a few key modules working together to deliver its core value."
-        )
-    scenes.append(
-        {
-            "title": str((core_scene or {}).get("title") or "The Core Backbone").strip(),
+        core_focus = core_modules[:4]
+        if core_focus:
+            core_names = " and ".join(m.name for m in core_focus)
+            core_roles = " ".join(f"{m.name} {m.role.rstrip('.')}." for m in core_focus[:2])
+            core_default = (
+                f"The minimum viable system is built on {core_names}. "
+                f"{core_roles} "
+                f"With just these pieces, users can already get the core value out of {analyzed.repo_name or 'the project'}."
+            )
+        else:
+            core_default = (
+                f"Let's look at the foundation. The smallest useful version of {analyzed.repo_name or 'this project'} "
+                f"needs just a few key modules working together to deliver its core value."
+            )
+        scenes.append({
+            "title": "The Core Backbone",
             "section": "core",
             "visual_type": "core_diagram",
-            "visual_motif": str((core_scene or {}).get("visual_motif") or "relay").strip().lower(),
-            "entities": (core_scene or {}).get("entities") or [
-                {"label": _clean_entity_label(m.name), "kind": "file"} for m in core_focus[:3]
-            ],
-            "relations": (core_scene or {}).get("relations") or [
+            "visual_motif": "relay",
+            "entities": [{"label": _clean_entity_label(m.name), "kind": "file"} for m in core_focus],
+            "relations": [
                 {"from": _clean_entity_label(core_focus[i].name), "to": _clean_entity_label(core_focus[i + 1].name), "type": "calls"}
                 for i in range(max(0, len(core_focus) - 1))
             ],
-            "narration": _truncate_narration(str((core_scene or {}).get("narration") or "").strip() or core_default),
-            "duration_seconds": (core_scene or {}).get("duration_seconds", 7),
+            "narration": _truncate_narration(core_default),
+            "duration_seconds": 7,
             "focus_modules": [m.name for m in core_focus],
-        }
-    )
+        })
 
-    expansion_groups = _chunk_list(expansion_modules[:MAX_EXPANSION_SCENES], 1)
-    for index, group in enumerate(expansion_groups, start=1):
-        seed = expansion_seed_scenes[index - 1] if index - 1 < len(expansion_seed_scenes) else {}
-        module = group[0]
-        solves_text = module.solves.rstrip('.') if module.solves else "a gap in the system"
-        role_text = module.role.rstrip('.') if module.role else "extends the core"
-        default_narration = (
-            f"At this point the core works, but there is a problem: {solves_text}. "
-            f"{module.name} addresses this. It {role_text}. "
-            f"With this in place, the system becomes more capable."
-        )
-        scenes.append(
-            {
-                "title": str(seed.get("title") or f"Expansion Layer {index}").strip(),
+    # --- Expansion: trust LLM grouping, or generate per-module fallbacks ---
+    if llm_expansion:
+        for s in llm_expansion[:MAX_EXPANSION_SCENES]:
+            scenes.append(_adopt_llm_scene(s, "expansion", "expansion_ladder", analyzed))
+    else:
+        for index, module in enumerate(expansion_modules[:MAX_EXPANSION_SCENES], start=1):
+            solves_text = module.solves.rstrip('.') if module.solves else "a gap in the system"
+            role_text = module.role.rstrip('.') if module.role else "extends the core"
+            default_narration = (
+                f"At this point the core works, but there is a problem: {solves_text}. "
+                f"{module.name} addresses this. It {role_text}. "
+                f"With this in place, the system becomes more capable."
+            )
+            scenes.append({
+                "title": f"Expansion: {_clean_entity_label(module.name)}",
                 "section": "expansion",
                 "visual_type": "expansion_ladder",
-                "visual_motif": str(seed.get("visual_motif") or "dialogue").strip().lower(),
-                "entities": seed.get("entities") or [
-                    {"label": _clean_entity_label(group[0].name), "kind": "file"},
+                "visual_motif": ["dialogue", "analogy", "relay", "diagram"][index % 4],
+                "entities": [
+                    {"label": _clean_entity_label(module.name), "kind": "file"},
                     {"label": "Core path", "kind": "concept"},
-                    {"label": _clean_entity_label(_keyword_phrases(group[0].solves, 1)[0] if _keyword_phrases(group[0].solves, 1) else 'Capability'), "kind": "concept"},
+                    {"label": _clean_entity_label(_keyword_phrases(module.solves, 1)[0] if _keyword_phrases(module.solves, 1) else 'Capability'), "kind": "concept"},
                 ],
-                "relations": seed.get("relations") or [
-                    {"from": "Core path", "to": _clean_entity_label(group[0].name), "type": "extends"},
-                    {"from": _clean_entity_label(group[0].name), "to": _clean_entity_label(_keyword_phrases(group[0].solves, 1)[0] if _keyword_phrases(group[0].solves, 1) else 'Capability'), "type": "helps"},
+                "relations": [
+                    {"from": "Core path", "to": _clean_entity_label(module.name), "type": "extends"},
+                    {"from": _clean_entity_label(module.name), "to": _clean_entity_label(_keyword_phrases(module.solves, 1)[0] if _keyword_phrases(module.solves, 1) else 'Capability'), "type": "helps"},
                 ],
-                "narration": _truncate_narration(str(seed.get("narration") or "").strip() or default_narration),
-                "duration_seconds": seed.get("duration_seconds", 6),
-                "focus_modules": [m.name for m in group],
-            }
-        )
+                "narration": _truncate_narration(default_narration),
+                "duration_seconds": 6,
+                "focus_modules": [module.name],
+            })
 
-    user_story = analyzed.target_users[:320] if analyzed.target_users else ""
-    if user_story:
-        summary_default = (
-            f"Now let's put it all together. {user_story} "
-            f"That is what {analyzed.repo_name or 'this project'} enables end to end."
-        )
+    # --- Summary: use LLM scene or generate fallback ---
+    if llm_summary:
+        for s in llm_summary:
+            scenes.append(_adopt_llm_scene(s, "summary", "summary_usecases", analyzed))
     else:
-        summary_default = (
-            f"With all these pieces in place, {analyzed.repo_name or 'this project'} "
-            f"goes from a collection of files to a working system that users can rely on for their day to day workflow."
-        )
-    scenes.append(
-        {
-            "title": str((summary_scene or {}).get("title") or "Complete System and Use Cases").strip(),
+        user_story = analyzed.target_users[:320] if analyzed.target_users else ""
+        if user_story:
+            summary_default = (
+                f"Now let's put it all together. {user_story} "
+                f"That is what {analyzed.repo_name or 'this project'} enables end to end."
+            )
+        else:
+            summary_default = (
+                f"With all these pieces in place, {analyzed.repo_name or 'this project'} "
+                f"goes from a collection of files to a working system that users can rely on for their day to day workflow."
+            )
+        scenes.append({
+            "title": "Complete System and Use Cases",
             "section": "summary",
             "visual_type": "summary_usecases",
-            "visual_motif": str((summary_scene or {}).get("visual_motif") or "usecases").strip().lower(),
-            "entities": (summary_scene or {}).get("entities") or [
+            "visual_motif": "usecases",
+            "entities": [
                 {"label": "Users", "kind": "user"},
                 {"label": "Workflow", "kind": "concept"},
                 {"label": "Outcome", "kind": "concept"},
             ],
-            "relations": (summary_scene or {}).get("relations") or [
+            "relations": [
                 {"from": "Users", "to": "Workflow", "type": "calls"},
                 {"from": "Workflow", "to": "Outcome", "type": "helps"},
             ],
-            "narration": _truncate_narration(str((summary_scene or {}).get("narration") or "").strip() or summary_default),
-            "duration_seconds": (summary_scene or {}).get("duration_seconds", 6),
+            "narration": _truncate_narration(summary_default),
+            "duration_seconds": 6,
             "focus_modules": [],
-        }
-    )
+        })
+
     return scenes[:MAX_SCENES]
+
+
+def _adopt_llm_scene(
+    raw: dict,
+    expected_section: str,
+    default_visual_type: str,
+    analyzed: "AnalyzedContent",
+    focus_modules: Optional[List[str]] = None,
+) -> dict:
+    """Adopt an LLM-generated scene, enforcing rendering constraints."""
+    valid_visual_types = {"overview_map", "core_diagram", "expansion_ladder", "summary_usecases"}
+    vtype = str(raw.get("visual_type") or "").strip().lower()
+    if vtype not in valid_visual_types:
+        vtype = default_visual_type
+
+    valid_motifs = {"diagram", "relay", "dialogue", "analogy", "usecases"}
+    motif = str(raw.get("visual_motif") or "").strip().lower()
+    if motif not in valid_motifs:
+        motif = "diagram"
+
+    # Enforce entity label length but preserve LLM's entity count
+    entities = [
+        {"label": _clean_entity_label(e.get("label", "")), "kind": e.get("kind", "concept")}
+        for e in (raw.get("entities") or [])
+        if isinstance(e, dict) and e.get("label")
+    ]
+    relations = [r for r in (raw.get("relations") or []) if isinstance(r, dict)]
+
+    return {
+        "title": _clean_keyword(str(raw.get("title") or f"{expected_section.title()} Scene").strip(), 50),
+        "section": expected_section,
+        "visual_type": vtype,
+        "visual_motif": motif,
+        "entities": entities,
+        "relations": relations,
+        "narration": _truncate_narration(str(raw.get("narration") or "").strip()),
+        "duration_seconds": raw.get("duration_seconds", 6),
+        "focus_modules": focus_modules or [],
+    }
 
 
 def _fallback_narration_script(analyzed: "AnalyzedContent") -> List[dict]:
@@ -920,38 +997,49 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
 
     # Build personas for comic-style overview and summary scenes
     # Labels: single word. Captions: one short phrase for the speech bubble.
+    # Persona count is driven by the scene's entities (LLM decides how many).
+    _svg_cycle = ["person_thinking", "person_at_desk", "person_happy", "process_gear", "person_at_desk"]
     personas: list[dict] = []
     if section == "overview":
-        # Extract a single-word user role from target_users
-        user_role = "Developer"
-        if analyzed.target_users:
-            first_word = analyzed.target_users.split()[0:2]
-            user_role = " ".join(first_word).rstrip("s,.")  # e.g. "Developer"
-            if len(user_role) > 12:
-                user_role = "Developer"
-        # Compose short purposeful captions from structured data
-        tech_names = analyzed.tech_stack.frameworks[:2]
-        tech_caption = " + ".join(t.split()[0] for t in tech_names) if tech_names else "Code"
-        # What this repo produces (from key_libraries or overview keywords)
-        output_types = []
-        for kw in ["doc", "diagram", "video", "chat", "pdf", "ppt", "export"]:
-            if kw in (analyzed.project_overview or "").lower():
-                output_types.append(kw.capitalize())
-        output_caption = " & ".join(output_types[:2]) if output_types else "Documentation"
-        personas = [
-            {"svg": "person_thinking", "label": user_role, "caption": "What is this repo?"},
-            {"svg": "person_at_desk", "label": "Analyze", "caption": tech_caption},
-            {"svg": "person_happy", "label": "Understand", "caption": output_caption},
-        ]
+        if scene_entities:
+            # Build personas from LLM entities
+            for i, ent in enumerate(scene_entities[:5]):
+                label = _clean_entity_label(ent.get("label", ""))
+                caption = label  # entity label becomes the caption
+                personas.append({"svg": _svg_cycle[i % len(_svg_cycle)], "label": label, "caption": caption})
+        else:
+            # Fallback: derive from analysis
+            user_role = "Developer"
+            if analyzed.target_users:
+                first_word = analyzed.target_users.split()[0:2]
+                user_role = " ".join(first_word).rstrip("s,.")
+                if len(user_role) > 12:
+                    user_role = "Developer"
+            tech_names = analyzed.tech_stack.frameworks[:2]
+            tech_caption = " + ".join(t.split()[0] for t in tech_names) if tech_names else "Code"
+            output_types = []
+            for kw in ["doc", "diagram", "video", "chat", "pdf", "ppt", "export"]:
+                if kw in (analyzed.project_overview or "").lower():
+                    output_types.append(kw.capitalize())
+            output_caption = " & ".join(output_types[:2]) if output_types else "Documentation"
+            personas = [
+                {"svg": "person_thinking", "label": user_role, "caption": "What is this repo?"},
+                {"svg": "person_at_desk", "label": "Analyze", "caption": tech_caption},
+                {"svg": "person_happy", "label": "Understand", "caption": output_caption},
+            ]
     elif section == "summary":
-        # User journey: fixed purposeful captions (who → action → result)
-        personas = [
-            {"svg": "person_at_desk", "label": "User", "caption": "Submit repo URL"},
-            {"svg": "process_gear", "label": "Process", "caption": "AI analysis"},
-            {"svg": "person_happy", "label": "Result", "caption": "Get walkthrough"},
-        ]
+        if scene_entities:
+            for i, ent in enumerate(scene_entities[:5]):
+                label = _clean_entity_label(ent.get("label", ""))
+                personas.append({"svg": _svg_cycle[i % len(_svg_cycle)], "label": label, "caption": label})
+        else:
+            personas = [
+                {"svg": "person_at_desk", "label": "User", "caption": "Submit repo URL"},
+                {"svg": "process_gear", "label": "Process", "caption": "AI analysis"},
+                {"svg": "person_happy", "label": "Result", "caption": "Get walkthrough"},
+            ]
 
-    built_entities = [{"label": _clean_entity_label(item.get("label", "")), "kind": item.get("kind", "concept")} for item in scene_entities[:4]]
+    built_entities = [{"label": _clean_entity_label(item.get("label", "")), "kind": item.get("kind", "concept")} for item in scene_entities[:6]]
     narration_text = scene.get("narration", "")
 
     # For comic scenes, use sequential highlighting (panel 1→2→3) instead of text matching
@@ -968,7 +1056,7 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
         "section": section,
         "visual_type": visual_type,
         "visual_motif": str(scene.get("visual_motif") or "").strip().lower(),
-        "focus_modules": [_clean_keyword(item, 26) for item in focus_modules[:3]],
+        "focus_modules": [_clean_keyword(item, 26) for item in focus_modules[:6]],
         "entities": built_entities,
         "relations": [
             {
@@ -976,7 +1064,7 @@ def _scene_to_card_content(scene: dict, analyzed: "AnalyzedContent", index: int,
                 "to": _clean_entity_label(item.get("to", "")),
                 "type": _clean_keyword(item.get("type", ""), 18),
             }
-            for item in scene_relations[:4]
+            for item in scene_relations[:8]
         ],
         "tech_chips": tech_chips,
         "keywords": deduped_keywords[:MAX_KEYWORDS],
@@ -1267,6 +1355,7 @@ async def render_video_from_analyzed(  # noqa: C901
     analyzed: "AnalyzedContent",
     provider: Optional[str] = None,
     model: Optional[str] = None,
+    job_id: Optional[str] = None,
 ) -> bytes:
     """
     Phase 2b-video plus Phase 3: AnalyzedContent to MP4 bytes.
@@ -1278,6 +1367,9 @@ async def render_video_from_analyzed(  # noqa: C901
     overall_start = time.perf_counter()
     logger.info("Video export requested for %s", analyzed.repo_name)
 
+    # Approximate: content analysis already done upstream, mark step 1 done here
+    update_progress(job_id, 1)
+    update_progress(job_id, 2)  # Step 2: narration script
     narration_start = time.perf_counter()
     raw_scenes = await generate_narration_script(analyzed, provider=provider, model=model)
     normalized_raw = _normalize_scenes(raw_scenes, analyzed.repo_name)
@@ -1293,6 +1385,7 @@ async def render_video_from_analyzed(  # noqa: C901
         tmp_path = Path(tmpdir)
 
         # --- TTS audio generation ---
+        update_progress(job_id, 3)  # Step 3: TTS audio
         tts_start = time.perf_counter()
         has_audio = False
         try:
@@ -1321,8 +1414,8 @@ async def render_video_from_analyzed(  # noqa: C901
                 )
 
         # --- Render scene images + build clips (multi-frame with subtitles) ---
-        clips = []
-        expansion_counter = 0
+        import asyncio as _asyncio
+
         use_playwright = True
         try:
             from api.scene_renderer import render_scene_to_png, close_browser
@@ -1335,47 +1428,84 @@ async def render_video_from_analyzed(  # noqa: C901
         except ImportError:
             from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips as _concat
 
-        for index, scene in enumerate(scenes, start=1):
-            scene_start = time.perf_counter()
-            logger.info("Rendering video scene %d/%d: %s", index, total, scene.get("title", f"Scene {index}"))
-            card = _scene_to_card_content(scene, analyzed, index, total)
-            card["narration"] = scene.get("narration", "")
-
+        # Pre-compute expansion indices for each scene
+        expansion_counter = 0
+        scene_expansion_indices = []
+        for scene in scenes:
             if scene.get("section") == "expansion":
                 expansion_counter += 1
+            scene_expansion_indices.append(expansion_counter or 1)
 
+        # --- Parallel PNG rendering phase ---
+        update_progress(job_id, 4)  # Step 4: scene rendering
+        render_start = time.perf_counter()
+
+        # Prepare card data and render tasks for all scenes
+        scene_cards = []
+        render_tasks = []
+        for index, scene in enumerate(scenes, start=1):
+            card = _scene_to_card_content(scene, analyzed, index, total)
+            card["narration"] = scene.get("narration", "")
+            scene_cards.append(card)
+            segments = card.get("narration_segments") or [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
+            exp_idx = scene_expansion_indices[index - 1]
+
+            if use_playwright and len(segments) > 1:
+                # Multi-frame: schedule all frames for this scene
+                for seg_idx, seg in enumerate(segments):
+                    frame_path = str(tmp_path / f"scene_{index:02d}_f{seg_idx:02d}.png")
+                    render_tasks.append((index, seg_idx, frame_path, card, exp_idx,
+                                         seg["text"], seg["highlight_labels"]))
+            else:
+                # Single-frame
+                image_path = str(tmp_path / f"scene_{index:02d}.png")
+                subtitle_text = segments[0]["text"] if segments else ""
+                highlight_labels = segments[0]["highlight_labels"] if segments else []
+                render_tasks.append((index, -1, image_path, card, exp_idx,
+                                     subtitle_text, highlight_labels))
+
+        # Execute all PNG renders in parallel (Playwright pages are independent)
+        async def _render_one(task_info):
+            index, seg_idx, path, card, exp_idx, sub_text, hl_labels = task_info
+            if use_playwright:
+                try:
+                    await render_scene_to_png(
+                        card, path,
+                        expansion_index=exp_idx,
+                        subtitle_text=sub_text,
+                        highlight_labels=hl_labels,
+                    )
+                    return
+                except Exception as render_err:
+                    seg_label = f" frame {seg_idx}" if seg_idx >= 0 else ""
+                    logger.warning("Playwright render failed for scene %d%s: %s", index, seg_label, render_err)
+            _render_scene_card_image(card, path)
+
+        await _asyncio.gather(*[_render_one(t) for t in render_tasks])
+        logger.info("Timing - all %d PNG frames rendered in %.2fs", len(render_tasks), time.perf_counter() - render_start)
+
+        # --- Assemble clips from rendered PNGs ---
+        clips = []
+        for index, scene in enumerate(scenes, start=1):
+            card = scene_cards[index - 1]
             scene_duration = scene["duration_seconds"]
             audio_path = audio_paths[index - 1] if index - 1 < len(audio_paths) else None
             segments = card.get("narration_segments") or [{"text": "", "highlight_labels": [], "duration_fraction": 1.0}]
 
             if use_playwright and len(segments) > 1:
-                # Multi-frame path: one PNG per narration segment
                 sub_clips = []
                 for seg_idx, seg in enumerate(segments):
-                    frame_path = tmp_path / f"scene_{index:02d}_f{seg_idx:02d}.png"
+                    frame_path = str(tmp_path / f"scene_{index:02d}_f{seg_idx:02d}.png")
                     seg_duration = max(0.5, scene_duration * seg["duration_fraction"])
-                    try:
-                        await render_scene_to_png(
-                            card, str(frame_path),
-                            expansion_index=expansion_counter or 1,
-                            subtitle_text=seg["text"],
-                            highlight_labels=seg["highlight_labels"],
-                        )
-                    except Exception as render_err:
-                        logger.warning("Playwright render failed for scene %d frame %d: %s", index, seg_idx, render_err)
-                        _render_scene_card_image(card, str(frame_path))
-
-                    sub_clip = ImageClip(str(frame_path))
+                    sub_clip = ImageClip(frame_path)
                     if hasattr(sub_clip, "with_duration"):
                         sub_clip = sub_clip.with_duration(seg_duration)
                     else:
                         sub_clip = sub_clip.set_duration(seg_duration)
                     sub_clips.append(sub_clip)
 
-                # Concatenate sub-frames (no fade within a scene)
                 scene_clip = _concat(sub_clips, method="compose")
 
-                # Attach audio to the scene-level clip
                 if audio_path and os.path.exists(audio_path):
                     try:
                         audio_clip = AudioFileClip(audio_path)
@@ -1386,37 +1516,12 @@ async def render_video_from_analyzed(  # noqa: C901
                     except Exception as e:
                         logger.warning("Failed to attach audio to scene %d: %s", index, e)
 
-                # Apply fade transitions between scenes
                 if hasattr(scene_clip, "fadein"):
                     scene_clip = scene_clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
                 clips.append(scene_clip)
             else:
-                # Single-frame path (Pillow fallback or single segment)
-                image_path = tmp_path / f"scene_{index:02d}.png"
-                subtitle_text = segments[0]["text"] if segments else ""
-                highlight_labels = segments[0]["highlight_labels"] if segments else []
-
-                if use_playwright:
-                    try:
-                        await render_scene_to_png(
-                            card, str(image_path),
-                            expansion_index=expansion_counter or 1,
-                            subtitle_text=subtitle_text,
-                            highlight_labels=highlight_labels,
-                        )
-                    except Exception as render_err:
-                        logger.warning("Playwright render failed for scene %d, falling back to Pillow: %s", index, render_err)
-                        _render_scene_card_image(card, str(image_path))
-                else:
-                    _render_scene_card_image(card, str(image_path))
-
-                clips.append(_build_scene_clip(str(image_path), scene_duration, audio_path=audio_path))
-
-            logger.info(
-                "Timing - scene %d/%d rendered in %.2fs (%d frames, audio=%s)",
-                index, total, time.perf_counter() - scene_start,
-                len(segments), "yes" if audio_path else "no",
-            )
+                image_path = str(tmp_path / f"scene_{index:02d}.png")
+                clips.append(_build_scene_clip(image_path, scene_duration, audio_path=audio_path))
 
         # Clean up Playwright browser
         if use_playwright:
@@ -1426,6 +1531,7 @@ async def render_video_from_analyzed(  # noqa: C901
                 pass
 
         output_path = tmp_path / "repo_overview.mp4"
+        update_progress(job_id, 5)  # Step 5: MP4 composition
         compose_start = time.perf_counter()
         logger.info("Composing final MP4 for %s with %d scenes (audio=%s)", analyzed.repo_name, total, has_audio)
         _compose_final_video(clips, str(output_path), has_audio=has_audio)

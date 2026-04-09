@@ -115,7 +115,7 @@ async def generate_all_scene_audio(
     language: str = "en",
 ) -> list[Optional[str]]:
     """
-    Generate TTS audio for all scenes.
+    Generate TTS audio for all scenes in parallel.
 
     Args:
         scenes: List of scene dicts, each with a "narration" key.
@@ -126,27 +126,35 @@ async def generate_all_scene_audio(
         List of audio file paths (or None for scenes where TTS failed).
         Also updates each scene dict with "audio_path" and "audio_duration" keys.
     """
-    audio_paths: list[Optional[str]] = []
-    out = Path(output_dir)
+    import asyncio
 
+    out = Path(output_dir)
+    audio_paths: list[Optional[str]] = [None] * len(scenes)
+
+    # Build tasks for scenes that have narration
+    tasks: list[tuple[int, str, asyncio.Task]] = []
     for i, scene in enumerate(scenes):
         narration = scene.get("narration", "")
         if not narration.strip():
-            audio_paths.append(None)
             continue
-
         audio_path = str(out / f"scene_{i + 1:02d}.mp3")
-        duration = await generate_scene_audio(
+        tasks.append((i, audio_path, generate_scene_audio(
             text=narration,
             output_path=audio_path,
             language=language,
-        )
+        )))
 
-        if duration and duration > 0:
-            audio_paths.append(audio_path)
-            scene["audio_path"] = audio_path
-            scene["audio_duration"] = duration
-        else:
-            audio_paths.append(None)
+    if tasks:
+        results = await asyncio.gather(
+            *(t[2] for t in tasks), return_exceptions=True,
+        )
+        for (i, audio_path, _), duration in zip(tasks, results):
+            if isinstance(duration, Exception):
+                logger.warning("TTS failed for scene %d: %s", i + 1, duration)
+                continue
+            if duration and duration > 0:
+                audio_paths[i] = audio_path
+                scenes[i]["audio_path"] = audio_path
+                scenes[i]["audio_duration"] = duration
 
     return audio_paths

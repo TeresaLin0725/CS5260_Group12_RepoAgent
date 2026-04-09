@@ -287,12 +287,12 @@ The narration will be read aloud by a text-to-speech engine, so:
 - Use casual connectors: "So basically...", "The key thing here is...", "Now once that's working..."
 
 Write the script as a JSON array of scenes. Each scene has:
-- title: short label for on-screen display
+- title: short label for on-screen display (max 50 chars)
 - section: overview | core | expansion | summary
 - visual_type: overview_map | core_diagram | expansion_ladder | summary_usecases
 - visual_motif: diagram | relay | dialogue | analogy | usecases
-- entities: 2-4 items to place on screen (label + kind)
-- relations: 1-3 connections between entities
+- entities: items to place on screen (label + kind). Use as many as makes sense for the scene — typically 2-5, but match the actual complexity.
+- relations: connections between entities. Match the real dependencies.
 - narration: what the narrator says aloud (3-5 spoken sentences)
 - duration_seconds: estimated time in seconds
 
@@ -304,7 +304,7 @@ Respond ONLY with a valid JSON array (no markdown fences):
     "visual_type": "<overview_map | core_diagram | expansion_ladder | summary_usecases>",
     "visual_motif": "<diagram | relay | dialogue | analogy | usecases>",
     "entities": [
-      {{"label": "<short entity label>", "kind": "<module | class | file | concept | user>"}}
+      {{"label": "<short entity label, max 28 chars>", "kind": "<module | class | file | concept | user>"}}
     ],
     "relations": [
       {{"from": "<entity label>", "to": "<entity label>", "type": "<feeds | calls | extends | depends_on | explains | helps>"}}
@@ -314,35 +314,36 @@ Respond ONLY with a valid JSON array (no markdown fences):
   }}
 ]
 
-Story structure — each scene type has a specific narrative job:
+The video follows this narrative arc — you decide how many scenes each section needs:
 
-SCENE 1 — overview (overview_map):
+OVERVIEW (1 scene, section=overview, visual_type=overview_map):
   "Imagine you just cloned this repo. What is it, who built it, and what does it actually do?"
-  Narration must: name the project, state the core problem it solves, mention who uses it, and give one concrete example of what it produces.
+  Name the project, state the core problem it solves, mention who uses it, give one concrete example.
   Do NOT list technologies here — save that for the core scene.
 
-SCENE 2 — core (core_diagram):
-  "What is the absolute minimum that makes this repo useful? Walk me through the foundational path."
-  Narration must: identify the 2-3 modules that form the minimum viable system, trace a request from input to output through them, and explain what a user can already do with just this backbone.
-  Mention key technologies only where they explain WHY this design works.
+CORE (1-2 scenes, section=core, visual_type=core_diagram):
+  "What is the absolute minimum that makes this repo useful?"
+  If the core is simple (2-3 tightly coupled modules), use 1 scene. If it has distinct subsystems (e.g. frontend + backend, or data pipeline + serving layer), use 2.
+  Trace a request from input to output. Mention technologies only where they explain WHY.
 
-SCENES 3 to N-1 — expansion (expansion_ladder), one per expansion module:
+EXPANSION (0 or more scenes, section=expansion, visual_type=expansion_ladder):
   "Now the base works, but there's a gap. This module fills it."
-  Each expansion narration MUST start by naming the specific pain point or limitation that exists without this module, THEN explain how the module solves it.
-  Pattern: "At this point [what's missing or broken]. [Module name] solves this by [mechanism]. This means users can now [new capability]."
-  Do NOT merge multiple expansion modules into one scene — each gets its own scene.
-  Vary visual_motif: use dialogue for interaction-heavy modules, analogy when a metaphor helps, relay/diagram for data flow chains.
+  Create one scene per major expansion capability — NOT one per file.
+  Group closely related modules into one scene if they solve the same gap.
+  Skip trivial expansions (config files, minor utilities) entirely.
+  Each narration MUST start with the pain point, THEN explain the solution.
+  Vary visual_motif across expansion scenes: dialogue, analogy, relay, diagram.
 
-FINAL SCENE — summary (summary_usecases):
+SUMMARY (1 scene, section=summary, visual_type=summary_usecases):
   "Put it all together — what does the complete system enable?"
-  Narration must use a concrete user story: "A [specific role] wants to [specific goal]. They [step 1], then [step 2], and get [concrete outcome]."
-  Do NOT use generic phrases like "complete system", "various features", "robust architecture".
+  Use a concrete user story with specific steps and outcomes.
+  Do NOT use generic phrases like "complete system" or "robust architecture".
 
-Additional rules:
-- Target 5-6 scenes total
+Key rules:
+- Let the repo's complexity determine scene count: a simple utility might need 3-4 scenes, a complex platform might need 7-8. Do NOT pad or compress artificially.
+- Each entity label must be short enough to fit in a UI node (max 28 characters)
+- Entities should reflect the actual architecture: if a module has 4 key components, show 4, not always 3
 - Use module_progression as the primary storyline driver
-- On-screen labels must be short (fit in a node or bubble) — use full names only in narration
-- Entities should be at module/file granularity, not huge subsystems
 - architecture, data_flow, and key_modules are supporting context, not the storyline itself
 
 Project analysis:

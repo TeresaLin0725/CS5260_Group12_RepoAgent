@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from typing import List, Optional
@@ -229,12 +229,19 @@ async def export_repo_ppt(request: DirectPDFExportRequest):
 
 
 @app.post("/export/repo/video")
-async def export_repo_video(request: DirectPDFExportRequest):
+async def export_repo_video(request: DirectPDFExportRequest, x_job_id: str = Header(default="")):
     """
     Generate a video overview directly from repo embeddings.
+    Accepts an optional X-Job-Id header for progress tracking.
     """
+    from api.video_export import update_progress, clear_progress
+
+    job_id = x_job_id or ""
     try:
         from api.export_service import export_repo as _export_repo
+
+        if job_id:
+            update_progress(job_id, 1)  # Step 1: analyzing repo
 
         logger.info(f"Direct video export requested for {request.repo_url} (provider={request.provider})")
         repo_req = RepoAnalysisRequest(
@@ -250,7 +257,10 @@ async def export_repo_video(request: DirectPDFExportRequest):
             included_dirs=request.included_dirs,
             included_files=request.included_files,
         )
-        result = await _export_repo(repo_req, fmt=ExportFormat.VIDEO)
+        result = await _export_repo(repo_req, fmt=ExportFormat.VIDEO, job_id=job_id or None)
+
+        if job_id:
+            clear_progress(job_id)
 
         return Response(
             content=result.content_bytes,
@@ -258,11 +268,25 @@ async def export_repo_video(request: DirectPDFExportRequest):
             headers={"Content-Disposition": f"attachment; filename={result.filename}"},
         )
     except NotImplementedError as e:
+        if job_id:
+            clear_progress(job_id)
         raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
+        if job_id:
+            clear_progress(job_id)
         error_msg = f"Error generating direct video: {str(e)}"
         logger.error(error_msg, exc_info=True)
         raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.get("/export/progress/{job_id}")
+async def get_export_progress(job_id: str):
+    """Return current progress for a video export job."""
+    from api.video_export import get_progress
+    progress = get_progress(job_id)
+    if progress is None:
+        return {"step": 0, "total": 5, "message": "Waiting...", "done": False}
+    return progress
 
 
 @app.get("/local_repo/structure")

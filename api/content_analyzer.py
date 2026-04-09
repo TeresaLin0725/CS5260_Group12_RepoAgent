@@ -569,7 +569,10 @@ def _extract_repo_context(rag_instance: Any, repo_name: str) -> str:
     """
     Retrieve broadly representative content from the FAISS index.
     Uses a few generic architectural queries to pull diverse chunks.
+    Queries run in parallel via a thread pool for speed.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     queries = [
         f"What is {repo_name}? Project overview, purpose, main features.",
         f"Architecture design patterns, main modules, file structure of {repo_name}.",
@@ -577,26 +580,36 @@ def _extract_repo_context(rag_instance: Any, repo_name: str) -> str:
         f"Data flow, API endpoints, external integrations in {repo_name}.",
     ]
 
+    def _run_query(q: str):
+        try:
+            return rag_instance.call(q)
+        except Exception as e:
+            logger.warning("Retrieval query failed (%s): %s", q[:40], e)
+            return None
+
+    # Run all FAISS queries in parallel
+    results = []
+    with ThreadPoolExecutor(max_workers=len(queries)) as pool:
+        futures = {pool.submit(_run_query, q): q for q in queries}
+        for future in as_completed(futures):
+            results.append(future.result())
+
     seen_indices: set[int] = set()
     parts: list[str] = []
 
-    for q in queries:
-        try:
-            retrieved = rag_instance.call(q)
-            if retrieved and len(retrieved) > 0:
-                docs = retrieved[0].documents if hasattr(retrieved[0], "documents") else []
-                indices = retrieved[0].doc_indices if hasattr(retrieved[0], "doc_indices") else []
-                for idx, doc in zip(indices, docs):
-                    if idx not in seen_indices:
-                        seen_indices.add(idx)
-                        file_path = ""
-                        if hasattr(doc, "meta_data") and isinstance(doc.meta_data, dict):
-                            file_path = doc.meta_data.get("file_path", "")
-                        parts.append(f"--- {file_path} ---")
-                        parts.append(doc.text if hasattr(doc, "text") else str(doc))
-                        parts.append("")
-        except Exception as e:
-            logger.warning("Retrieval query failed (%s): %s", q[:40], e)
+    for retrieved in results:
+        if retrieved and len(retrieved) > 0:
+            docs = retrieved[0].documents if hasattr(retrieved[0], "documents") else []
+            indices = retrieved[0].doc_indices if hasattr(retrieved[0], "doc_indices") else []
+            for idx, doc in zip(indices, docs):
+                if idx not in seen_indices:
+                    seen_indices.add(idx)
+                    file_path = ""
+                    if hasattr(doc, "meta_data") and isinstance(doc.meta_data, dict):
+                        file_path = doc.meta_data.get("file_path", "")
+                    parts.append(f"--- {file_path} ---")
+                    parts.append(doc.text if hasattr(doc, "text") else str(doc))
+                    parts.append("")
 
     return "\n".join(parts)
 

@@ -250,14 +250,17 @@ def _render_overview_html(card, p):
     overview_descs = card.get("overview_descriptions") or []
 
     nodes_html = []
-    for i, ent in enumerate(entities[:4]):
+    n_ents = min(len(entities), 6)
+    min_w = "120px" if n_ents > 4 else "160px"
+    max_w = "220px" if n_ents > 4 else "280px"
+    for i, ent in enumerate(entities[:6]):
         label = _esc(ent.get("label", ""))
         hl = " highlight" if i == 0 else ""
         desc_html = ""
         if i < len(overview_descs) and overview_descs[i]:
             desc_html = '<div class="node-desc">' + _esc(overview_descs[i]) + '</div>'
         nodes_html.append(
-            '<div class="node' + hl + '" style="flex:1;min-width:160px;max-width:280px;">'
+            '<div class="node' + hl + '" style="flex:1;min-width:' + min_w + ';max-width:' + max_w + ';">'
             + '<div class="node-label">' + label + '</div>'
             + desc_html
             + '</div>'
@@ -294,13 +297,13 @@ def _render_core_html(card, p):
     microcopy = card.get("microcopy") or []
 
     nodes = []
-    for i, ent in enumerate(entities[:4]):
+    for i, ent in enumerate(entities[:6]):
         label = _esc(ent.get("label", ""))
         desc_html = ""
         if i < len(core_descs) and core_descs[i]:
             desc_html = '<div class="node-desc">' + _esc(core_descs[i]) + '</div>'
         nodes.append(
-            '<div class="node highlight" style="flex:1;min-width:140px;max-width:300px;">'
+            '<div class="node highlight" style="flex:1;min-width:120px;max-width:240px;">'
             + '<div class="node-label" style="font-size:20px;">' + label + '</div>'
             + desc_html
             + '</div>'
@@ -424,7 +427,7 @@ def _render_comic_panels_html(personas, p, tech_chips=None, section_label="", su
     tech_chips = tech_chips or []
 
     panels = []
-    for i, persona in enumerate(personas[:3]):
+    for i, persona in enumerate(personas[:5]):
         svg_key = persona.get("svg", "person_thinking")
         svg_html = _SVG_MAP.get(svg_key, SVG_PERSON_THINKING)
         label = _esc(persona.get("label", ""))
@@ -510,7 +513,7 @@ def _render_summary_html(card, p):
     use_cases = card.get("use_cases") or []
     keywords = card.get("keywords") or []
 
-    labels = [_esc(ent.get("label", "Step")) for ent in entities[:4]]
+    labels = [_esc(ent.get("label", "Step")) for ent in entities[:6]]
     if not labels:
         labels = ["User", "Workflow", "Outcome"]
 

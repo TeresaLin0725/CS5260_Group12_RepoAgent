@@ -10,11 +10,13 @@ export async function POST(req: NextRequest) {
     const requestBody = await req.json();
     const targetUrl = `${TARGET_SERVER_BASE_URL}/export/repo/video`;
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const jobId = req.headers.get('X-Job-Id');
+    if (jobId) headers['X-Job-Id'] = jobId;
+
     const backendResponse = await fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 

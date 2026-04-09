@@ -59,12 +59,12 @@ def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
     )
 
 
-async def _render_video(analyzed: AnalyzedContent) -> ExportResult:
+async def _render_video(analyzed: AnalyzedContent, job_id: str | None = None) -> ExportResult:
     """Phase 2b-video plus Phase 3 MP4 render."""
     from datetime import datetime
     from api.video_export import render_video_from_analyzed
 
-    video_bytes = await render_video_from_analyzed(analyzed)
+    video_bytes = await render_video_from_analyzed(analyzed, job_id=job_id)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_overview_{timestamp}.mp4"
@@ -122,7 +122,11 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat) -> Non
     logger.info("AnalyzedContent for %s export:\n%s", fmt.value, json_str)
 
 
-async def export_repo(request: RepoAnalysisRequest, fmt: ExportFormat = ExportFormat.PDF) -> ExportResult:
+async def export_repo(
+    request: RepoAnalysisRequest,
+    fmt: ExportFormat = ExportFormat.PDF,
+    job_id: str | None = None,
+) -> ExportResult:
     """Full pipeline: repo embeddings to analysis to render."""
     overall_start = time.perf_counter()
     logger.info("Export repo as %s for %s", fmt.value, request.repo_name or request.repo_url)
@@ -135,7 +139,11 @@ async def export_repo(request: RepoAnalysisRequest, fmt: ExportFormat = ExportFo
 
     renderer = _RENDERERS[fmt]
     render_start = time.perf_counter()
-    result = renderer(analyzed)
+    # Pass job_id to video renderer for progress tracking
+    if fmt == ExportFormat.VIDEO and job_id:
+        result = renderer(analyzed, job_id=job_id)
+    else:
+        result = renderer(analyzed)
     if inspect.isawaitable(result):
         result = await result
     render_elapsed = time.perf_counter() - render_start

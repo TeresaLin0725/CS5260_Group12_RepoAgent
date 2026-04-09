@@ -258,24 +258,14 @@ function AgentChatContent() {
     return labels[action];
   };
 
-  const actionRunningMessage = (action: AgentAction): string => {
-    if (action === 'GENERATE_VIDEO') {
-      return 'Generating video overview. This can take up to about 5 minutes, please keep this page open.';
-    }
-    if (action === 'GENERATE_PDF') {
-      return 'Generating PDF report. This usually finishes soon.';
-    }
-    return 'Generating PPT slides. This usually finishes soon.';
-  };
 
   const actionProgressPlan = (action: AgentAction): ActionProgressStep[] => {
     if (action === 'GENERATE_VIDEO') {
       return [
-        { afterMs: 0, message: 'Analyzing repository structure and gathering context...' },
-        { afterMs: 12000, message: 'Writing narration and planning the walkthrough scenes...' },
-        { afterMs: 25000, message: 'Rendering visual scenes and slide layouts...' },
-        { afterMs: 60000, message: 'Composing the final MP4 video...' },
-        { afterMs: 180000, message: 'Finalizing the video file and preparing download...' },
+        { afterMs: 0, message: 'Analyzing repository structure...' },
+        { afterMs: 8000, message: 'Writing narration script...' },
+        { afterMs: 20000, message: 'Rendering scenes & generating audio...' },
+        { afterMs: 40000, message: 'Composing final MP4...' },
       ];
     }
     if (action === 'GENERATE_PDF') {
@@ -292,18 +282,16 @@ function AgentChatContent() {
     ];
   };
 
-  const startActionProgress = useCallback((action: AgentAction, messageId?: string) => {
+  const startActionProgress = useCallback((action: AgentAction, messageId?: string, jobId?: string) => {
     const key = actionKey(action, messageId);
     if (actionTimerRefs.current[key]) {
       window.clearInterval(actionTimerRefs.current[key]);
       delete actionTimerRefs.current[key];
     }
 
-    const steps = actionProgressPlan(action);
     const note = action === 'GENERATE_VIDEO'
-      ? 'Expected wait: up to about 5 minutes. Please keep this page open.'
+      ? 'Please keep this page open while the video is being generated.'
       : 'Expected wait: usually under a minute.';
-    const startedAt = Date.now();
 
     setActionStatuses(prev => [
       ...prev.filter(a => !(a.type === action && a.messageId === messageId)),
@@ -311,36 +299,51 @@ function AgentChatContent() {
         type: action,
         messageId,
         status: 'running',
-        phase: steps[0]?.message || actionRunningMessage(action),
+        phase: 'Starting...',
         stepIndex: 1,
-        totalSteps: steps.length,
+        totalSteps: 5,
         note,
       }
     ]);
 
-    const timerId = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      let activeIndex = 0;
-      for (let i = 0; i < steps.length; i += 1) {
-        if (elapsed >= steps[i].afterMs) {
-          activeIndex = i;
-        }
-      }
-
+    if (action === 'GENERATE_VIDEO' && jobId) {
+      // Poll real progress from backend
+      const timerId = window.setInterval(async () => {
+        try {
+          const res = await fetch(`/api/export/progress/${jobId}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          setActionStatuses(prev => prev.map((item) => (
+            item.type === action && item.messageId === messageId && item.status === 'running'
+              ? { ...item, phase: data.message, stepIndex: data.step, totalSteps: data.total, note }
+              : item
+          )));
+        } catch { /* ignore polling errors */ }
+      }, 1500);
+      actionTimerRefs.current[key] = timerId;
+    } else {
+      // Fallback: time-based estimation for PDF/PPT
+      const steps = actionProgressPlan(action);
+      const startedAt = Date.now();
       setActionStatuses(prev => prev.map((item) => (
-        item.type === action && item.messageId === messageId && item.status === 'running'
-          ? {
-              ...item,
-              phase: steps[activeIndex]?.message || item.phase,
-              stepIndex: activeIndex + 1,
-              totalSteps: steps.length,
-              note,
-            }
+        item.type === action && item.messageId === messageId
+          ? { ...item, phase: steps[0]?.message || 'Working...', stepIndex: 1, totalSteps: steps.length }
           : item
       )));
-    }, 1000);
-
-    actionTimerRefs.current[key] = timerId;
+      const timerId = window.setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        let activeIndex = 0;
+        for (let i = 0; i < steps.length; i += 1) {
+          if (elapsed >= steps[i].afterMs) activeIndex = i;
+        }
+        setActionStatuses(prev => prev.map((item) => (
+          item.type === action && item.messageId === messageId && item.status === 'running'
+            ? { ...item, phase: steps[activeIndex]?.message || item.phase, stepIndex: activeIndex + 1, totalSteps: steps.length, note }
+            : item
+        )));
+      }, 1000);
+      actionTimerRefs.current[key] = timerId;
+    }
   }, []);
 
   const stopActionProgress = useCallback((action: AgentAction, messageId?: string) => {
@@ -383,12 +386,17 @@ function AgentChatContent() {
       defaultFilename = `${repoName.split('/').pop() || 'repo'}_overview.mp4`;
     }
 
-    startActionProgress(action, messageId);
+    // Generate a unique job ID for video progress tracking
+    const jobId = action === 'GENERATE_VIDEO' ? `vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` : undefined;
+    startActionProgress(action, messageId, jobId);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (jobId) headers['X-Job-Id'] = jobId;
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(bodyPayload),
       });
 
@@ -622,33 +630,7 @@ function AgentChatContent() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Active actions status bar */}
-        {actionStatuses.some(a => a.status === 'running') && (
-          <div className="px-4 py-3 border-t border-[var(--border-color)] bg-teal-50 dark:bg-teal-900/20">
-            <div className="flex items-start gap-3 text-xs text-teal-700 dark:text-teal-300">
-              <svg className="animate-spin h-3.5 w-3.5 mt-0.5 flex-shrink-0" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              <div className="space-y-1">
-                {actionStatuses.filter(a => a.status === 'running').map((a) => (
-                  <div key={a.type}>
-                    <div>
-                      <span className="font-medium">{actionLabel(a.type)}</span>
-                      {a.stepIndex && a.totalSteps && (
-                        <span> - Step {a.stepIndex}/{a.totalSteps}</span>
-                      )}
-                    </div>
-                    <div>{a.phase || (t?.agentChat?.exportInProgress || 'Export in progress...')}</div>
-                    {a.note && (
-                      <div className="text-[11px] text-teal-600/80 dark:text-teal-300/80">{a.note}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Progress is shown inline in the message bubble — no separate status bar needed */}
 
         {/* Input area */}
         <div className="border-t border-[var(--border-color)] px-4 py-3 bg-[var(--background)]">
