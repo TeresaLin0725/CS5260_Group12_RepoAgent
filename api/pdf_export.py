@@ -286,8 +286,8 @@ def render_pdf(summary_text: str, repo_name: str) -> bytes:
     if need_cjk:
         summary_text = _soft_wrap_long_tokens(summary_text)
 
-    # --- Try font sizes from 10 down to 6.5 to fit on one page ---
-    for font_size in [10, 9.5, 9, 8.5, 8, 7.5, 7, 6.5]:
+    # --- Try font sizes from 12 down to 8 to fit on one page ---
+    for font_size in [12, 11.5, 11, 10.5, 10, 9.5, 9, 8.5, 8]:
         pdf_bytes = _render_single_page_attempt(
             summary_text, repo_name, font_size,
             need_cjk, font_path,
@@ -296,7 +296,7 @@ def render_pdf(summary_text: str, repo_name: str) -> bytes:
             return pdf_bytes
 
     # Fallback at smallest size; final renderer is forced to one page.
-    return _render_pdf_final(summary_text, repo_name, 6.5, need_cjk, font_path)
+    return _render_pdf_final(summary_text, repo_name, 8, need_cjk, font_path)
 
 
 def _render_single_page_attempt(
@@ -630,7 +630,7 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
     body_text_color = (35, 35, 35)
     bullet_dot_color = (50, 100, 200)
 
-    lh = font_size * 0.46  # slightly relaxed line height in mm
+    lh = font_size * 0.42  # compact line height in mm
     current_section = ""
 
     lines = text.split("\n")

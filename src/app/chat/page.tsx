@@ -15,13 +15,20 @@ interface Message {
 }
 
 // Action types the agent can trigger
-type AgentAction = 'GENERATE_PDF' | 'GENERATE_PPT' | 'GENERATE_VIDEO';
+type AgentAction = 'GENERATE_PDF' | 'GENERATE_PPT' | 'GENERATE_VIDEO' | 'GENERATE_POSTER';
 
 interface ActionStatus {
   type: AgentAction;
   status: 'pending' | 'running' | 'done' | 'error';
   phase?: string;
   error?: string;
+}
+
+interface ResearchStage {
+  title: string;
+  content: string;
+  iteration: number;
+  type: 'plan' | 'update' | 'tool_call' | 'finding' | 'gap' | 'conclusion';
 }
 
 function AgentChatContent() {
@@ -53,6 +60,12 @@ function AgentChatContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
   const [useDeepResearch, setUseDeepResearch] = useState(false);
+
+  // Deep Research state
+  const [researchStages, setResearchStages] = useState<ResearchStage[]>([]);
+  const [researchIteration, setResearchIteration] = useState(0);
+  const [researchComplete, setResearchComplete] = useState(false);
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
 
   // Action state — tracks ongoing export actions
   const [actionStatuses, setActionStatuses] = useState<ActionStatus[]>([]);
@@ -103,7 +116,7 @@ function AgentChatContent() {
   // ── Detect action tags in assistant response ─────────────
   const parseActions = (content: string): AgentAction[] => {
     const actions: AgentAction[] = [];
-    const actionRegex = /\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO)\]/g;
+    const actionRegex = /\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER)\]/g;
     let match;
     while ((match = actionRegex.exec(content)) !== null) {
       actions.push(match[1] as AgentAction);
@@ -113,7 +126,117 @@ function AgentChatContent() {
 
   // Strip action tags from display text
   const stripActionTags = (content: string): string => {
-    return content.replace(/\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO)\]/g, '').trim();
+    return content.replace(/\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER)\]/g, '').trim();
+  };
+
+  // ── Deep Research helpers ──────────────────────────────────
+  /**
+   * Strip JSON artifacts and tool-status lines that should never appear
+   * in the user-visible answer.
+   */
+  const cleanDisplayText = (text: string): string => {
+    if (!text) return text;
+    // Remove [RESEARCH_EVENT]{...} markers (with nested braces) using iterative brace-counting
+    let cleaned = text;
+    const marker = '[RESEARCH_EVENT]';
+    let start = cleaned.indexOf(marker);
+    while (start !== -1) {
+      const jsonStart = start + marker.length;
+      if (jsonStart < cleaned.length && cleaned[jsonStart] === '{') {
+        let depth = 0, inStr = false, esc = false, end = -1;
+        for (let i = jsonStart; i < cleaned.length; i++) {
+          const ch = cleaned[i];
+          if (esc) { esc = false; continue; }
+          if (ch === '\\') { esc = true; continue; }
+          if (ch === '"') { inStr = !inStr; continue; }
+          if (inStr) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+        }
+        if (end !== -1) {
+          cleaned = cleaned.slice(0, start) + cleaned.slice(end);
+        } else {
+          break;
+        }
+      } else {
+        start = start + marker.length;
+      }
+      start = cleaned.indexOf(marker, start);
+    }
+    // Remove <think>...</think> blocks entirely (including content)
+    cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+    // Remove unclosed <think> block (still streaming thinking content)
+    cleaned = cleaned.replace(/<think>[\s\S]*$/g, '');
+    // Remove standalone JSON objects that look like research events
+    cleaned = cleaned.replace(/\{"type"\s*:\s*"[^"]*"\s*,\s*"data"\s*:\s*"[^"]*"[^}]*\}/g, '');
+    // Remove tool status lines like "> ⚙️ Running ..." or "> 🔍 Searching ..."
+    cleaned = cleaned.replace(/^>\s*.{1,4}(?:Running|Searching|Reading|Browsing|Grepping|Finding|\u6b63\u5728).+$/gm, '');
+    // Collapse 3+ consecutive blank lines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    return cleaned.trim();
+  };
+
+  /**
+   * Extract all [RESEARCH_EVENT]{...} blocks from the stream.
+   * displayText comes EXCLUSIVELY from the conclusion event's data field.
+   */
+  const parseResearchEvents = (raw: string): { displayText: string; stages: ResearchStage[] } => {
+    const stages: ResearchStage[] = [];
+    let iterationCounter = 0;
+    let conclusionText = '';
+    const markerStr = '[RESEARCH_EVENT]';
+    const markerLen = markerStr.length;
+
+    let searchFrom = 0;
+    while (true) {
+      const idx = raw.indexOf(markerStr, searchFrom);
+      if (idx === -1) break;
+      const jsonStart = idx + markerLen;
+      if (jsonStart >= raw.length || raw[jsonStart] !== '{') { searchFrom = jsonStart; continue; }
+
+      // Brace-counting to handle nested objects like "metadata": {}
+      let depth = 0, inString = false, escaped = false, endPos = -1;
+      for (let i = jsonStart; i < raw.length; i++) {
+        const ch = raw[i];
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\') { escaped = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') { depth--; if (depth === 0) { endPos = i + 1; break; } }
+      }
+      if (endPos === -1) { searchFrom = jsonStart; continue; }
+
+      try {
+        const json = JSON.parse(raw.slice(jsonStart, endPos));
+        const data = (json.data || '').replace(/\\n/g, '\n');
+        if (json.type === 'plan') {
+          stages.push({ title: '📋 Research Plan', content: data, iteration: 0, type: 'plan' });
+        } else if (json.type === 'iteration_start') {
+          iterationCounter++;
+          stages.push({ title: `🔍 Investigating: ${(json.sub_question || '').slice(0, 60)}`, content: '', iteration: iterationCounter, type: 'update' });
+        } else if (json.type === 'tool_call') {
+          stages.push({ title: data.slice(0, 80), content: data, iteration: iterationCounter, type: 'tool_call' });
+        } else if (json.type === 'finding') {
+          const lastUpdate = [...stages].reverse().find(s => s.type === 'update');
+          if (lastUpdate) { lastUpdate.content += data; }
+          else { stages.push({ title: 'Finding', content: data, iteration: iterationCounter, type: 'finding' }); }
+        } else if (json.type === 'iteration_end') {
+          const lastUpdate = [...stages].reverse().find(s => s.type === 'update' && s.iteration === iterationCounter);
+          if (lastUpdate && !lastUpdate.content) { lastUpdate.content = data; }
+        } else if (json.type === 'gap_analysis') {
+          stages.push({ title: '💡 New aspects to explore', content: data, iteration: iterationCounter, type: 'gap' });
+        } else if (json.type === 'synthesis_start') {
+          stages.push({ title: '📝 Synthesizing final answer...', content: '', iteration: iterationCounter + 1, type: 'conclusion' });
+        } else if (json.type === 'conclusion') {
+          conclusionText = data;
+        }
+      } catch { /* ignore malformed */ }
+
+      searchFrom = endPos;
+    }
+
+    return { displayText: conclusionText, stages };
   };
 
   // ── Execute an export action ─────────────────────────────
@@ -145,6 +268,9 @@ function AgentChatContent() {
     } else if (action === 'GENERATE_VIDEO') {
       endpoint = '/api/export/repo-video';
       defaultFilename = `${repoName.split('/').pop() || 'repo'}_overview.mp4`;
+    } else if (action === 'GENERATE_POSTER') {
+      endpoint = '/api/export/repo-poster';
+      defaultFilename = `${repoName.split('/').pop() || 'repo'}_poster.png`;
     }
 
     setActionStatuses(prev => [...prev.filter(a => a.type !== action), { type: action, status: 'running', phase: 'Generating...' }]);
@@ -201,6 +327,14 @@ function AgentChatContent() {
     setIsLoading(true);
     setStreamingResponse('');
 
+    // Reset research state for new deep research question
+    if (useDeepResearch) {
+      setResearchIteration(0);
+      setResearchComplete(false);
+      setResearchStages([]);
+      setThinkingExpanded(false);
+    }
+
     const requestBody: ChatCompletionRequest = {
       repo_url: repoUrl,
       type: repoType,
@@ -223,7 +357,13 @@ function AgentChatContent() {
       requestBody,
       (message: string) => {
         fullResponse += message;
-        setStreamingResponse(fullResponse);
+        if (useDeepResearch) {
+          const { displayText, stages } = parseResearchEvents(fullResponse);
+          setStreamingResponse(cleanDisplayText(displayText));
+          if (stages.length > 0) { setResearchStages(stages); setResearchIteration(stages.length); }
+        } else {
+          setStreamingResponse(cleanDisplayText(fullResponse));
+        }
       },
       (error: Event) => {
         console.error('WebSocket error:', error);
@@ -233,13 +373,20 @@ function AgentChatContent() {
       },
       () => {
         if (fullResponse) {
-          setConversationHistory(prev => [...prev, { role: 'assistant', content: fullResponse }]);
+          const displayContent = useDeepResearch
+            ? cleanDisplayText(parseResearchEvents(fullResponse).displayText)
+            : cleanDisplayText(fullResponse);
+          setConversationHistory(prev => [...prev, { role: 'assistant', content: displayContent }]);
           setStreamingResponse('');
           // Detect actions in response
-          const actions = parseActions(fullResponse);
+          const actions = parseActions(displayContent);
           if (actions.length > 0) {
             actions.forEach(action => executeAction(action));
           }
+        }
+        if (useDeepResearch) {
+          setResearchComplete(true);
+          setThinkingExpanded(false);
         }
         setIsLoading(false);
       }
@@ -265,14 +412,28 @@ function AgentChatContent() {
         const { done, value } = await reader.read();
         if (done) break;
         fullResponse += decoder.decode(value, { stream: true });
-        setStreamingResponse(fullResponse);
+
+        if (useDeepResearch) {
+          const { displayText, stages } = parseResearchEvents(fullResponse);
+          setStreamingResponse(cleanDisplayText(displayText));
+          if (stages.length > 0) { setResearchStages(stages); setResearchIteration(stages.length); }
+        } else {
+          setStreamingResponse(fullResponse);
+        }
       }
 
-      setConversationHistory([...history, { role: 'assistant', content: fullResponse }]);
+      const displayContent = useDeepResearch
+        ? cleanDisplayText(parseResearchEvents(fullResponse).displayText)
+        : fullResponse;
+      setConversationHistory([...history, { role: 'assistant', content: displayContent }]);
       setStreamingResponse('');
-      const actions = parseActions(fullResponse);
+      const actions = parseActions(displayContent);
       if (actions.length > 0) {
         actions.forEach(action => executeAction(action));
+      }
+      if (useDeepResearch) {
+        setResearchComplete(true);
+        setThinkingExpanded(false);
       }
     } catch (error) {
       console.error('HTTP fallback error:', error);
@@ -287,11 +448,20 @@ function AgentChatContent() {
     setStreamingResponse('');
     setQuestion('');
     setActionStatuses([]);
+    setResearchIteration(0);
+    setResearchComplete(false);
+    setResearchStages([]);
+    setThinkingExpanded(false);
   };
 
-  // Strip [AGENT] tag from display
+  // Strip [AGENT] tag and research events from display
   const getDisplayContent = (msg: Message): string => {
-    return msg.content.replace(/^\[AGENT\]\s*/, '');
+    let content = msg.content.replace(/^\[AGENT\]\s*(\[DEEP RESEARCH\]\s*)?/, '');
+    if (content.includes('[RESEARCH_EVENT]')) {
+      const { displayText } = parseResearchEvents(content);
+      return cleanDisplayText(displayText);
+    }
+    return cleanDisplayText(content);
   };
 
   // Action label mapping
@@ -300,6 +470,7 @@ function AgentChatContent() {
       GENERATE_PDF: t?.agentChat?.generatingPdf || 'PDF Report',
       GENERATE_PPT: t?.agentChat?.generatingPpt || 'PPT Slides',
       GENERATE_VIDEO: t?.agentChat?.generatingVideo || 'Video Overview',
+      GENERATE_POSTER: t?.agentChat?.generatingPoster || 'Poster',
     };
     return labels[action];
   };
@@ -307,6 +478,7 @@ function AgentChatContent() {
   const actionIcon = (action: AgentAction) => {
     if (action === 'GENERATE_PDF') return '📄';
     if (action === 'GENERATE_PPT') return '📊';
+    if (action === 'GENERATE_POSTER') return '🖼️';
     return '🎬';
   };
 
@@ -389,6 +561,7 @@ function AgentChatContent() {
                   { label: t?.agentChat?.suggestPdf || 'Generate PDF report', query: 'Please generate a PDF technical report for this repository.' },
                   { label: t?.agentChat?.suggestPpt || 'Generate PPT slides', query: 'Please create a PowerPoint presentation for this repository.' },
                   { label: t?.agentChat?.suggestVideo || 'Generate video overview', query: 'Please generate a video overview of this repository.' },
+                  { label: t?.agentChat?.suggestPoster || 'Generate poster', query: 'Please generate an illustrated poster for this repository.' },
                 ].map((suggestion, i) => (
                   <button
                     key={i}
@@ -462,10 +635,58 @@ function AgentChatContent() {
           ))}
 
           {/* Streaming response */}
-          {streamingResponse && (
+          {(streamingResponse || (useDeepResearch && researchStages.length > 0 && isLoading)) && (
             <div className="flex justify-start">
               <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-3 text-sm bg-[var(--card-bg)] border border-[var(--border-color)] text-[var(--foreground)]">
-                <Markdown content={stripActionTags(streamingResponse)} />
+                {/* Collapsible research thinking section */}
+                {useDeepResearch && researchStages.length > 0 && (
+                  <div className="mb-3">
+                    <button
+                      onClick={() => setThinkingExpanded(!thinkingExpanded)}
+                      className="flex items-center gap-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                    >
+                      <svg
+                        className={`w-3 h-3 transition-transform ${thinkingExpanded ? 'rotate-90' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span>🔬</span>
+                      <span className="font-medium">Research Process</span>
+                      <span className="text-[var(--muted)]">
+                        ({researchStages.filter(s => s.type === 'update').length} iterations)
+                      </span>
+                      {isLoading && !researchComplete && (
+                        <span className="inline-block w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+                      )}
+                    </button>
+                    {thinkingExpanded && (
+                      <div className="mt-1.5 pl-4 border-l-2 border-[var(--border-color)] max-h-[250px] overflow-y-auto">
+                        <div className="space-y-1.5">
+                          {researchStages.map((stage, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs">
+                              <div className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                stage.type === 'plan' ? 'bg-blue-500' :
+                                stage.type === 'update' ? 'bg-teal-500' :
+                                stage.type === 'tool_call' ? 'bg-gray-400' :
+                                stage.type === 'gap' ? 'bg-amber-500' :
+                                stage.type === 'conclusion' ? 'bg-green-500' :
+                                'bg-gray-400'
+                              }`} />
+                              <div className="min-w-0">
+                                <span className="text-[var(--foreground)]">{stage.title}</span>
+                                {stage.content && stage.type !== 'tool_call' && (
+                                  <p className="text-[var(--muted)] mt-0.5 line-clamp-2">{stage.content.slice(0, 150)}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {streamingResponse && <Markdown content={stripActionTags(streamingResponse)} />}
               </div>
             </div>
           )}

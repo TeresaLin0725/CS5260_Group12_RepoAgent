@@ -1,0 +1,15 @@
+{
+  "subsystem": "rag",
+  "version": 1,
+  "description": "Initial baseline for RAG retrieval evaluation. Manually confirmed.",
+  "aggregated_metrics": {
+    "hit_at_1": 0.60,
+    "hit_at_3": 0.75,
+    "hit_at_6": 0.85,
+    "mrr": 0.65,
+    "ndcg_at_6": 0.70,
+    "latency_p50_ms": 150.0,
+    "latency_p95_ms": 500.0,
+    "total_cases": 30
+  }
+}

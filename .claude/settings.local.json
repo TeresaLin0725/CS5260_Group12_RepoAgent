@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(ls -la /d/PycharmProjects/deepwiki-open-chatbox/*.md)",
+      "Bash(ls d:/PycharmProjects/deepwiki-open-chatbox/*.md)",
+      "Bash(python -c \":*)",
+      "Bash(wc -l /d/PycharmProjects/deepwiki-open-chatbox/eval/offline/fixtures/*.json)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''eval/offline/generate_testcases.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''eval/offline/generate_testcases.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(python -m eval.offline.generate_testcases --dry-run --target react)",
+      "Bash(xargs wc:*)",
+      "Bash(python -m eval.offline.run_benchmark --subsystem intent --backend mock)",
+      "Bash(python -m eval.offline.run_benchmark --subsystem all --backend mock)",
+      "Bash(for repo:*)",
+      "Bash(do echo:*)",
+      "Bash(grep .py$ echo --- ls d:/PycharmProjects/deepwiki-open-chatbox/eval/offline/.repos/tiangolo_fastapi/fastapi/dependencies/ 2)",
+      "Bash(/dev/null echo:*)",
+      "Bash(python -m eval.offline.run_benchmark --subsystem rag --backend mock)",
+      "Bash(python -m eval.offline.run_benchmark --subsystem rag --repo-filter pallets_flask)",
+      "Bash(wc -l /d/PycharmProjects/deepwiki-open-chatbox/api/*.py)",
+      "Bash(wc -l /d/PycharmProjects/deepwiki-open-chatbox/api/**/*.py)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/deep_research.py'\\).read\\(\\)\\); print\\('deep_research.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/react.py'\\).read\\(\\)\\); print\\('react.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/tools/search_tools.py'\\).read\\(\\)\\); print\\('search_tools.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/deep_research.py', encoding='utf-8'\\).read\\(\\)\\); print\\('deep_research.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/react.py', encoding='utf-8'\\).read\\(\\)\\); print\\('react.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api/agent/tools/search_tools.py', encoding='utf-8'\\).read\\(\\)\\); print\\('search_tools.py OK'\\)\")"
+    ]
+  }
+}

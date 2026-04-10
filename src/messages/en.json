@@ -6,6 +6,7 @@
     "generatePdf": "Generate PDF",
     "generatePpt": "Generate PPT",
     "generateVideo": "Generate Video",
+    "generatePoster": "Generate Poster",
     "startChat": "Start Chat",
     "processing": "Processing...",
     "error": "Error",
@@ -20,7 +21,7 @@
   "home": {
     "welcome": "Welcome to RepoHelper",
     "welcomeTagline": "AI-powered code repository analysis assistant",
-    "description": "Generate easy-to-understand PDFs, PPTs, and videos from GitHub, GitLab, or Bitbucket repositories with just a few clicks.",
+    "description": "Generate easy-to-understand PDFs, PPTs, videos, and posters from GitHub, GitLab, or Bitbucket repositories with just a few clicks.",
     "quickStart": "Quick Start",
     "enterRepoUrl": "Enter a repository URL in one of these formats:",
     "advancedVisualization": "Advanced Visualization with Mermaid Diagrams",
@@ -35,7 +36,7 @@
     "featureAiChat": "AI Chat",
     "featureAiChatDesc": "Ask questions about your repository with an intelligent AI assistant powered by RAG.",
     "featureExport": "Multi-Format Export",
-    "featureExportDesc": "Export analysis results as PDF reports, PPT slides, or overview videos."
+    "featureExportDesc": "Export analysis results as PDF reports, PPT slides, overview videos, or illustrated posters."
   },
   "form": {
     "repository": "Repository",
@@ -120,7 +121,9 @@
     "exportAsPpt": "Export PPT Slides",
     "exportingPpt": "Generating PPT...",
     "exportAsVideo": "Export Video",
-    "exportingVideo": "Generating Video..."
+    "exportingVideo": "Generating Video...",
+    "exportAsPoster": "Export Poster",
+    "exportingPoster": "Generating Poster..."
   },
   "nav": {},
   "projects": {},
@@ -147,18 +150,20 @@
   "agentChat": {
     "title": "Agent Chat",
     "welcomeTitle": "Agent Chat",
-    "welcomeDesc": "Ask questions about this repository, or ask me to generate a PDF report, PPT presentation, or video overview.",
-    "placeholder": "Ask about this repository, or request a PDF/PPT/Video...",
+    "welcomeDesc": "Ask questions about this repository, or ask me to generate a PDF report, PPT presentation, video overview, or illustrated poster.",
+    "placeholder": "Ask about this repository, or request a PDF/PPT/Video/Poster...",
     "thinking": "Thinking...",
     "generating": "Generating...",
     "generatingPdf": "PDF Report",
     "generatingPpt": "PPT Slides",
     "generatingVideo": "Video Overview",
+    "generatingPoster": "Poster",
     "downloadReady": "Downloaded!",
     "exportInProgress": "Export in progress...",
-    "hintTools": "The agent can generate PDF, PPT, and Video when you ask.",
+    "hintTools": "The agent can generate PDF, PPT, Video, and Poster when you ask.",
     "suggestAnalyze": "Analyze this repository",
     "suggestPdf": "Generate PDF report",
     "suggestPpt": "Generate PPT slides",
-    "suggestVideo": "Generate video overview"  }
+    "suggestVideo": "Generate video overview",
+    "suggestPoster": "Generate poster"  }
 }

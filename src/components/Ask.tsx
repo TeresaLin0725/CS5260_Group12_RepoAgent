@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useState, useRef, useEffect} from 'react';
-import {FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+
 import Markdown from './Markdown';
 import { useLanguage } from '@/contexts/LanguageContext';
 import RepoInfo from '@/types/repoinfo';
@@ -30,7 +30,7 @@ interface ResearchStage {
   title: string;
   content: string;
   iteration: number;
-  type: 'plan' | 'update' | 'conclusion';
+  type: 'plan' | 'update' | 'tool_call' | 'finding' | 'gap' | 'conclusion';
 }
 
 interface AskProps {
@@ -41,6 +41,18 @@ interface AskProps {
   customModel?: string;
   language?: string;
   onRef?: (ref: { clearConversation: () => void }) => void;
+}
+
+/** Generate or retrieve a stable user ID from localStorage. */
+function getOrCreateUserId(): string {
+  if (typeof window === 'undefined') return 'anonymous';
+  const key = 'deepwiki_user_id';
+  let uid = localStorage.getItem(key);
+  if (!uid) {
+    uid = 'u_' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+    localStorage.setItem(key, uid);
+  }
+  return uid;
 }
 
 const Ask: React.FC<AskProps> = ({
@@ -56,6 +68,7 @@ const Ask: React.FC<AskProps> = ({
   const [response, setResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
+  const [userId, setUserId] = useState<string>('anonymous');
 
   // Model selection state
   const [selectedProvider, setSelectedProvider] = useState(provider);
@@ -67,16 +80,21 @@ const Ask: React.FC<AskProps> = ({
   // Get language context for translations
   const { messages } = useLanguage();
 
-  // Research navigation state
+  // Research state
   const [researchStages, setResearchStages] = useState<ResearchStage[]>([]);
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
   const [researchIteration, setResearchIteration] = useState(0);
   const [researchComplete, setResearchComplete] = useState(false);
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const providerRef = useRef(provider);
   const modelRef = useRef(model);
+
+  // Initialize persistent user ID from localStorage
+  useEffect(() => {
+    setUserId(getOrCreateUserId());
+  }, []);
 
   // Focus input on component mount
   useEffect(() => {
@@ -154,7 +172,7 @@ const Ask: React.FC<AskProps> = ({
     setResearchIteration(0);
     setResearchComplete(false);
     setResearchStages([]);
-    setCurrentStageIndex(0);
+    setThinkingExpanded(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -173,360 +191,170 @@ const Ask: React.FC<AskProps> = ({
 
   // Function to check if research is complete based on response content
   const checkIfResearchComplete = (content: string): boolean => {
-    // Check for explicit final conclusion markers
-    if (content.includes('## Final Conclusion')) {
-      return true;
-    }
-
-    // Check for conclusion sections that don't indicate further research
-    if ((content.includes('## Conclusion') || content.includes('## Summary')) &&
-      !content.includes('I will now proceed to') &&
-      !content.includes('Next Steps') &&
-      !content.includes('next iteration')) {
-      return true;
-    }
-
-    // Check for phrases that explicitly indicate completion
-    if (content.includes('This concludes our research') ||
-      content.includes('This completes our investigation') ||
-      content.includes('This concludes the deep research process') ||
-      content.includes('Key Findings and Implementation Details') ||
-      content.includes('In conclusion,') ||
-      (content.includes('Final') && content.includes('Conclusion'))) {
-      return true;
-    }
-
-    // Check for topic-specific completion indicators
-    if (content.includes('Dockerfile') &&
-      (content.includes('This Dockerfile') || content.includes('The Dockerfile')) &&
-      !content.includes('Next Steps') &&
-      !content.includes('In the next iteration')) {
-      return true;
-    }
-
+    // Server-side orchestration sends a [RESEARCH_EVENT] with type "complete"
+    // so we just check for the final synthesis marker
+    if (content.includes('## 📝 Final Synthesis')) return true;
+    if (content.includes('## Final Conclusion')) return true;
+    if (content.includes('"type":"complete"')) return true;
     return false;
   };
 
-  // Function to extract research stages from the response
-  const extractResearchStage = (content: string, iteration: number): ResearchStage | null => {
-    // Check for research plan (first iteration)
-    if (iteration === 1 && content.includes('## Research Plan')) {
-      const planMatch = content.match(/## Research Plan([\s\S]*?)(?:## Next Steps|$)/);
-      if (planMatch) {
-        return {
-          title: 'Research Plan',
-          content: content,
-          iteration: 1,
-          type: 'plan'
-        };
+  /**
+   * Strip JSON artifacts and tool-status lines that should never appear
+   * in the user-visible answer.
+   */
+  const cleanDisplayText = (text: string): string => {
+    if (!text) return text;
+    // Remove [RESEARCH_EVENT]{...} markers (with nested braces) using iterative brace-counting
+    let cleaned = text;
+    const evtMarker = '[RESEARCH_EVENT]';
+    let pos = cleaned.indexOf(evtMarker);
+    while (pos !== -1) {
+      const jStart = pos + evtMarker.length;
+      if (jStart < cleaned.length && cleaned[jStart] === '{') {
+        let depth = 0, inStr = false, esc = false, end = -1;
+        for (let i = jStart; i < cleaned.length; i++) {
+          const ch = cleaned[i];
+          if (esc) { esc = false; continue; }
+          if (ch === '\\') { esc = true; continue; }
+          if (ch === '"') { inStr = !inStr; continue; }
+          if (inStr) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+        }
+        if (end !== -1) {
+          cleaned = cleaned.slice(0, pos) + cleaned.slice(end);
+        } else { break; }
+      } else {
+        pos = pos + evtMarker.length;
       }
+      pos = cleaned.indexOf(evtMarker, pos);
     }
-
-    // Check for research updates (iterations 1-4)
-    if (iteration >= 1 && iteration <= 4) {
-      const updateMatch = content.match(new RegExp(`## Research Update ${iteration}([\\s\\S]*?)(?:## Next Steps|$)`));
-      if (updateMatch) {
-        return {
-          title: `Research Update ${iteration}`,
-          content: content,
-          iteration: iteration,
-          type: 'update'
-        };
-      }
-    }
-
-    // Check for final conclusion
-    if (content.includes('## Final Conclusion')) {
-      const conclusionMatch = content.match(/## Final Conclusion([\s\S]*?)$/);
-      if (conclusionMatch) {
-        return {
-          title: 'Final Conclusion',
-          content: content,
-          iteration: iteration,
-          type: 'conclusion'
-        };
-      }
-    }
-
-    return null;
+    // Remove <think>...</think> blocks entirely (including content)
+    cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+    // Remove unclosed <think> block (still streaming thinking content)
+    cleaned = cleaned.replace(/<think>[\s\S]*$/g, '');
+    // Remove standalone JSON objects that look like research events
+    cleaned = cleaned.replace(/\{"type"\s*:\s*"[^"]*"\s*,\s*"data"\s*:\s*"[^"]*"[^}]*\}/g, '');
+    // Remove tool status lines like "> ⚙️ Running ..." or "> 🔍 Searching ..."
+    cleaned = cleaned.replace(/^>\s*.{1,4}(?:Running|Searching|Reading|Browsing|Grepping|Finding|\u6b63\u5728).+$/gm, '');
+    // Collapse 3+ consecutive blank lines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    return cleaned.trim();
   };
 
-  // Function to navigate to a specific research stage
-  const navigateToStage = (index: number) => {
-    if (index >= 0 && index < researchStages.length) {
-      setCurrentStageIndex(index);
-      setResponse(researchStages[index].content);
-    }
-  };
+  /**
+   * Extract all [RESEARCH_EVENT]{...} blocks from the stream.
+   * displayText comes EXCLUSIVELY from the conclusion event's data field,
+   * ensuring no intermediate JSON, emoji-prefixed text, or thinking
+   * process ever leaks into the visible answer.
+   */
+  const parseResearchEvents = (raw: string): { displayText: string; stages: ResearchStage[] } => {
+    const stages: ResearchStage[] = [];
+    let iterationCounter = 0;
+    let conclusionText = '';
+    const marker = '[RESEARCH_EVENT]';
+    const markerLen = marker.length;
 
-  // Function to navigate to the next research stage
-  const navigateToNextStage = () => {
-    if (currentStageIndex < researchStages.length - 1) {
-      navigateToStage(currentStageIndex + 1);
-    }
-  };
+    let searchFrom = 0;
+    while (true) {
+      const idx = raw.indexOf(marker, searchFrom);
+      if (idx === -1) break;
+      const jsonStart = idx + markerLen;
+      if (jsonStart >= raw.length || raw[jsonStart] !== '{') { searchFrom = jsonStart; continue; }
 
-  // Function to navigate to the previous research stage
-  const navigateToPreviousStage = () => {
-    if (currentStageIndex > 0) {
-      navigateToStage(currentStageIndex - 1);
+      // Brace-counting to handle nested objects like "metadata": {}
+      let depth = 0, inString = false, escaped = false, endPos = -1;
+      for (let i = jsonStart; i < raw.length; i++) {
+        const ch = raw[i];
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\') { escaped = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') { depth--; if (depth === 0) { endPos = i + 1; break; } }
+      }
+      if (endPos === -1) { searchFrom = jsonStart; continue; }
+
+      try {
+        const json = JSON.parse(raw.slice(jsonStart, endPos));
+        const data = (json.data || '').replace(/\\n/g, '\n');
+        if (json.type === 'plan') {
+          stages.push({ title: '📋 Research Plan', content: data, iteration: 0, type: 'plan' });
+        } else if (json.type === 'iteration_start') {
+          iterationCounter++;
+          stages.push({ title: `🔍 Investigating: ${(json.sub_question || '').slice(0, 60)}`, content: '', iteration: iterationCounter, type: 'update' });
+        } else if (json.type === 'tool_call') {
+          stages.push({ title: data.slice(0, 80), content: data, iteration: iterationCounter, type: 'tool_call' });
+        } else if (json.type === 'finding') {
+          const lastUpdate = [...stages].reverse().find(s => s.type === 'update');
+          if (lastUpdate) { lastUpdate.content += data; }
+          else { stages.push({ title: 'Finding', content: data, iteration: iterationCounter, type: 'finding' }); }
+        } else if (json.type === 'iteration_end') {
+          const lastUpdate = [...stages].reverse().find(s => s.type === 'update' && s.iteration === iterationCounter);
+          if (lastUpdate && !lastUpdate.content) { lastUpdate.content = data; }
+        } else if (json.type === 'gap_analysis') {
+          stages.push({ title: '💡 New aspects to explore', content: data, iteration: iterationCounter, type: 'gap' });
+        } else if (json.type === 'synthesis_start') {
+          stages.push({ title: '📝 Synthesizing final answer...', content: '', iteration: iterationCounter + 1, type: 'conclusion' });
+        } else if (json.type === 'conclusion') {
+          conclusionText = data;
+        }
+      } catch { /* ignore malformed */ }
+
+      searchFrom = endPos;
     }
+
+    // displayText is ONLY the conclusion data — nothing else.
+    // All intermediate text (emoji lines, JSON, findings) stays hidden in stages.
+    return { displayText: conclusionText, stages };
   };
 
   // WebSocket reference
   const webSocketRef = useRef<WebSocket | null>(null);
 
-  // Function to continue research automatically
-  const continueResearch = async () => {
-    if (!deepResearch || researchComplete || !response || isLoading) return;
-
-    // Add a small delay to allow the user to read the current response
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    setIsLoading(true);
-
-    try {
-      // Store the current response for use in the history
-      const currentResponse = response;
-
-      // Create a new message from the AI's previous response
-      const newHistory: Message[] = [
-        ...conversationHistory,
-        {
-          role: 'assistant',
-          content: currentResponse
-        },
-        {
-          role: 'user',
-          content: '[DEEP RESEARCH] Continue the research'
-        }
-      ];
-
-      // Update conversation history
-      setConversationHistory(newHistory);
-
-      // Increment research iteration
-      const newIteration = researchIteration + 1;
-      setResearchIteration(newIteration);
-
-      // Clear previous response
-      setResponse('');
-
-      // Prepare the request body
-      const requestBody: ChatCompletionRequest = {
-        repo_url: getRepoUrl(repoInfo),
-        type: repoInfo.type,
-        messages: newHistory.map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
-        provider: selectedProvider,
-        model: isCustomSelectedModel ? customSelectedModel : selectedModel,
-        language: language
-      };
-
-      // Add tokens if available
-      if (repoInfo?.token) {
-        requestBody.token = repoInfo.token;
-      }
-
-      // Close any existing WebSocket connection
-      closeWebSocket(webSocketRef.current);
-
-      let fullResponse = '';
-
-      // Create a new WebSocket connection
-      webSocketRef.current = createChatWebSocket(
-        requestBody,
-        // Message handler
-        (message: string) => {
-          fullResponse += message;
-          setResponse(fullResponse);
-
-          // Extract research stage if this is a deep research response
-          if (deepResearch) {
-            const stage = extractResearchStage(fullResponse, newIteration);
-            if (stage) {
-              // Add the stage to the research stages if it's not already there
-              setResearchStages(prev => {
-                // Check if we already have this stage
-                const existingStageIndex = prev.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
-                if (existingStageIndex >= 0) {
-                  // Update existing stage
-                  const newStages = [...prev];
-                  newStages[existingStageIndex] = stage;
-                  return newStages;
-                } else {
-                  // Add new stage
-                  return [...prev, stage];
-                }
-              });
-
-              // Update current stage index to the latest stage
-              setCurrentStageIndex(researchStages.length);
-            }
-          }
-        },
-        // Error handler
-        (error: Event) => {
-          console.error('WebSocket error:', error);
-          setResponse(prev => prev + '\n\nError: WebSocket connection failed. Falling back to HTTP...');
-
-          // Fallback to HTTP if WebSocket fails
-          fallbackToHttp(requestBody);
-        },
-        // Close handler
-        () => {
-          // Check if research is complete when the WebSocket closes
-          const isComplete = checkIfResearchComplete(fullResponse);
-
-          // Force completion after a maximum number of iterations (5)
-          const forceComplete = newIteration >= 5;
-
-          if (forceComplete && !isComplete) {
-            // If we're forcing completion, append a comprehensive conclusion to the response
-            const completionNote = "\n\n## Final Conclusion\nAfter multiple iterations of deep research, we've gathered significant insights about this topic. This concludes our investigation process, having reached the maximum number of research iterations. The findings presented across all iterations collectively form our comprehensive answer to the original question.";
-            fullResponse += completionNote;
-            setResponse(fullResponse);
-            setResearchComplete(true);
-          } else {
-            setResearchComplete(isComplete);
-          }
-
-          setIsLoading(false);
-        }
-      );
-    } catch (error) {
-      console.error('Error during API call:', error);
-      setResponse(prev => prev + '\n\nError: Failed to continue research. Please try again.');
-      setResearchComplete(true);
-      setIsLoading(false);
-    }
-  };
-
   // Fallback to HTTP if WebSocket fails
   const fallbackToHttp = async (requestBody: ChatCompletionRequest) => {
     try {
-      // Make the API call using HTTP
       const apiResponse = await fetch(`/api/chat/stream`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
-      if (!apiResponse.ok) {
-        throw new Error(`API error: ${apiResponse.status}`);
-      }
+      if (!apiResponse.ok) throw new Error(`API error: ${apiResponse.status}`);
 
-      // Process the streaming response
       const reader = apiResponse.body?.getReader();
       const decoder = new TextDecoder();
+      if (!reader) throw new Error('Failed to get response reader');
 
-      if (!reader) {
-        throw new Error('Failed to get response reader');
-      }
-
-      // Read the stream
       let fullResponse = '';
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         const chunk = decoder.decode(value, { stream: true });
         fullResponse += chunk;
-        setResponse(fullResponse);
 
-        // Extract research stage if this is a deep research response
         if (deepResearch) {
-          const stage = extractResearchStage(fullResponse, researchIteration);
-          if (stage) {
-            // Add the stage to the research stages
-            setResearchStages(prev => {
-              const existingStageIndex = prev.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
-              if (existingStageIndex >= 0) {
-                const newStages = [...prev];
-                newStages[existingStageIndex] = stage;
-                return newStages;
-              } else {
-                return [...prev, stage];
-              }
-            });
+          const { displayText, stages } = parseResearchEvents(fullResponse);
+          setResponse(cleanDisplayText(displayText));
+          if (stages.length > 0) {
+            setResearchStages(stages);
+            setResearchIteration(stages.length);
           }
+        } else {
+          setResponse(fullResponse);
         }
       }
 
-      // Check if research is complete
-      const isComplete = checkIfResearchComplete(fullResponse);
-
-      // Force completion after a maximum number of iterations (5)
-      const forceComplete = researchIteration >= 5;
-
-      if (forceComplete && !isComplete) {
-        // If we're forcing completion, append a comprehensive conclusion to the response
-        const completionNote = "\n\n## Final Conclusion\nAfter multiple iterations of deep research, we've gathered significant insights about this topic. This concludes our investigation process, having reached the maximum number of research iterations. The findings presented across all iterations collectively form our comprehensive answer to the original question.";
-        fullResponse += completionNote;
-        setResponse(fullResponse);
+      if (deepResearch) {
         setResearchComplete(true);
-      } else {
-        setResearchComplete(isComplete);
+        setThinkingExpanded(false);
       }
-    } catch (error) {
-      console.error('Error during HTTP fallback:', error);
-      setResponse(prev => prev + '\n\nError: Failed to get a response. Please try again.');
-      setResearchComplete(true);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Effect to continue research when response is updated
-  useEffect(() => {
-    if (deepResearch && response && !isLoading && !researchComplete) {
-      const isComplete = checkIfResearchComplete(response);
-      if (isComplete) {
-        setResearchComplete(true);
-      } else if (researchIteration > 0 && researchIteration < 5) {
-        // Only auto-continue if we're already in a research process and haven't reached max iterations
-        // Use setTimeout to avoid potential infinite loops
-        const timer = setTimeout(() => {
-          continueResearch();
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [response, isLoading, deepResearch, researchComplete, researchIteration]);
-
-  // Effect to update research stages when the response changes
-  useEffect(() => {
-    if (deepResearch && response && !isLoading) {
-      // Try to extract a research stage from the response
-      const stage = extractResearchStage(response, researchIteration);
-      if (stage) {
-        // Add or update the stage in the research stages
-        setResearchStages(prev => {
-          // Check if we already have this stage
-          const existingStageIndex = prev.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
-          if (existingStageIndex >= 0) {
-            // Update existing stage
-            const newStages = [...prev];
-            newStages[existingStageIndex] = stage;
-            return newStages;
-          } else {
-            // Add new stage
-            return [...prev, stage];
-          }
-        });
-
-        // Update current stage index to point to this stage
-        setCurrentStageIndex(prev => {
-          const newIndex = researchStages.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
-          return newIndex >= 0 ? newIndex : prev;
-        });
-      }
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [response, isLoading, deepResearch, researchIteration]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -542,6 +370,8 @@ const Ask: React.FC<AskProps> = ({
     setResponse('');
     setResearchIteration(0);
     setResearchComplete(false);
+    setResearchStages([]);
+    setThinkingExpanded(false);
 
     try {
       // Create initial message
@@ -561,7 +391,8 @@ const Ask: React.FC<AskProps> = ({
         messages: newHistory.map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
         provider: selectedProvider,
         model: isCustomSelectedModel ? customSelectedModel : selectedModel,
-        language: language
+        language: language,
+        user_id: userId,
       };
 
       // Add tokens if available
@@ -580,16 +411,17 @@ const Ask: React.FC<AskProps> = ({
         // Message handler
         (message: string) => {
           fullResponse += message;
-          setResponse(fullResponse);
 
-          // Extract research stage if this is a deep research response
+          // For deep research, parse structured events from the stream
           if (deepResearch) {
-            const stage = extractResearchStage(fullResponse, 1); // First iteration
-            if (stage) {
-              // Add the stage to the research stages
-              setResearchStages([stage]);
-              setCurrentStageIndex(0);
+            const { displayText, stages } = parseResearchEvents(fullResponse);
+            setResponse(cleanDisplayText(displayText));
+            if (stages.length > 0) {
+              setResearchStages(stages);
+              setResearchIteration(stages.length);
             }
+          } else {
+            setResponse(cleanDisplayText(fullResponse));
           }
         },
         // Error handler
@@ -602,16 +434,10 @@ const Ask: React.FC<AskProps> = ({
         },
         // Close handler
         () => {
-          // If deep research is enabled, check if we should continue
           if (deepResearch) {
-            const isComplete = checkIfResearchComplete(fullResponse);
-            setResearchComplete(isComplete);
-
-            // If not complete, start the research process
-            if (!isComplete) {
-              setResearchIteration(1);
-              // The continueResearch function will be triggered by the useEffect
-            }
+            // Server-side orchestration is complete when the connection closes
+            setResearchComplete(true);
+            setThinkingExpanded(false); // Auto-collapse thinking section
           }
 
           setIsLoading(false);
@@ -731,47 +557,65 @@ const Ask: React.FC<AskProps> = ({
         </form>
 
         {/* Response area */}
-        {response && (
+        {(response || (deepResearch && researchStages.length > 0)) && (
           <div className="border-t border-gray-200 dark:border-gray-700 mt-4">
             <div
               ref={responseRef}
               className="p-4 max-h-[500px] overflow-y-auto"
             >
-              <Markdown content={response} />
-            </div>
-
-            {/* Research navigation and clear button */}
-            <div className="p-2 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
-              {/* Research navigation */}
-              {deepResearch && researchStages.length > 1 && (
-                <div className="flex items-center space-x-2">
+              {/* Inline collapsible thinking section */}
+              {deepResearch && researchStages.length > 0 && (
+                <div className="mb-3">
                   <button
-                    onClick={() => navigateToPreviousStage()}
-                    disabled={currentStageIndex === 0}
-                    className={`p-1 rounded-md ${currentStageIndex === 0 ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                    aria-label="Previous stage"
+                    onClick={() => setThinkingExpanded(!thinkingExpanded)}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                   >
-                    <FaChevronLeft size={12} />
+                    <svg
+                      className={`w-3 h-3 transition-transform ${thinkingExpanded ? 'rotate-90' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span>🔬</span>
+                    <span className="font-medium">Research Process</span>
+                    <span className="text-gray-400 dark:text-gray-500">
+                      ({researchStages.filter(s => s.type === 'update').length} iterations)
+                    </span>
+                    {isLoading && !researchComplete && (
+                      <span className="inline-block w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse" />
+                    )}
                   </button>
-
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    {currentStageIndex + 1} / {researchStages.length}
-                  </div>
-
-                  <button
-                    onClick={() => navigateToNextStage()}
-                    disabled={currentStageIndex === researchStages.length - 1}
-                    className={`p-1 rounded-md ${currentStageIndex === researchStages.length - 1 ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                    aria-label="Next stage"
-                  >
-                    <FaChevronRight size={12} />
-                  </button>
-
-                  <div className="text-xs text-gray-600 dark:text-gray-400 ml-2">
-                    {researchStages[currentStageIndex]?.title || `Stage ${currentStageIndex + 1}`}
-                  </div>
+                  {thinkingExpanded && (
+                    <div className="mt-1.5 pl-4 border-l-2 border-gray-200 dark:border-gray-700 max-h-[250px] overflow-y-auto">
+                      <div className="space-y-1.5">
+                        {researchStages.map((stage, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs">
+                            <div className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                              stage.type === 'plan' ? 'bg-blue-500' :
+                              stage.type === 'update' ? 'bg-teal-500' :
+                              stage.type === 'tool_call' ? 'bg-gray-400' :
+                              stage.type === 'gap' ? 'bg-amber-500' :
+                              stage.type === 'conclusion' ? 'bg-green-500' :
+                              'bg-gray-400'
+                            }`} />
+                            <div className="min-w-0">
+                              <span className="text-gray-700 dark:text-gray-300">{stage.title}</span>
+                              {stage.content && stage.type !== 'tool_call' && (
+                                <p className="text-gray-500 dark:text-gray-500 mt-0.5 line-clamp-2">{stage.content.slice(0, 150)}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+              {response && <Markdown content={response} />}
+            </div>
+
+            {/* Action buttons */}
+            <div className="p-2 flex justify-end items-center border-t border-gray-200 dark:border-gray-700">
 
             <div className="flex items-center space-x-2">
               {/* Download button */}

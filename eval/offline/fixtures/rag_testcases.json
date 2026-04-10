@@ -1,0 +1,3242 @@
+[
+  {
+    "id": "rag_001",
+    "query": "How does the HybridRetriever combine FAISS and BM25?",
+    "golden_files": [
+      "api/retriever.py"
+    ],
+    "language": "en",
+    "tags": [
+      "retrieval"
+    ]
+  },
+  {
+    "id": "rag_002",
+    "query": "ReAct loop implementation",
+    "golden_files": [
+      "api/agent/react.py"
+    ],
+    "language": "en",
+    "tags": [
+      "react"
+    ]
+  },
+  {
+    "id": "rag_003",
+    "query": "intent classification cosine similarity embedding",
+    "golden_files": [
+      "api/agent/intent_classifier.py"
+    ],
+    "language": "en",
+    "tags": [
+      "intent"
+    ]
+  },
+  {
+    "id": "rag_004",
+    "query": "agent scheduler tool dispatch",
+    "golden_files": [
+      "api/agent/scheduler.py"
+    ],
+    "language": "en",
+    "tags": [
+      "scheduler"
+    ]
+  },
+  {
+    "id": "rag_005",
+    "query": "BM25 index scoring IDF",
+    "golden_files": [
+      "api/retriever.py"
+    ],
+    "language": "en",
+    "tags": [
+      "retrieval"
+    ]
+  },
+  {
+    "id": "rag_006",
+    "query": "tokenize_code camelCase snake_case",
+    "golden_files": [
+      "api/retriever.py"
+    ],
+    "language": "en",
+    "tags": [
+      "retrieval"
+    ]
+  },
+  {
+    "id": "rag_007",
+    "query": "RuleBasedPlanner keyword scoring",
+    "golden_files": [
+      "api/agent/planner.py"
+    ],
+    "language": "en",
+    "tags": [
+      "planner"
+    ]
+  },
+  {
+    "id": "rag_008",
+    "query": "PDF export generation",
+    "golden_files": [
+      "api/pdf_export.py"
+    ],
+    "language": "en",
+    "tags": [
+      "export"
+    ]
+  },
+  {
+    "id": "rag_009",
+    "query": "WebSocket wiki generation",
+    "golden_files": [
+      "api/websocket_wiki.py"
+    ],
+    "language": "en",
+    "tags": [
+      "websocket"
+    ]
+  },
+  {
+    "id": "rag_010",
+    "query": "export tool registry register",
+    "golden_files": [
+      "api/agent/tools/export_tools.py"
+    ],
+    "language": "en",
+    "tags": [
+      "tools"
+    ]
+  },
+  {
+    "id": "rag_011",
+    "query": "memory consolidation episodic long term",
+    "golden_files": [
+      "api/memory/consolidation.py"
+    ],
+    "language": "en",
+    "tags": [
+      "memory"
+    ]
+  },
+  {
+    "id": "rag_012",
+    "query": "data pipeline process repository",
+    "golden_files": [
+      "api/data_pipeline.py"
+    ],
+    "language": "en",
+    "tags": [
+      "pipeline"
+    ]
+  },
+  {
+    "id": "rag_013",
+    "query": "MCP server registry adapters",
+    "golden_files": [
+      "api/mcp/server.py",
+      "api/mcp/registry.py"
+    ],
+    "language": "en",
+    "tags": [
+      "mcp"
+    ]
+  },
+  {
+    "id": "rag_014",
+    "query": "performance monitoring latency tracking",
+    "golden_files": [
+      "api/monitoring/performance.py"
+    ],
+    "language": "en",
+    "tags": [
+      "monitoring"
+    ]
+  },
+  {
+    "id": "rag_015",
+    "query": "prompt templates system prompt",
+    "golden_files": [
+      "api/prompts.py"
+    ],
+    "language": "en",
+    "tags": [
+      "prompts"
+    ]
+  },
+  {
+    "id": "rag_016",
+    "query": "RAG answer generation retrieval augmented",
+    "golden_files": [
+      "api/rag.py"
+    ],
+    "language": "en",
+    "tags": [
+      "rag"
+    ]
+  },
+  {
+    "id": "rag_017",
+    "query": "Google embedder client embedding",
+    "golden_files": [
+      "api/google_embedder_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "embedder"
+    ]
+  },
+  {
+    "id": "rag_018",
+    "query": "OpenRouter API client",
+    "golden_files": [
+      "api/openrouter_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "providers"
+    ]
+  },
+  {
+    "id": "rag_019",
+    "query": "content analyzer repository analysis",
+    "golden_files": [
+      "api/content_analyzer.py"
+    ],
+    "language": "en",
+    "tags": [
+      "analysis"
+    ]
+  },
+  {
+    "id": "rag_020",
+    "query": "PPT slides generation python-pptx",
+    "golden_files": [
+      "api/ppt_export.py"
+    ],
+    "language": "en",
+    "tags": [
+      "export"
+    ]
+  },
+  {
+    "id": "rag_021",
+    "query": "poster NanoBanana illustrated infographic",
+    "golden_files": [
+      "api/poster_export.py"
+    ],
+    "language": "en",
+    "tags": [
+      "export"
+    ]
+  },
+  {
+    "id": "rag_022",
+    "query": "video export overview walkthrough",
+    "golden_files": [
+      "api/video_export.py"
+    ],
+    "language": "en",
+    "tags": [
+      "export"
+    ]
+  },
+  {
+    "id": "rag_023",
+    "query": "Ollama local model patching",
+    "golden_files": [
+      "api/ollama_patch.py"
+    ],
+    "language": "en",
+    "tags": [
+      "ollama"
+    ]
+  },
+  {
+    "id": "rag_024",
+    "query": "API routes endpoints FastAPI",
+    "golden_files": [
+      "api/routes/endpoints.py"
+    ],
+    "language": "en",
+    "tags": [
+      "api"
+    ]
+  },
+  {
+    "id": "rag_025",
+    "query": "configuration loading JSON config",
+    "golden_files": [
+      "api/config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "config"
+    ]
+  },
+  {
+    "id": "rag_026",
+    "query": "Bedrock AWS client integration",
+    "golden_files": [
+      "api/bedrock_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "providers"
+    ]
+  },
+  {
+    "id": "rag_027",
+    "query": "Azure AI client model",
+    "golden_files": [
+      "api/azureai_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "providers"
+    ]
+  },
+  {
+    "id": "rag_028",
+    "query": "DashScope Alibaba client",
+    "golden_files": [
+      "api/dashscope_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "providers"
+    ]
+  },
+  {
+    "id": "rag_029",
+    "query": "simple chat conversation handler",
+    "golden_files": [
+      "api/simple_chat.py"
+    ],
+    "language": "en",
+    "tags": [
+      "chat"
+    ]
+  },
+  {
+    "id": "rag_030",
+    "query": "export service format dispatch",
+    "golden_files": [
+      "api/export_service.py"
+    ],
+    "language": "en",
+    "tags": [
+      "export"
+    ]
+  },
+  {
+    "query": "How does Flask's TaggedJSONSerializer handle custom tags?",
+    "golden_files": [
+      "src/flask/json/tag.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "tag",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_031",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Implementing a custom JSON tag for OrderedDict in Flask",
+    "golden_files": [
+      "src/flask/json/tag.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "tag",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_032",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask JSON 标签序列化机制",
+    "golden_files": [
+      "src/flask/json/tag.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "tag",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_033",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's CLI handle route registration?",
+    "golden_files": [
+      "src/flask/cli.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "cli",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_034",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask CLI command dispatch mechanism",
+    "golden_files": [
+      "src/flask/cli.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "cli",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_035",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "如何在 Flask 中通过命令行定位应用？",
+    "golden_files": [
+      "src/flask/cli.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "cli",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_036",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask match URL routes to view functions?",
+    "golden_files": [
+      "src/flask/app.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_037",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask WSGI app dispatch process",
+    "golden_files": [
+      "src/flask/app.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_038",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 请求上下文的创建与销毁机制",
+    "golden_files": [
+      "src/flask/app.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_039",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's URL routing work?",
+    "golden_files": [
+      "src/flask/sansio/app.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_040",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "URL rule converter dispatch",
+    "golden_files": [
+      "src/flask/sansio/app.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_041",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 请求上下文的推送和弹出机制",
+    "golden_files": [
+      "src/flask/sansio/app.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "app",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_042",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask handle session cookies?",
+    "golden_files": [
+      "src/flask/sessions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "sessions",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_043",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 会话管理如何实现?",
+    "golden_files": [
+      "src/flask/sessions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "sessions",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_044",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "SecureCookieSession 初始化参数",
+    "golden_files": [
+      "src/flask/sessions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "sessions",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_045",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How do Flask blueprints handle URL routing and endpoint registration?",
+    "golden_files": [
+      "src/flask/sansio/blueprints.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "blueprints",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_046",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Blueprint add_url_rule endpoint prefixing mechanism",
+    "golden_files": [
+      "src/flask/sansio/blueprints.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "blueprints",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_047",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask blueprint如何注册模板过滤器？",
+    "golden_files": [
+      "src/flask/sansio/blueprints.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "blueprints",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_048",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's Scaffold class handle URL routing rules?",
+    "golden_files": [
+      "src/flask/sansio/scaffold.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "scaffold",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_049",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask request context push pop lifecycle",
+    "golden_files": [
+      "src/flask/sansio/scaffold.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "scaffold",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_050",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 路由规则匹配机制",
+    "golden_files": [
+      "src/flask/sansio/scaffold.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "scaffold",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_051",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask handle request context during routing?",
+    "golden_files": [
+      "src/flask/ctx.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "ctx",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_052",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask AppContext push pop lifecycle",
+    "golden_files": [
+      "src/flask/ctx.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "ctx",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_053",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 请求上下文检查方法",
+    "golden_files": [
+      "src/flask/ctx.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "ctx",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_054",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's stream_with_context function maintain request context during generator execution?",
+    "golden_files": [
+      "src/flask/helpers.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "helpers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_055",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask文件发送函数实现原理",
+    "golden_files": [
+      "src/flask/helpers.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "helpers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_056",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "What is the purpose of the get_flashed_messages function in Flask's helpers module?",
+    "golden_files": [
+      "src/flask/helpers.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "helpers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_057",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's Config class load environment variables?",
+    "golden_files": [
+      "src/flask/config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "config",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_058",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 配置文件加载方式",
+    "golden_files": [
+      "src/flask/config.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "config",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_059",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask config from_pyfile method implementation details",
+    "golden_files": [
+      "src/flask/config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "config",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_060",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask's test client handle request routing?",
+    "golden_files": [
+      "src/flask/testing.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "testing",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_061",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask test environment builder configuration",
+    "golden_files": [
+      "src/flask/testing.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "testing",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_062",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask测试客户端如何管理会话事务?",
+    "golden_files": [
+      "src/flask/testing.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "testing",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_063",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does Flask handle URL routing in the request object?",
+    "golden_files": [
+      "src/flask/wrappers.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "wrappers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_064",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask request max content length configuration",
+    "golden_files": [
+      "src/flask/wrappers.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "wrappers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_065",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "Flask 请求对象如何处理 URL 路由匹配?",
+    "golden_files": [
+      "src/flask/wrappers.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "web",
+      "wrappers",
+      "framework"
+    ],
+    "repo_url": "https://github.com/pallets/flask",
+    "id": "rag_066",
+    "repo_name": "pallets_flask"
+  },
+  {
+    "query": "How does the requests library handle JSON decoding errors?",
+    "golden_files": [
+      "src/requests/exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "http",
+      "exceptions"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_067",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "requests异常类继承结构",
+    "golden_files": [
+      "src/requests/exceptions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "networking",
+      "http",
+      "exceptions"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_068",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Timeout exception handling in HTTP requests",
+    "golden_files": [
+      "src/requests/exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "http",
+      "exceptions"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_069",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the redirect handling work in the requests library?",
+    "golden_files": [
+      "src/requests/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_070",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "如何处理HTTP重定向？",
+    "golden_files": [
+      "src/requests/models.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "models",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_071",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "multipart/form-data encoding in requests library",
+    "golden_files": [
+      "src/requests/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_072",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does Requests handle cookie storage?",
+    "golden_files": [
+      "src/requests/cookies.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "cookies",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_073",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "cookie jar management in Python HTTP library",
+    "golden_files": [
+      "src/requests/cookies.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "cookies",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_074",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "如何在Requests中管理Cookie存储?",
+    "golden_files": [
+      "src/requests/cookies.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "cookies",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_075",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How to extract authentication credentials from a URL",
+    "golden_files": [
+      "src/requests/utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "utils",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_076",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Convert CookieJar object to dictionary in Python requests",
+    "golden_files": [
+      "src/requests/utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "utils",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_077",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "如何解码HTTP头中的URL编码值",
+    "golden_files": [
+      "src/requests/utils.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "utils",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_078",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the Requests library handle HTTP Digest Authentication?",
+    "golden_files": [
+      "src/requests/auth.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_079",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "requests库中HTTP基本认证的实现代码",
+    "golden_files": [
+      "src/requests/auth.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "networking",
+      "auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_080",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Implementing HTTP Proxy Auth in Python's Requests library",
+    "golden_files": [
+      "src/requests/auth.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_081",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the requests library handle HTTP redirects in sessions?",
+    "golden_files": [
+      "src/requests/sessions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "sessions",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_082",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "merge_setting function implementation in requests sessions",
+    "golden_files": [
+      "src/requests/sessions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "sessions",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_083",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "requests库中Session类如何管理重定向？",
+    "golden_files": [
+      "src/requests/sessions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "sessions",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_084",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the Requests library configure HTTP connection pools in adapters.py?",
+    "golden_files": [
+      "src/requests/adapters.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "adapters",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_085",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "What is the implementation of SSL certificate verification in the HTTPAdapter class?",
+    "golden_files": [
+      "src/requests/adapters.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "security",
+      "adapters",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_086",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Requests库中HTTP适配器如何处理代理服务器的TLS设置？",
+    "golden_files": [
+      "src/requests/adapters.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "networking",
+      "adapters",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_087",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the CaseInsensitiveDict handle case-insensitive keys in HTTP headers?",
+    "golden_files": [
+      "src/requests/structures.py"
+    ],
+    "language": "en",
+    "tags": [
+      "structures",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_088",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "CaseInsensitiveDict implementation in requests library",
+    "golden_files": [
+      "src/requests/structures.py"
+    ],
+    "language": "en",
+    "tags": [
+      "structures",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_089",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Python 不区分大小写的字典实现原理",
+    "golden_files": [
+      "src/requests/structures.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "structures",
+      "python",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_090",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the GET request handle query parameters?",
+    "golden_files": [
+      "src/requests/api.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "api",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_091",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "HTTP methods implementation in requests library",
+    "golden_files": [
+      "src/requests/api.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "api",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_092",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "如何在Python中发送带JSON数据的POST请求",
+    "golden_files": [
+      "src/requests/api.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "api",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_093",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How are HTTP status codes mapped to numeric values in Python?",
+    "golden_files": [
+      "src/requests/status_codes.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "status_codes",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_094",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "HTTP status code dictionary mapping for Python requests library",
+    "golden_files": [
+      "src/requests/status_codes.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "status_codes",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_095",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Python中HTTP状态码与数字代码的映射关系是怎样的？",
+    "golden_files": [
+      "src/requests/status_codes.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "networking",
+      "status_codes",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_096",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How to get Python implementation details",
+    "golden_files": [
+      "src/requests/help.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "help",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_097",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "Bug报告信息结构",
+    "golden_files": [
+      "src/requests/help.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "help",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_098",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "系统SSL版本获取",
+    "golden_files": [
+      "src/requests/help.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "help",
+      "networking",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_099",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How does the requests library handle Python 2 and 3 compatibility?",
+    "golden_files": [
+      "src/requests/compat.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "compat",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_100",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "urllib3 version detection logic in requests",
+    "golden_files": [
+      "src/requests/compat.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "networking",
+      "compat",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_101",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "requests库如何解析字符编码检测库？",
+    "golden_files": [
+      "src/requests/compat.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "networking",
+      "compat",
+      "http"
+    ],
+    "repo_url": "https://github.com/psf/requests",
+    "id": "rag_102",
+    "repo_name": "psf_requests"
+  },
+  {
+    "query": "How to create a custom encoded bytes type in Pydantic?",
+    "golden_files": [
+      "pydantic/types.py"
+    ],
+    "language": "en",
+    "tags": [
+      "types",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_103",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 字节大小类型转换",
+    "golden_files": [
+      "pydantic/types.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "types",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_104",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic Discriminator with Tag example",
+    "golden_files": [
+      "pydantic/types.py"
+    ],
+    "language": "en",
+    "tags": [
+      "types",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_105",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How to implement a custom validator in pydantic-core's core_schema?",
+    "golden_files": [
+      "pydantic-core/python/pydantic_core/core_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "validation",
+      "core_schema",
+      "custom_validator",
+      "typing"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_106",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "UnionSchema usage examples in pydantic-core",
+    "golden_files": [
+      "pydantic-core/python/pydantic_core/core_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "core_schema",
+      "union_schema",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_107",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "如何在pydantic-core中使用definitions_schema定义递归模型？",
+    "golden_files": [
+      "pydantic-core/python/pydantic_core/core_schema.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "递归模型",
+      "core_schema",
+      "definitions_schema",
+      "类型定义"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_108",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does Pydantic validate URLs and email addresses?",
+    "golden_files": [
+      "pydantic/networks.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "networks"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_109",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic URL parsing and validation methods",
+    "golden_files": [
+      "pydantic/networks.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "networks"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_110",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 如何验证 URL 和电子邮件地址？",
+    "golden_files": [
+      "pydantic/networks.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "networks"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_111",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How to configure extra fields in Pydantic models?",
+    "golden_files": [
+      "pydantic/config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "config"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_112",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 配置字典用法",
+    "golden_files": [
+      "pydantic/config.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "config"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_113",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic ConfigDict frozen parameter explanation",
+    "golden_files": [
+      "pydantic/config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "config"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_114",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does Pydantic's GenerateJsonSchema handle reference overrides in JSON schemas?",
+    "golden_files": [
+      "pydantic/json_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "json_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_115",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic中如何通过定义引用实现JSON schema的复用？",
+    "golden_files": [
+      "pydantic/json_schema.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "json_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_116",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Customizing JSON schema validation for complex types in Pydantic",
+    "golden_files": [
+      "pydantic/json_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "json_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_117",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How do field validators work in Pydantic?",
+    "golden_files": [
+      "pydantic/functional_validators.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "functional_validators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_118",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic field validator modes and usage",
+    "golden_files": [
+      "pydantic/functional_validators.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "functional_validators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_119",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 字段验证器模式详解",
+    "golden_files": [
+      "pydantic/functional_validators.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "functional_validators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_120",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How to implement a type-checked validation pipeline in Pydantic?",
+    "golden_files": [
+      "pydantic/experimental/pipeline.py"
+    ],
+    "language": "en",
+    "tags": [
+      "pipeline",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_121",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic pipeline type validation example",
+    "golden_files": [
+      "pydantic/experimental/pipeline.py"
+    ],
+    "language": "en",
+    "tags": [
+      "pipeline",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_122",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 验证管道类型转换示例",
+    "golden_files": [
+      "pydantic/experimental/pipeline.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "pipeline",
+      "typing",
+      "python",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_123",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does Pydantic's FieldInfo collect metadata from kwargs?",
+    "golden_files": [
+      "pydantic/fields.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "fields"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_124",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic FieldInfo 的元数据收集机制实现",
+    "golden_files": [
+      "pydantic/fields.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "fields"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_125",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "ComputedFieldInfo 在 Pydantic 模型中的应用与配置",
+    "golden_files": [
+      "pydantic/fields.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "fields"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_126",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic generate schema for annotated types",
+    "golden_files": [
+      "pydantic/_internal/_generate_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "_generate_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_127",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does Pydantic handle field serializers in schema generation?",
+    "golden_files": [
+      "pydantic/_internal/_generate_schema.py"
+    ],
+    "language": "en",
+    "tags": [
+      "serialization",
+      "python",
+      "validation",
+      "_generate_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_128",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "如何在 Pydantic 中定义和引用 schema ？",
+    "golden_files": [
+      "pydantic/_internal/_generate_schema.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "_generate_schema"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_129",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does the pydantic mypy plugin handle untyped fields in models?",
+    "golden_files": [
+      "pydantic/mypy.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "mypy"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_130",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "如何通过mypy插件配置Pydantic模型的字段验证规则？",
+    "golden_files": [
+      "pydantic/mypy.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "mypy"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_131",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "What functions are responsible for detecting dynamic aliases in Pydantic models?",
+    "golden_files": [
+      "pydantic/mypy.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "mypy"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_132",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does Pydantic's BaseModel perform data validation?",
+    "golden_files": [
+      "pydantic/main.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "main"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_133",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic 类型验证机制实现原理",
+    "golden_files": [
+      "pydantic/main.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "main"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_134",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "Pydantic validation error handling best practices",
+    "golden_files": [
+      "pydantic/main.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "validation",
+      "main"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_135",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does pydantic handle decorator metadata for validators and serializers?",
+    "golden_files": [
+      "pydantic/_internal/_decorators.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "_decorators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_136",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "装饰器元数据如何用于字段验证器和序列化器的绑定？",
+    "golden_files": [
+      "pydantic/_internal/_decorators.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "typing",
+      "python",
+      "_decorators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_137",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "What functions implement MRO calculation for TypedDict in pydantic?",
+    "golden_files": [
+      "pydantic/_internal/_decorators.py"
+    ],
+    "language": "en",
+    "tags": [
+      "typing",
+      "python",
+      "_decorators",
+      "validation"
+    ],
+    "repo_url": "https://github.com/pydantic/pydantic",
+    "id": "rag_138",
+    "repo_name": "pydantic_pydantic"
+  },
+  {
+    "query": "How does the HTTP client handle connection timeouts?",
+    "golden_files": [
+      "httpx/_exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_exceptions",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_139",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP 异常继承结构详解",
+    "golden_files": [
+      "httpx/_exceptions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_exceptions",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_140",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "Async HTTP client timeout exception types",
+    "golden_files": [
+      "httpx/_exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_exceptions",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_141",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the httpx library handle sensitive headers like authorization in async requests?",
+    "golden_files": [
+      "httpx/_models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_models"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_142",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "如何在httpx中实现HTTP头的标准化和敏感信息脱敏？",
+    "golden_files": [
+      "httpx/_models.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_models"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_143",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "What classes and methods are used for parsing Content-Type headers and handling cookie storage in httpx?",
+    "golden_files": [
+      "httpx/_models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_models"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_144",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the AsyncClient handle request routing?",
+    "golden_files": [
+      "httpx/_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_client"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_145",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "URL dispatch mechanism in httpx Client",
+    "golden_files": [
+      "httpx/_client.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_client"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_146",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP客户端如何处理URL路由?",
+    "golden_files": [
+      "httpx/_client.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_client"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_147",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does httpx handle different content encodings?",
+    "golden_files": [
+      "httpx/_decoders.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_decoders"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_148",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "BrotliDecoder implementation details in httpx",
+    "golden_files": [
+      "httpx/_decoders.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_decoders"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_149",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP 解码器支持的压缩类型",
+    "golden_files": [
+      "httpx/_decoders.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_decoders"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_150",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the URL parsing work in httpx's async HTTP client?",
+    "golden_files": [
+      "httpx/_urls.py"
+    ],
+    "language": "en",
+    "tags": [
+      "_urls",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_151",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "QueryParams class implementation for URL parameters in httpx",
+    "golden_files": [
+      "httpx/_urls.py"
+    ],
+    "language": "en",
+    "tags": [
+      "_urls",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_152",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "httpx中URL编码解码的实现方法",
+    "golden_files": [
+      "httpx/_urls.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "_urls",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_153",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does httpx handle HTTP authentication flows in async Python?",
+    "golden_files": [
+      "httpx/_auth.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_154",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "如何在httpx中实现自定义认证方案？",
+    "golden_files": [
+      "httpx/_auth.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_155",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "DigestAuth challenge parsing implementation details",
+    "golden_files": [
+      "httpx/_auth.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_auth",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_156",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does httpx's MultipartStream handle streaming file uploads?",
+    "golden_files": [
+      "httpx/_multipart.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_multipart",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_157",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "Implementing multipart form data encoding in httpx",
+    "golden_files": [
+      "httpx/_multipart.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_multipart",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_158",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "httpx 中 _format_form_param 的编码逻辑是怎样的？",
+    "golden_files": [
+      "httpx/_multipart.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_multipart",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_159",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the HTTP transport handle SSL certificate verification?",
+    "golden_files": [
+      "httpx/_transports/default.py"
+    ],
+    "language": "en",
+    "tags": [
+      "default",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_160",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "异步HTTP传输的连接池配置",
+    "golden_files": [
+      "httpx/_transports/default.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "default",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_161",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How are httpcore exceptions mapped to httpx HTTP errors?",
+    "golden_files": [
+      "httpx/_transports/default.py"
+    ],
+    "language": "en",
+    "tags": [
+      "default",
+      "async",
+      "python",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_162",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "async HTTP request content encoding",
+    "golden_files": [
+      "httpx/_content.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_content",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_163",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does httpx handle async content encoding for various data types?",
+    "golden_files": [
+      "httpx/_content.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_content",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_164",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP multipart/form-data 编码实现原理",
+    "golden_files": [
+      "httpx/_content.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_content",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_165",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the Timeout class handle different operation timeouts in httpx?",
+    "golden_files": [
+      "httpx/_config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_config",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_166",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP客户端连接限制配置方法",
+    "golden_files": [
+      "httpx/_config.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_config",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_167",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "SSL context creation and certificate configuration in httpx",
+    "golden_files": [
+      "httpx/_config.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_config",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_168",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does the URL pattern matching work in httpx?",
+    "golden_files": [
+      "httpx/_utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_utils"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_169",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "URL routing pattern matching implementation",
+    "golden_files": [
+      "httpx/_utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_utils"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_170",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "HTTP URL 匹配规则实现",
+    "golden_files": [
+      "httpx/_utils.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "http",
+      "_utils"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_171",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How does httpx handle URL path normalization and encoding?",
+    "golden_files": [
+      "httpx/_urlparse.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_urlparse",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_172",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "URL parsing and encoding implementation in Python async HTTP client",
+    "golden_files": [
+      "httpx/_urlparse.py"
+    ],
+    "language": "en",
+    "tags": [
+      "async",
+      "python",
+      "_urlparse",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_173",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "Python异步HTTP客户端如何解析和规范化URL路径?",
+    "golden_files": [
+      "httpx/_urlparse.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "async",
+      "python",
+      "_urlparse",
+      "http"
+    ],
+    "repo_url": "https://github.com/encode/httpx",
+    "id": "rag_174",
+    "repo_name": "encode_httpx"
+  },
+  {
+    "query": "How to define API information in FastAPI OpenAPI models?",
+    "golden_files": [
+      "fastapi/openapi/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_175",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "Server URL configuration in FastAPI OpenAPI models",
+    "golden_files": [
+      "fastapi/openapi/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "async",
+      "web"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_176",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "如何在FastAPI OpenAPI模型中定义许可证信息?",
+    "golden_files": [
+      "fastapi/openapi/models.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "models",
+      "python",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_177",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI match URL paths to endpoints?",
+    "golden_files": [
+      "fastapi/routing.py"
+    ],
+    "language": "en",
+    "tags": [
+      "routing",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_178",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "URL path routing dispatch mechanism in FastAPI",
+    "golden_files": [
+      "fastapi/routing.py"
+    ],
+    "language": "en",
+    "tags": [
+      "routing",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_179",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI路由生命周期事件处理",
+    "golden_files": [
+      "fastapi/routing.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "routing",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_180",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI's routing system handle different HTTP methods?",
+    "golden_files": [
+      "fastapi/applications.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "web",
+      "applications",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_181",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI URL path matching implementation details",
+    "golden_files": [
+      "fastapi/applications.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "web",
+      "applications",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_182",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 中间件如何集成到应用中？",
+    "golden_files": [
+      "fastapi/applications.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "async",
+      "web",
+      "applications",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_183",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI handle query parameters?",
+    "golden_files": [
+      "fastapi/params.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "web",
+      "params",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_184",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 中的参数类型如何定义",
+    "golden_files": [
+      "fastapi/params.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "params",
+      "web"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_185",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "Query parameter validation implementation in FastAPI",
+    "golden_files": [
+      "fastapi/params.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "params",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_186",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI handle HTTP exceptions?",
+    "golden_files": [
+      "fastapi/exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "exceptions",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_187",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI exception classes for HTTP and WebSocket errors",
+    "golden_files": [
+      "fastapi/exceptions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "exceptions",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_188",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 异常处理类定义",
+    "golden_files": [
+      "fastapi/exceptions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "async",
+      "exceptions",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_189",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI handle multipart form data installation?",
+    "golden_files": [
+      "fastapi/dependencies/utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "utils",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_190",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "Dependency resolution utils for FastAPI parameter handling",
+    "golden_files": [
+      "fastapi/dependencies/utils.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "utils",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_191",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 依赖解析参数处理",
+    "golden_files": [
+      "fastapi/dependencies/utils.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "async",
+      "utils",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_192",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI implement HTTP Basic authentication?",
+    "golden_files": [
+      "fastapi/security/http.py"
+    ],
+    "language": "en",
+    "tags": [
+      "http",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_193",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "HTTPBearer token validation mechanism in FastAPI source code",
+    "golden_files": [
+      "fastapi/security/http.py"
+    ],
+    "language": "en",
+    "tags": [
+      "http",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_194",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "如何在FastAPI中实现HTTP基础认证",
+    "golden_files": [
+      "fastapi/security/http.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "http",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_195",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI v2 handle ModelField serialization aliases?",
+    "golden_files": [
+      "fastapi/_compat/v2.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "v2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_196",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "ModelField 类的序列化别名设置方法",
+    "golden_files": [
+      "fastapi/_compat/v2.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "async",
+      "v2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_197",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "What is the purpose of the GenerateJsonSchema class in FastAPI v2?",
+    "golden_files": [
+      "fastapi/_compat/v2.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "v2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_198",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI handle OAuth2 password flow form data?",
+    "golden_files": [
+      "fastapi/security/oauth2.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "oauth2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_199",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "OAuth2 bearer token authentication implementation in FastAPI",
+    "golden_files": [
+      "fastapi/security/oauth2.py"
+    ],
+    "language": "en",
+    "tags": [
+      "python",
+      "async",
+      "oauth2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_200",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 中 OAuth2 密码模式表单数据处理方式",
+    "golden_files": [
+      "fastapi/security/oauth2.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "python",
+      "async",
+      "oauth2",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_201",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI's APIKeyQuery class extract query parameters for authentication?",
+    "golden_files": [
+      "fastapi/security/api_key.py"
+    ],
+    "language": "en",
+    "tags": [
+      "api_key",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_202",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "Implementing async API key header validation in FastAPI security",
+    "golden_files": [
+      "fastapi/security/api_key.py"
+    ],
+    "language": "en",
+    "tags": [
+      "api_key",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_203",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI中API密钥头验证的异步实现方法",
+    "golden_files": [
+      "fastapi/security/api_key.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "api_key",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_204",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI validate path parameters?",
+    "golden_files": [
+      "fastapi/param_functions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "param_functions",
+      "python",
+      "web",
+      "api",
+      "validation"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_205",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI参数解析器实现原理",
+    "golden_files": [
+      "fastapi/param_functions.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "param_functions",
+      "python",
+      "web",
+      "api",
+      "parser"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_206",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "What's the role of the Path function in FastAPI routing?",
+    "golden_files": [
+      "fastapi/param_functions.py"
+    ],
+    "language": "en",
+    "tags": [
+      "param_functions",
+      "python",
+      "async",
+      "web",
+      "routing"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_207",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "How does FastAPI's dependency system manage OAuth scopes?",
+    "golden_files": [
+      "fastapi/dependencies/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_208",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "Coroutine callable check in FastAPI dependencies",
+    "golden_files": [
+      "fastapi/dependencies/models.py"
+    ],
+    "language": "en",
+    "tags": [
+      "models",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_209",
+    "repo_name": "tiangolo_fastapi"
+  },
+  {
+    "query": "FastAPI 依赖系统如何处理 OAuth 范围?",
+    "golden_files": [
+      "fastapi/dependencies/models.py"
+    ],
+    "language": "zh",
+    "tags": [
+      "models",
+      "python",
+      "async",
+      "web",
+      "api"
+    ],
+    "repo_url": "https://github.com/tiangolo/fastapi",
+    "id": "rag_210",
+    "repo_name": "tiangolo_fastapi"
+  }
+]

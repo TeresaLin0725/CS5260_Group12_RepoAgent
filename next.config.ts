@@ -4,8 +4,7 @@ const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'standalone',
-  // Optimize build for Docker
+  // Optimize build
   experimental: {
     optimizePackageImports: ['@mermaid-js/mermaid', 'react-syntax-highlighter'],
   },

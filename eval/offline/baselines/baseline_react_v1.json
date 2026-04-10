@@ -1,0 +1,17 @@
+{
+  "subsystem": "react",
+  "version": 1,
+  "description": "Initial baseline for ReAct evaluation. Manually confirmed.",
+  "aggregated_metrics": {
+    "total_cases": 90,
+    "avg_answer_relevance": null,
+    "avg_faithfulness": null,
+    "avg_tool_precision": 0.70,
+    "avg_tool_recall": 0.70,
+    "avg_tool_f1": 0.70,
+    "avg_iteration_efficiency": 0.75,
+    "forced_termination_rate": 0.08,
+    "avg_tool_error_rate": 0.02,
+    "avg_rouge_l": null
+  }
+}

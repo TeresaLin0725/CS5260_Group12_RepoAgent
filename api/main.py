@@ -61,6 +61,32 @@ if GOOGLE_API_KEY:
 else:
     logger.warning("GOOGLE_API_KEY not configured")
 
+# ============================================================================
+# Initialize Memory & MCP Systems
+# ============================================================================
+try:
+    from api.memory.manager import get_memory_manager
+    from api.mcp.registry import get_mcp_registry
+    from api.monitoring.performance import PerformanceMonitor
+    
+    # Initialize memory manager
+    memory_manager = get_memory_manager()
+    logger.info("✓ Memory manager initialized")
+    
+    # Initialize MCP registry (tools will be registered later in WebSocket)
+    mcp_registry = get_mcp_registry()
+    logger.info("✓ MCP registry initialized")
+    
+    # Initialize performance monitor
+    performance_monitor = PerformanceMonitor()
+    logger.info("✓ Performance monitor initialized")
+    
+except ImportError as e:
+    logger.warning(f"Failed to initialize memory/MCP systems: {e}")
+    memory_manager = None
+    mcp_registry = None
+    performance_monitor = None
+
 if __name__ == "__main__":
     # Get port from environment variable or use default
     port = int(os.environ.get("PORT", 8001))

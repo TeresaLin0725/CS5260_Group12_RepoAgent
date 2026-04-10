@@ -42,6 +42,15 @@ class TechStack(BaseModel):
     infrastructure: List[str] = Field(default_factory=list)
 
 
+class ModuleProgressionEntry(BaseModel):
+    """A single entry in the module-progression sequence for video storyline."""
+    name: str = ""
+    stage: str = "core"      # "core" | "expansion"
+    role: str = ""
+    solves: str = ""
+    position: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Fallback: clean raw JSON text for display
 # ---------------------------------------------------------------------------
@@ -280,6 +289,9 @@ class AnalyzedContent(BaseModel):
     component_hierarchy: Optional[str] = None
     data_schemas: Optional[str] = None
 
+    # Module build-order progression for video storyline
+    module_progression: List["ModuleProgressionEntry"] = Field(default_factory=list)
+
     # Fallback: raw LLM response text, used when JSON parsing fails
     raw_llm_text: str = Field(default="", exclude=True)
 
@@ -435,35 +447,45 @@ def _extract_json_from_llm(raw: str) -> dict:
     Handles markdown fences, leading commentary, trailing text,
     and common LLM JSON syntax errors (missing commas, etc.).
     """
-    # Strip markdown fences
-    cleaned = re.sub(r"```(?:json)?\s*", "", raw)
-    cleaned = re.sub(r"```\s*$", "", cleaned)
+    # Strip only outermost markdown fences (careful not to corrupt
+    # triple-backticks that may appear inside JSON string values).
+    stripped = raw.strip()
+    # Match ```json ... ``` (greedy inner capture to handle nested backticks)
+    fence_match = re.match(r"^```(?:json|JSON)?\s*\n(.+)\n\s*```\s*$", stripped, re.DOTALL)
+    if fence_match:
+        stripped = fence_match.group(1).strip()
+    else:
+        # Fallback: strip leading ```json line and trailing ``` line separately
+        if re.match(r"^```(?:json|JSON)?\s*$", stripped.split("\n", 1)[0]):
+            stripped = stripped.split("\n", 1)[1] if "\n" in stripped else stripped
+        if re.search(r"^```\s*$", stripped.rsplit("\n", 1)[-1] if "\n" in stripped else ""):
+            stripped = stripped.rsplit("\n", 1)[0]
 
-    # Try parsing the entire cleaned text first
+    # Try parsing the entire text first
     try:
-        return json.loads(cleaned)
+        return json.loads(stripped)
     except json.JSONDecodeError:
         pass
 
     # Try with JSON repair
     try:
-        repaired = _repair_json_string(cleaned)
+        repaired = _repair_json_string(stripped)
         return json.loads(repaired)
     except json.JSONDecodeError:
         pass
 
-    # Try to find the first { ... } block
-    match = re.search(r"\{", cleaned)
+    # Try to find the first { ... } block (handles leading commentary)
+    match = re.search(r"\{", stripped)
     if match:
         depth = 0
         start = match.start()
-        for i in range(start, len(cleaned)):
-            if cleaned[i] == "{":
+        for i in range(start, len(stripped)):
+            if stripped[i] == "{":
                 depth += 1
-            elif cleaned[i] == "}":
+            elif stripped[i] == "}":
                 depth -= 1
                 if depth == 0:
-                    candidate = cleaned[start : i + 1]
+                    candidate = stripped[start : i + 1]
                     try:
                         return json.loads(candidate)
                     except json.JSONDecodeError:
@@ -499,6 +521,29 @@ def _build_analyzed_content(
         elif isinstance(m, str):
             key_modules.append(ModuleInfo(name=m, responsibility=""))
 
+    # Parse module_progression
+    module_progression: list[ModuleProgressionEntry] = []
+    for mp in raw_json.get("module_progression", []):
+        if isinstance(mp, dict):
+            module_progression.append(ModuleProgressionEntry(
+                name=mp.get("name", ""),
+                stage=mp.get("stage", "core"),
+                role=mp.get("role", ""),
+                solves=mp.get("solves", ""),
+                position=mp.get("position", ""),
+            ))
+
+    # Auto-generate module_progression from key_modules if LLM didn't provide it
+    if not module_progression and key_modules:
+        for i, m in enumerate(key_modules):
+            module_progression.append(ModuleProgressionEntry(
+                name=m.name,
+                stage="core" if i < len(key_modules) // 2 + 1 else "expansion",
+                role=m.responsibility,
+                solves="",
+                position="",
+            ))
+
     # Parse tech_stack
     ts_raw = raw_json.get("tech_stack", {})
     if isinstance(ts_raw, dict):
@@ -520,6 +565,7 @@ def _build_analyzed_content(
         architecture=raw_json.get("architecture", []),
         tech_stack=tech_stack,
         key_modules=key_modules,
+        module_progression=module_progression,
         data_flow=raw_json.get("data_flow", []),
         api_points=raw_json.get("api_points", []),
         target_users=raw_json.get("target_users", ""),
@@ -557,22 +603,244 @@ def _extract_repo_context(rag_instance: Any, repo_name: str) -> str:
     for q in queries:
         try:
             retrieved = rag_instance.call(q)
-            if retrieved and len(retrieved) > 0:
-                docs = retrieved[0].documents if hasattr(retrieved[0], "documents") else []
-                indices = retrieved[0].doc_indices if hasattr(retrieved[0], "doc_indices") else []
-                for idx, doc in zip(indices, docs):
-                    if idx not in seen_indices:
-                        seen_indices.add(idx)
-                        file_path = ""
-                        if hasattr(doc, "meta_data") and isinstance(doc.meta_data, dict):
-                            file_path = doc.meta_data.get("file_path", "")
-                        parts.append(f"--- {file_path} ---")
-                        parts.append(doc.text if hasattr(doc, "text") else str(doc))
-                        parts.append("")
-        except Exception as e:
-            logger.warning("Retrieval query failed (%s): %s", q[:40], e)
 
+            # RAG.call() returns a list on success, or a (RAGAnswer, []) tuple
+            # on error.  Normalise to a list so the rest of the code can handle
+            # both transparently.
+            if isinstance(retrieved, tuple):
+                # Error path — logs already emitted by RAG.call()
+                logger.warning("RAG.call returned error tuple for query: %s", q[:60])
+                continue
+
+            if not retrieved or len(retrieved) == 0:
+                logger.warning("RAG.call returned empty result for query: %s", q[:60])
+                continue
+
+            first = retrieved[0]
+            docs = getattr(first, "documents", None) or []
+            indices = getattr(first, "doc_indices", None) or []
+
+            if not docs:
+                logger.warning("No documents in retrieval result for query: %s", q[:60])
+                continue
+
+            for idx, doc in zip(indices, docs):
+                if idx not in seen_indices:
+                    seen_indices.add(idx)
+                    file_path = ""
+                    if hasattr(doc, "meta_data") and isinstance(doc.meta_data, dict):
+                        file_path = doc.meta_data.get("file_path", "")
+                    parts.append(f"--- {file_path} ---")
+                    parts.append(doc.text if hasattr(doc, "text") else str(doc))
+                    parts.append("")
+        except Exception as e:
+            logger.warning("Retrieval query failed (%s): %s", q[:40], e, exc_info=True)
+
+    logger.info("_extract_repo_context: collected %d unique chunks from %d queries", len(seen_indices), len(queries))
     return "\n".join(parts)
+
+
+def _extract_repo_context_fallback(rag_instance: Any, repo_name: str) -> str:
+    """
+    Fallback: read key files directly from the downloaded repo directory
+    when FAISS retrieval fails.  Returns a concatenation of README + a
+    sample of source files so the LLM has *something* to analyse.
+    """
+    import os
+    from pathlib import Path
+
+    repo_dir: Optional[str] = None
+    try:
+        db_mgr = getattr(rag_instance, "db_manager", None)
+        if db_mgr and hasattr(db_mgr, "repo_paths") and db_mgr.repo_paths:
+            repo_dir = db_mgr.repo_paths.get("save_repo_dir")
+    except Exception:
+        pass
+
+    if not repo_dir or not os.path.isdir(repo_dir):
+        logger.warning("_extract_repo_context_fallback: repo dir not available")
+        return ""
+
+    logger.info("Fallback: reading files directly from %s", repo_dir)
+
+    parts: list[str] = []
+    max_chars = 60_000  # cap total context size
+    total_chars = 0
+
+    # Priority files
+    priority_names = [
+        "README.md", "README.rst", "README.txt", "README",
+        "package.json", "pyproject.toml", "setup.py", "Cargo.toml",
+        "go.mod", "pom.xml", "build.gradle",
+    ]
+
+    # 1) Read priority files (README, manifest)
+    for name in priority_names:
+        fpath = os.path.join(repo_dir, name)
+        if os.path.isfile(fpath):
+            try:
+                text = Path(fpath).read_text(encoding="utf-8", errors="replace")[:12_000]
+                parts.append(f"--- {name} ---")
+                parts.append(text)
+                parts.append("")
+                total_chars += len(text)
+            except Exception:
+                pass
+
+    # 2) Walk source files for additional context
+    source_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".rs", ".rb", ".cs", ".cpp", ".c", ".h"}
+    skip_dirs = {".git", "node_modules", "__pycache__", ".next", "dist", "build", "venv", ".venv"}
+
+    for root, dirs, files in os.walk(repo_dir):
+        dirs[:] = [d for d in dirs if d not in skip_dirs]
+        for fname in sorted(files):
+            if total_chars >= max_chars:
+                break
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in source_exts:
+                continue
+            fpath = os.path.join(root, fname)
+            rel = os.path.relpath(fpath, repo_dir).replace("\\", "/")
+            try:
+                text = Path(fpath).read_text(encoding="utf-8", errors="replace")[:6_000]
+                parts.append(f"--- {rel} ---")
+                parts.append(text)
+                parts.append("")
+                total_chars += len(text)
+            except Exception:
+                pass
+        if total_chars >= max_chars:
+            break
+
+    logger.info("Fallback: read %d chars from repo files", total_chars)
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Generic LLM call (used by poster_export and other modules)
+# ---------------------------------------------------------------------------
+
+async def _call_llm(
+    prompt: str,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+) -> str:
+    """
+    Generic async LLM call: send *prompt* to the configured provider and
+    return the raw text response.
+
+    If *provider* is ``None``, falls back to Google Generative AI.
+    """
+    from api.config import get_model_config
+    from adalflow.core.types import ModelType
+
+    if not provider:
+        provider = "google"
+
+    config = get_model_config(provider, model)
+    model_kwargs = config["model_kwargs"]
+
+    if provider == "ollama":
+        from adalflow.components.model_client.ollama_client import OllamaClient
+
+        client = OllamaClient()
+        kwargs = {
+            "model": model_kwargs["model"],
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.7,
+                "num_ctx": min(model_kwargs.get("num_ctx", 8000), 8000),
+            },
+        }
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input="/no_think\n" + prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    if provider == "openrouter":
+        from api.openrouter_client import OpenRouterClient
+
+        client = OpenRouterClient()
+        kwargs = {"model": model_kwargs["model"], "stream": False, "temperature": model_kwargs.get("temperature", 0.3)}
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input=prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    if provider == "openai":
+        from api.openai_client import OpenAIClient
+
+        client = OpenAIClient()
+        kwargs = {"model": model_kwargs["model"], "stream": False, "temperature": model_kwargs.get("temperature", 0.3)}
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input=prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    if provider == "bedrock":
+        from api.bedrock_client import BedrockClient
+
+        client = BedrockClient()
+        kwargs = {
+            "model": model_kwargs["model"],
+            "temperature": model_kwargs.get("temperature", 0.3),
+            "top_p": model_kwargs.get("top_p", 0.9),
+        }
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input=prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    if provider == "azure":
+        from api.azureai_client import AzureAIClient
+
+        client = AzureAIClient()
+        kwargs = {
+            "model": model_kwargs["model"],
+            "stream": False,
+            "temperature": model_kwargs.get("temperature", 0.3),
+            "top_p": model_kwargs.get("top_p", 0.9),
+        }
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input=prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    if provider == "dashscope":
+        from api.dashscope_client import DashscopeClient
+
+        client = DashscopeClient()
+        kwargs = {
+            "model": model_kwargs["model"],
+            "stream": False,
+            "temperature": model_kwargs.get("temperature", 0.3),
+            "top_p": model_kwargs.get("top_p", 0.9),
+        }
+        api_kwargs = client.convert_inputs_to_api_kwargs(
+            input=prompt, model_kwargs=kwargs, model_type=ModelType.LLM,
+        )
+        response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+        return _extract_text_from_response(response, provider)
+
+    # Default: Google Generative AI
+    import google.generativeai as genai
+
+    gen_model = genai.GenerativeModel(
+        model_name=model_kwargs.get("model", "gemini-2.0-flash"),
+        generation_config={
+            "temperature": model_kwargs.get("temperature", 0.3),
+            "top_p": model_kwargs.get("top_p", 0.9),
+            "top_k": model_kwargs.get("top_k", 40),
+        },
+    )
+    response = await gen_model.generate_content_async(prompt)
+    return response.text if hasattr(response, "text") else str(response)
 
 
 # ---------------------------------------------------------------------------
@@ -850,7 +1118,11 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
     # Phase 1
     context_text = _extract_repo_context(rag, request.repo_name)
     if not context_text.strip():
-        logger.warning("No repo content retrieved; returning empty AnalyzedContent")
+        logger.warning("RAG retrieval returned no content; trying direct file fallback")
+        context_text = _extract_repo_context_fallback(rag, request.repo_name)
+
+    if not context_text.strip():
+        logger.warning("No repo content retrieved even after fallback; returning empty AnalyzedContent")
         return AnalyzedContent(repo_name=request.repo_name, repo_url=request.repo_url, language=request.language)
 
     # Phase 2a

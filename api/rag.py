@@ -382,15 +382,40 @@ IMPORTANT FORMATTING RULES:
         try:
             # Use the appropriate embedder for retrieval
             retrieve_embedder = self.query_embedder if self.is_ollama_embedder else self.embedder
-            self.retriever = FAISSRetriever(
+
+            # Build FAISS retriever as the dense/semantic backbone
+            faiss_retriever = FAISSRetriever(
                 **configs["retriever"],
                 embedder=retrieve_embedder,
                 documents=self.transformed_docs,
                 document_map_func=lambda doc: doc.vector,
             )
             logger.info("FAISS retriever created successfully")
+
+            # Enhance with BM25 keyword search via Hybrid Retriever (RRF)
+            try:
+                from api.retriever import BM25Index, HybridRetriever
+                bm25_index = BM25Index()
+                bm25_index.build(self.transformed_docs)
+                self.retriever = HybridRetriever(
+                    faiss_retriever=faiss_retriever,
+                    bm25_index=bm25_index,
+                    documents=self.transformed_docs,
+                    top_k=configs["retriever"].get("top_k", 20),
+                )
+                logger.info(
+                    "Hybrid retriever (FAISS + BM25) created, top_k=%d",
+                    configs["retriever"].get("top_k", 20),
+                )
+            except Exception as bm25_err:
+                logger.warning(
+                    "BM25 hybrid search unavailable, using FAISS only: %s",
+                    bm25_err,
+                )
+                self.retriever = faiss_retriever
+
         except Exception as e:
-            logger.error(f"Error creating FAISS retriever: {str(e)}")
+            logger.error(f"Error creating retriever: {str(e)}")
             # Try to provide more specific error information
             if "All embeddings should be of the same size" in str(e):
                 logger.error("Embedding size validation failed. This suggests there are still inconsistent embedding sizes.")
@@ -435,7 +460,7 @@ IMPORTANT FORMATTING RULES:
             return retrieved_documents
 
         except Exception as e:
-            logger.error(f"Error in RAG call: {str(e)}")
+            logger.error("Error in RAG call: %s", e, exc_info=True)
 
             # Create error response
             error_response = RAGAnswer(

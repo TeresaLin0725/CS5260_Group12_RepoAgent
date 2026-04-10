@@ -30,6 +30,7 @@ class ExportFormat(str, Enum):
     PDF = "pdf"
     PPT = "ppt"
     VIDEO = "video"
+    POSTER = "poster"
 
 
 class ExportResult(BaseModel):
@@ -78,11 +79,16 @@ def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
 
 
 def _render_video(analyzed: AnalyzedContent) -> ExportResult:
-    """Phase 2b-Video (LLM narration script) + Phase 3 (mp4 render)."""
-    from api.video_export import render_video_from_analyzed
+    """Phase 2b-Video (LLM narration script) + Phase 3 (mp4 render) — stub, see async version."""
+    raise NotImplementedError("Use _render_video_async for video export")
+
+
+async def _render_video_async(analyzed: AnalyzedContent) -> ExportResult:
+    """Phase 2b-Video (narration + storyline) + Phase 3 (MP4 composition)."""
+    from api.video.orchestrator import render_video_from_analyzed
     from datetime import datetime
 
-    video_bytes = render_video_from_analyzed(analyzed)
+    video_bytes = await render_video_from_analyzed(analyzed)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_overview_{timestamp}.mp4"
@@ -94,10 +100,28 @@ def _render_video(analyzed: AnalyzedContent) -> ExportResult:
     )
 
 
+async def _render_poster(analyzed: AnalyzedContent) -> ExportResult:
+    """Phase 2b-Poster (layout spec) + Phase 3 (NanoBanana render)."""
+    from api.poster_export import render_poster_from_analyzed
+    from datetime import datetime
+
+    poster_bytes = await render_poster_from_analyzed(analyzed)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    short_name = analyzed.repo_name.replace("/", "_")
+    filename = f"{short_name}_poster_{timestamp}.png"
+
+    return ExportResult(
+        content_bytes=poster_bytes,
+        filename=filename,
+        media_type="image/png",
+    )
+
+
 _RENDERERS = {
     ExportFormat.PDF: _render_pdf,
     ExportFormat.PPT: _render_ppt,
     ExportFormat.VIDEO: _render_video,
+    ExportFormat.POSTER: _render_poster,
 }
 
 
@@ -156,8 +180,14 @@ async def export_repo(
     # ── Print AnalyzedContent (LLM structured output) ──
     _print_analyzed_content(analyzed, fmt)
 
-    renderer = _RENDERERS[fmt]
-    result = renderer(analyzed)
+    if fmt == ExportFormat.VIDEO:
+        result = await _render_video_async(analyzed)
+    else:
+        renderer = _RENDERERS[fmt]
+        import inspect
+        result = renderer(analyzed)
+        if inspect.isawaitable(result):
+            result = await result
 
     logger.info("Export complete — format=%s, %d bytes", fmt.value, len(result.content_bytes))
     return result

@@ -45,4 +45,21 @@ def build_export_tool_registry() -> ToolRegistry:
             ),
         )
     )
+    registry.register(
+        AgentTool(
+            name="GENERATE_POSTER",
+            action_tag="[ACTION:GENERATE_POSTER]",
+            description="Generate a repository illustrated poster via NanoBanana.",
+            keywords=(
+                "poster",
+                "illustrated poster",
+                "pictorial",
+                "infographic",
+                "画报",
+                "海报",
+                "图文海报",
+                "画报制作",
+            ),
+        )
+    )
     return registry

@@ -1,0 +1,4577 @@
+{
+  "rag": {
+    "timestamp": "2026-03-29T16:29:46.189685+00:00",
+    "results": {
+      "subsystem": "rag",
+      "mock_mode": false,
+      "repo_filter": null,
+      "total_cases": 210,
+      "aggregated_metrics": {
+        "hit_at_1": 0.5667,
+        "hit_at_3": 0.8238,
+        "hit_at_6": 0.8952,
+        "mrr": 0.7028,
+        "ndcg_at_6": 0.7513,
+        "latency_p50_ms": 223.75,
+        "latency_p95_ms": 671.13,
+        "total_cases": 210
+      },
+      "per_repo_metrics": {
+        "pydantic_pydantic": {
+          "total_cases": 36,
+          "hit_at_1": 0.5278,
+          "hit_at_3": 0.8056,
+          "mrr": 0.6745,
+          "latency_p50_ms": 308.73,
+          "latency_p95_ms": 529.76
+        },
+        "tiangolo_fastapi": {
+          "total_cases": 36,
+          "hit_at_1": 0.4444,
+          "hit_at_3": 0.7222,
+          "mrr": 0.5694,
+          "latency_p50_ms": 205.41,
+          "latency_p95_ms": 902.42
+        },
+        "encode_httpx": {
+          "total_cases": 36,
+          "hit_at_1": 0.4722,
+          "hit_at_3": 0.8056,
+          "mrr": 0.6648,
+          "latency_p50_ms": 300.4,
+          "latency_p95_ms": 641.79
+        },
+        "psf_requests": {
+          "total_cases": 36,
+          "hit_at_1": 0.5556,
+          "hit_at_3": 0.8889,
+          "mrr": 0.7269,
+          "latency_p50_ms": 319.42,
+          "latency_p95_ms": 448.2
+        },
+        "pallets_flask": {
+          "total_cases": 36,
+          "hit_at_1": 0.4722,
+          "hit_at_3": 0.75,
+          "mrr": 0.6306,
+          "latency_p50_ms": 315.46,
+          "latency_p95_ms": 1426.69
+        }
+      },
+      "per_case_results": [
+        {
+          "case_id": "rag_001",
+          "query": "How does the HybridRetriever combine FAISS and BM25?",
+          "golden_files": [
+            "api/retriever.py"
+          ],
+          "retrieved_files": [
+            "api/retriever.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "retrieval"
+          ]
+        },
+        {
+          "case_id": "rag_002",
+          "query": "ReAct loop implementation",
+          "golden_files": [
+            "api/agent/react.py"
+          ],
+          "retrieved_files": [
+            "api/agent/react.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "react"
+          ]
+        },
+        {
+          "case_id": "rag_003",
+          "query": "intent classification cosine similarity embedding",
+          "golden_files": [
+            "api/agent/intent_classifier.py"
+          ],
+          "retrieved_files": [
+            "api/agent/intent_classifier.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "intent"
+          ]
+        },
+        {
+          "case_id": "rag_004",
+          "query": "agent scheduler tool dispatch",
+          "golden_files": [
+            "api/agent/scheduler.py"
+          ],
+          "retrieved_files": [
+            "api/agent/scheduler.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "scheduler"
+          ]
+        },
+        {
+          "case_id": "rag_005",
+          "query": "BM25 index scoring IDF",
+          "golden_files": [
+            "api/retriever.py"
+          ],
+          "retrieved_files": [
+            "api/retriever.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "retrieval"
+          ]
+        },
+        {
+          "case_id": "rag_006",
+          "query": "tokenize_code camelCase snake_case",
+          "golden_files": [
+            "api/retriever.py"
+          ],
+          "retrieved_files": [
+            "api/retriever.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "retrieval"
+          ]
+        },
+        {
+          "case_id": "rag_007",
+          "query": "RuleBasedPlanner keyword scoring",
+          "golden_files": [
+            "api/agent/planner.py"
+          ],
+          "retrieved_files": [
+            "api/agent/planner.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "planner"
+          ]
+        },
+        {
+          "case_id": "rag_008",
+          "query": "PDF export generation",
+          "golden_files": [
+            "api/pdf_export.py"
+          ],
+          "retrieved_files": [
+            "api/pdf_export.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "export"
+          ]
+        },
+        {
+          "case_id": "rag_009",
+          "query": "WebSocket wiki generation",
+          "golden_files": [
+            "api/websocket_wiki.py"
+          ],
+          "retrieved_files": [
+            "api/websocket_wiki.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "websocket"
+          ]
+        },
+        {
+          "case_id": "rag_010",
+          "query": "export tool registry register",
+          "golden_files": [
+            "api/agent/tools/export_tools.py"
+          ],
+          "retrieved_files": [
+            "api/agent/tools/export_tools.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "tools"
+          ]
+        },
+        {
+          "case_id": "rag_011",
+          "query": "memory consolidation episodic long term",
+          "golden_files": [
+            "api/memory/consolidation.py"
+          ],
+          "retrieved_files": [
+            "api/memory/consolidation.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "memory"
+          ]
+        },
+        {
+          "case_id": "rag_012",
+          "query": "data pipeline process repository",
+          "golden_files": [
+            "api/data_pipeline.py"
+          ],
+          "retrieved_files": [
+            "api/data_pipeline.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "pipeline"
+          ]
+        },
+        {
+          "case_id": "rag_013",
+          "query": "MCP server registry adapters",
+          "golden_files": [
+            "api/mcp/server.py",
+            "api/mcp/registry.py"
+          ],
+          "retrieved_files": [
+            "api/mcp/server.py",
+            "api/mcp/registry.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "mcp"
+          ]
+        },
+        {
+          "case_id": "rag_014",
+          "query": "performance monitoring latency tracking",
+          "golden_files": [
+            "api/monitoring/performance.py"
+          ],
+          "retrieved_files": [
+            "api/monitoring/performance.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "monitoring"
+          ]
+        },
+        {
+          "case_id": "rag_015",
+          "query": "prompt templates system prompt",
+          "golden_files": [
+            "api/prompts.py"
+          ],
+          "retrieved_files": [
+            "api/prompts.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "prompts"
+          ]
+        },
+        {
+          "case_id": "rag_016",
+          "query": "RAG answer generation retrieval augmented",
+          "golden_files": [
+            "api/rag.py"
+          ],
+          "retrieved_files": [
+            "api/rag.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "rag"
+          ]
+        },
+        {
+          "case_id": "rag_017",
+          "query": "Google embedder client embedding",
+          "golden_files": [
+            "api/google_embedder_client.py"
+          ],
+          "retrieved_files": [
+            "api/google_embedder_client.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "embedder"
+          ]
+        },
+        {
+          "case_id": "rag_018",
+          "query": "OpenRouter API client",
+          "golden_files": [
+            "api/openrouter_client.py"
+          ],
+          "retrieved_files": [
+            "api/openrouter_client.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "providers"
+          ]
+        },
+        {
+          "case_id": "rag_019",
+          "query": "content analyzer repository analysis",
+          "golden_files": [
+            "api/content_analyzer.py"
+          ],
+          "retrieved_files": [
+            "api/content_analyzer.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "analysis"
+          ]
+        },
+        {
+          "case_id": "rag_020",
+          "query": "PPT slides generation python-pptx",
+          "golden_files": [
+            "api/ppt_export.py"
+          ],
+          "retrieved_files": [
+            "api/ppt_export.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "export"
+          ]
+        },
+        {
+          "case_id": "rag_021",
+          "query": "poster NanoBanana illustrated infographic",
+          "golden_files": [
+            "api/poster_export.py"
+          ],
+          "retrieved_files": [
+            "api/poster_export.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "export"
+          ]
+        },
+        {
+          "case_id": "rag_022",
+          "query": "video export overview walkthrough",
+          "golden_files": [
+            "api/video_export.py"
+          ],
+          "retrieved_files": [
+            "api/video_export.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "export"
+          ]
+        },
+        {
+          "case_id": "rag_023",
+          "query": "Ollama local model patching",
+          "golden_files": [
+            "api/ollama_patch.py"
+          ],
+          "retrieved_files": [
+            "api/ollama_patch.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "ollama"
+          ]
+        },
+        {
+          "case_id": "rag_024",
+          "query": "API routes endpoints FastAPI",
+          "golden_files": [
+            "api/routes/endpoints.py"
+          ],
+          "retrieved_files": [
+            "api/routes/endpoints.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "api"
+          ]
+        },
+        {
+          "case_id": "rag_025",
+          "query": "configuration loading JSON config",
+          "golden_files": [
+            "api/config.py"
+          ],
+          "retrieved_files": [
+            "api/config.py",
+            "api/__init__.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "config"
+          ]
+        },
+        {
+          "case_id": "rag_026",
+          "query": "Bedrock AWS client integration",
+          "golden_files": [
+            "api/bedrock_client.py"
+          ],
+          "retrieved_files": [
+            "api/bedrock_client.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.01,
+          "tags": [
+            "providers"
+          ]
+        },
+        {
+          "case_id": "rag_027",
+          "query": "Azure AI client model",
+          "golden_files": [
+            "api/azureai_client.py"
+          ],
+          "retrieved_files": [
+            "api/azureai_client.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "providers"
+          ]
+        },
+        {
+          "case_id": "rag_028",
+          "query": "DashScope Alibaba client",
+          "golden_files": [
+            "api/dashscope_client.py"
+          ],
+          "retrieved_files": [
+            "api/dashscope_client.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "providers"
+          ]
+        },
+        {
+          "case_id": "rag_029",
+          "query": "simple chat conversation handler",
+          "golden_files": [
+            "api/simple_chat.py"
+          ],
+          "retrieved_files": [
+            "api/simple_chat.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "chat"
+          ]
+        },
+        {
+          "case_id": "rag_030",
+          "query": "export service format dispatch",
+          "golden_files": [
+            "api/export_service.py"
+          ],
+          "retrieved_files": [
+            "api/export_service.py",
+            "api/__init__.py",
+            "api/config.py",
+            "api/main.py"
+          ],
+          "retrieval_latency_ms": 0.0,
+          "tags": [
+            "export"
+          ]
+        },
+        {
+          "case_id": "rag_031",
+          "query": "How does Flask's TaggedJSONSerializer handle custom tags?",
+          "golden_files": [
+            "src/flask/json/tag.py"
+          ],
+          "retrieved_files": [
+            "src/flask/json/tag.py",
+            "src/flask/sessions.py",
+            "src/flask/typing.py"
+          ],
+          "retrieval_latency_ms": 1302.74,
+          "tags": [
+            "python",
+            "web",
+            "tag",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_032",
+          "query": "Implementing a custom JSON tag for OrderedDict in Flask",
+          "golden_files": [
+            "src/flask/json/tag.py"
+          ],
+          "retrieved_files": [
+            "src/flask/json/tag.py"
+          ],
+          "retrieval_latency_ms": 2398.99,
+          "tags": [
+            "python",
+            "web",
+            "tag",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_033",
+          "query": "Flask JSON 标签序列化机制",
+          "golden_files": [
+            "src/flask/json/tag.py"
+          ],
+          "retrieved_files": [
+            "src/flask/json/tag.py",
+            "src/flask/sessions.py",
+            "src/flask/json/__init__.py"
+          ],
+          "retrieval_latency_ms": 221.58,
+          "tags": [
+            "python",
+            "web",
+            "tag",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_034",
+          "query": "How does Flask's CLI handle route registration?",
+          "golden_files": [
+            "src/flask/cli.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/blueprints.py",
+            "src/flask/app.py",
+            "src/flask/sansio/scaffold.py",
+            "src/flask/cli.py",
+            "src/flask/views.py",
+            "src/flask/sansio/app.py"
+          ],
+          "retrieval_latency_ms": 689.45,
+          "tags": [
+            "python",
+            "web",
+            "cli",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_035",
+          "query": "Flask CLI command dispatch mechanism",
+          "golden_files": [
+            "src/flask/cli.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/app.py",
+            "src/flask/blueprints.py",
+            "src/flask/testing.py",
+            "src/flask/sansio/app.py"
+          ],
+          "retrieval_latency_ms": 1798.55,
+          "tags": [
+            "python",
+            "web",
+            "cli",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_036",
+          "query": "如何在 Flask 中通过命令行定位应用？",
+          "golden_files": [
+            "src/flask/cli.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/sansio/app.py",
+            "src/flask/app.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 365.03,
+          "tags": [
+            "python",
+            "web",
+            "cli",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_037",
+          "query": "How does Flask match URL routes to view functions?",
+          "golden_files": [
+            "src/flask/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/sansio/app.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/sansio/scaffold.py",
+            "src/flask/views.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 197.92,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_038",
+          "query": "Flask WSGI app dispatch process",
+          "golden_files": [
+            "src/flask/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/views.py"
+          ],
+          "retrieval_latency_ms": 207.26,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_039",
+          "query": "Flask 请求上下文的创建与销毁机制",
+          "golden_files": [
+            "src/flask/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/typing.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/cli.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 197.12,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_040",
+          "query": "How does Flask's URL routing work?",
+          "golden_files": [
+            "src/flask/sansio/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/debughelpers.py"
+          ],
+          "retrieval_latency_ms": 323.48,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_041",
+          "query": "URL rule converter dispatch",
+          "golden_files": [
+            "src/flask/sansio/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/app.py",
+            "src/flask/app.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/views.py",
+            "src/flask/typing.py"
+          ],
+          "retrieval_latency_ms": 509.74,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_042",
+          "query": "Flask 请求上下文的推送和弹出机制",
+          "golden_files": [
+            "src/flask/sansio/app.py"
+          ],
+          "retrieved_files": [
+            "src/flask/typing.py",
+            "src/flask/sansio/app.py",
+            "src/flask/app.py",
+            "src/flask/cli.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 188.8,
+          "tags": [
+            "python",
+            "web",
+            "app",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_043",
+          "query": "How does Flask handle session cookies?",
+          "golden_files": [
+            "src/flask/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sessions.py",
+            "src/flask/testing.py"
+          ],
+          "retrieval_latency_ms": 227.6,
+          "tags": [
+            "python",
+            "web",
+            "sessions",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_044",
+          "query": "Flask 会话管理如何实现?",
+          "golden_files": [
+            "src/flask/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/testing.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py",
+            "src/flask/typing.py"
+          ],
+          "retrieval_latency_ms": 338.93,
+          "tags": [
+            "python",
+            "web",
+            "sessions",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_045",
+          "query": "SecureCookieSession 初始化参数",
+          "golden_files": [
+            "src/flask/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sessions.py",
+            "src/flask/sansio/app.py",
+            "src/flask/testing.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 317.98,
+          "tags": [
+            "python",
+            "web",
+            "sessions",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_046",
+          "query": "How do Flask blueprints handle URL routing and endpoint registration?",
+          "golden_files": [
+            "src/flask/sansio/blueprints.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/blueprints.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py"
+          ],
+          "retrieval_latency_ms": 227.95,
+          "tags": [
+            "python",
+            "web",
+            "blueprints",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_047",
+          "query": "Blueprint add_url_rule endpoint prefixing mechanism",
+          "golden_files": [
+            "src/flask/sansio/blueprints.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/blueprints.py",
+            "src/flask/sansio/scaffold.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 321.47,
+          "tags": [
+            "python",
+            "web",
+            "blueprints",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_048",
+          "query": "Flask blueprint如何注册模板过滤器？",
+          "golden_files": [
+            "src/flask/sansio/blueprints.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/blueprints.py",
+            "src/flask/sansio/app.py",
+            "src/flask/templating.py"
+          ],
+          "retrieval_latency_ms": 335.85,
+          "tags": [
+            "python",
+            "web",
+            "blueprints",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_049",
+          "query": "How does Flask's Scaffold class handle URL routing rules?",
+          "golden_files": [
+            "src/flask/sansio/scaffold.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/app.py",
+            "src/flask/sansio/scaffold.py",
+            "src/flask/app.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/debughelpers.py"
+          ],
+          "retrieval_latency_ms": 346.7,
+          "tags": [
+            "python",
+            "web",
+            "scaffold",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_050",
+          "query": "Flask request context push pop lifecycle",
+          "golden_files": [
+            "src/flask/sansio/scaffold.py"
+          ],
+          "retrieved_files": [
+            "src/flask/ctx.py",
+            "src/flask/testing.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 313.76,
+          "tags": [
+            "python",
+            "web",
+            "scaffold",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_051",
+          "query": "Flask 路由规则匹配机制",
+          "golden_files": [
+            "src/flask/sansio/scaffold.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/typing.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 188.22,
+          "tags": [
+            "python",
+            "web",
+            "scaffold",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_052",
+          "query": "How does Flask handle request context during routing?",
+          "golden_files": [
+            "src/flask/ctx.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/ctx.py",
+            "src/flask/testing.py"
+          ],
+          "retrieval_latency_ms": 200.65,
+          "tags": [
+            "python",
+            "web",
+            "ctx",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_053",
+          "query": "Flask AppContext push pop lifecycle",
+          "golden_files": [
+            "src/flask/ctx.py"
+          ],
+          "retrieved_files": [
+            "src/flask/ctx.py",
+            "src/flask/globals.py",
+            "src/flask/app.py",
+            "src/flask/testing.py",
+            "src/flask/signals.py"
+          ],
+          "retrieval_latency_ms": 848.96,
+          "tags": [
+            "python",
+            "web",
+            "ctx",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_054",
+          "query": "Flask 请求上下文检查方法",
+          "golden_files": [
+            "src/flask/ctx.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/typing.py",
+            "src/flask/sansio/app.py",
+            "src/flask/wrappers.py",
+            "src/flask/cli.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 216.87,
+          "tags": [
+            "python",
+            "web",
+            "ctx",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_055",
+          "query": "How does Flask's stream_with_context function maintain request context during generator execution?",
+          "golden_files": [
+            "src/flask/helpers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/helpers.py",
+            "src/flask/templating.py",
+            "src/flask/ctx.py",
+            "src/flask/testing.py"
+          ],
+          "retrieval_latency_ms": 182.58,
+          "tags": [
+            "python",
+            "web",
+            "helpers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_056",
+          "query": "Flask文件发送函数实现原理",
+          "golden_files": [
+            "src/flask/helpers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/cli.py",
+            "src/flask/logging.py",
+            "src/flask/helpers.py",
+            "src/flask/__init__.py",
+            "src/flask/typing.py"
+          ],
+          "retrieval_latency_ms": 266.66,
+          "tags": [
+            "python",
+            "web",
+            "helpers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_057",
+          "query": "What is the purpose of the get_flashed_messages function in Flask's helpers module?",
+          "golden_files": [
+            "src/flask/helpers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/__init__.py",
+            "src/flask/helpers.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/cli.py"
+          ],
+          "retrieval_latency_ms": 264.93,
+          "tags": [
+            "python",
+            "web",
+            "helpers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_058",
+          "query": "How does Flask's Config class load environment variables?",
+          "golden_files": [
+            "src/flask/config.py"
+          ],
+          "retrieved_files": [
+            "src/flask/config.py",
+            "src/flask/sansio/app.py",
+            "src/flask/cli.py",
+            "src/flask/templating.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 347.83,
+          "tags": [
+            "python",
+            "web",
+            "config",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_059",
+          "query": "Flask 配置文件加载方式",
+          "golden_files": [
+            "src/flask/config.py"
+          ],
+          "retrieved_files": [
+            "src/flask/cli.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py"
+          ],
+          "retrieval_latency_ms": 519.24,
+          "tags": [
+            "python",
+            "web",
+            "config",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_060",
+          "query": "Flask config from_pyfile method implementation details",
+          "golden_files": [
+            "src/flask/config.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/app.py",
+            "src/flask/sansio/scaffold.py",
+            "src/flask/app.py",
+            "src/flask/config.py",
+            "src/flask/helpers.py"
+          ],
+          "retrieval_latency_ms": 203.73,
+          "tags": [
+            "python",
+            "web",
+            "config",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_061",
+          "query": "How does Flask's test client handle request routing?",
+          "golden_files": [
+            "src/flask/testing.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/testing.py",
+            "src/flask/sansio/app.py"
+          ],
+          "retrieval_latency_ms": 195.97,
+          "tags": [
+            "python",
+            "web",
+            "testing",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_062",
+          "query": "Flask test environment builder configuration",
+          "golden_files": [
+            "src/flask/testing.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/app.py",
+            "src/flask/testing.py",
+            "src/flask/app.py"
+          ],
+          "retrieval_latency_ms": 314.86,
+          "tags": [
+            "python",
+            "web",
+            "testing",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_063",
+          "query": "Flask测试客户端如何管理会话事务?",
+          "golden_files": [
+            "src/flask/testing.py"
+          ],
+          "retrieved_files": [
+            "src/flask/app.py",
+            "src/flask/cli.py",
+            "src/flask/testing.py",
+            "src/flask/logging.py",
+            "src/flask/__init__.py",
+            "src/flask/typing.py"
+          ],
+          "retrieval_latency_ms": 350.92,
+          "tags": [
+            "python",
+            "web",
+            "testing",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_064",
+          "query": "How does Flask handle URL routing in the request object?",
+          "golden_files": [
+            "src/flask/wrappers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/wrappers.py",
+            "src/flask/app.py",
+            "src/flask/debughelpers.py",
+            "src/flask/sansio/blueprints.py",
+            "src/flask/ctx.py"
+          ],
+          "retrieval_latency_ms": 316.06,
+          "tags": [
+            "python",
+            "web",
+            "wrappers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_065",
+          "query": "Flask request max content length configuration",
+          "golden_files": [
+            "src/flask/wrappers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/wrappers.py",
+            "src/flask/app.py",
+            "src/flask/blueprints.py",
+            "src/flask/helpers.py"
+          ],
+          "retrieval_latency_ms": 389.3,
+          "tags": [
+            "python",
+            "web",
+            "wrappers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_066",
+          "query": "Flask 请求对象如何处理 URL 路由匹配?",
+          "golden_files": [
+            "src/flask/wrappers.py"
+          ],
+          "retrieved_files": [
+            "src/flask/sansio/blueprints.py",
+            "src/flask/wrappers.py",
+            "src/flask/testing.py",
+            "src/flask/app.py",
+            "src/flask/sansio/app.py",
+            "src/flask/typing.py",
+            "src/flask/helpers.py"
+          ],
+          "retrieval_latency_ms": 193.1,
+          "tags": [
+            "python",
+            "web",
+            "wrappers",
+            "framework",
+            "repo:pallets_flask"
+          ]
+        },
+        {
+          "case_id": "rag_067",
+          "query": "How does the requests library handle JSON decoding errors?",
+          "golden_files": [
+            "src/requests/exceptions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/models.py",
+            "src/requests/__init__.py",
+            "src/requests/exceptions.py",
+            "src/requests/sessions.py",
+            "src/requests/api.py"
+          ],
+          "retrieval_latency_ms": 339.04,
+          "tags": [
+            "python",
+            "networking",
+            "http",
+            "exceptions",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_068",
+          "query": "requests异常类继承结构",
+          "golden_files": [
+            "src/requests/exceptions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/exceptions.py",
+            "src/requests/structures.py",
+            "src/requests/hooks.py",
+            "src/requests/sessions.py",
+            "src/requests/cookies.py",
+            "src/requests/__init__.py",
+            "src/requests/auth.py",
+            "src/requests/utils.py",
+            "src/requests/adapters.py"
+          ],
+          "retrieval_latency_ms": 373.05,
+          "tags": [
+            "python",
+            "networking",
+            "http",
+            "exceptions",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_069",
+          "query": "Timeout exception handling in HTTP requests",
+          "golden_files": [
+            "src/requests/exceptions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/exceptions.py",
+            "src/requests/__init__.py",
+            "src/requests/adapters.py",
+            "src/requests/models.py",
+            "src/requests/sessions.py"
+          ],
+          "retrieval_latency_ms": 319.26,
+          "tags": [
+            "python",
+            "networking",
+            "http",
+            "exceptions",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_070",
+          "query": "How does the redirect handling work in the requests library?",
+          "golden_files": [
+            "src/requests/models.py"
+          ],
+          "retrieved_files": [
+            "src/requests/models.py",
+            "src/requests/sessions.py",
+            "src/requests/__init__.py"
+          ],
+          "retrieval_latency_ms": 537.12,
+          "tags": [
+            "models",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_071",
+          "query": "如何处理HTTP重定向？",
+          "golden_files": [
+            "src/requests/models.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/exceptions.py",
+            "src/requests/auth.py",
+            "src/requests/cookies.py",
+            "src/requests/adapters.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 211.89,
+          "tags": [
+            "models",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_072",
+          "query": "multipart/form-data encoding in requests library",
+          "golden_files": [
+            "src/requests/models.py"
+          ],
+          "retrieved_files": [
+            "src/requests/auth.py",
+            "src/requests/models.py",
+            "src/requests/__init__.py"
+          ],
+          "retrieval_latency_ms": 369.2,
+          "tags": [
+            "models",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_073",
+          "query": "How does Requests handle cookie storage?",
+          "golden_files": [
+            "src/requests/cookies.py"
+          ],
+          "retrieved_files": [
+            "src/requests/cookies.py",
+            "src/requests/models.py",
+            "src/requests/auth.py",
+            "src/requests/sessions.py",
+            "src/requests/utils.py"
+          ],
+          "retrieval_latency_ms": 360.53,
+          "tags": [
+            "python",
+            "cookies",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_074",
+          "query": "cookie jar management in Python HTTP library",
+          "golden_files": [
+            "src/requests/cookies.py"
+          ],
+          "retrieved_files": [
+            "src/requests/cookies.py",
+            "src/requests/__init__.py",
+            "src/requests/utils.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 368.62,
+          "tags": [
+            "python",
+            "cookies",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_075",
+          "query": "如何在Requests中管理Cookie存储?",
+          "golden_files": [
+            "src/requests/cookies.py"
+          ],
+          "retrieved_files": [
+            "src/requests/cookies.py",
+            "src/requests/models.py",
+            "src/requests/utils.py"
+          ],
+          "retrieval_latency_ms": 215.65,
+          "tags": [
+            "python",
+            "cookies",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_076",
+          "query": "How to extract authentication credentials from a URL",
+          "golden_files": [
+            "src/requests/utils.py"
+          ],
+          "retrieved_files": [
+            "src/requests/utils.py",
+            "src/requests/sessions.py",
+            "src/requests/auth.py",
+            "src/requests/adapters.py",
+            "src/requests/models.py",
+            "src/requests/cookies.py"
+          ],
+          "retrieval_latency_ms": 207.23,
+          "tags": [
+            "utils",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_077",
+          "query": "Convert CookieJar object to dictionary in Python requests",
+          "golden_files": [
+            "src/requests/utils.py"
+          ],
+          "retrieved_files": [
+            "src/requests/utils.py",
+            "src/requests/cookies.py"
+          ],
+          "retrieval_latency_ms": 355.74,
+          "tags": [
+            "utils",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_078",
+          "query": "如何解码HTTP头中的URL编码值",
+          "golden_files": [
+            "src/requests/utils.py"
+          ],
+          "retrieved_files": [
+            "src/requests/models.py",
+            "src/requests/sessions.py",
+            "src/requests/adapters.py",
+            "src/requests/auth.py"
+          ],
+          "retrieval_latency_ms": 202.72,
+          "tags": [
+            "utils",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_079",
+          "query": "How does the Requests library handle HTTP Digest Authentication?",
+          "golden_files": [
+            "src/requests/auth.py"
+          ],
+          "retrieved_files": [
+            "src/requests/auth.py",
+            "src/requests/__init__.py",
+            "src/requests/sessions.py"
+          ],
+          "retrieval_latency_ms": 180.73,
+          "tags": [
+            "python",
+            "networking",
+            "auth",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_080",
+          "query": "requests库中HTTP基本认证的实现代码",
+          "golden_files": [
+            "src/requests/auth.py"
+          ],
+          "retrieved_files": [
+            "src/requests/__init__.py",
+            "src/requests/auth.py",
+            "src/requests/exceptions.py",
+            "src/requests/cookies.py",
+            "src/requests/sessions.py",
+            "src/requests/adapters.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 439.68,
+          "tags": [
+            "python",
+            "networking",
+            "auth",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_081",
+          "query": "Implementing HTTP Proxy Auth in Python's Requests library",
+          "golden_files": [
+            "src/requests/auth.py"
+          ],
+          "retrieved_files": [
+            "src/requests/auth.py",
+            "src/requests/adapters.py",
+            "src/requests/__init__.py",
+            "src/requests/models.py"
+          ],
+          "retrieval_latency_ms": 188.59,
+          "tags": [
+            "python",
+            "networking",
+            "auth",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_082",
+          "query": "How does the requests library handle HTTP redirects in sessions?",
+          "golden_files": [
+            "src/requests/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/__init__.py",
+            "src/requests/auth.py",
+            "src/requests/models.py"
+          ],
+          "retrieval_latency_ms": 314.48,
+          "tags": [
+            "sessions",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_083",
+          "query": "merge_setting function implementation in requests sessions",
+          "golden_files": [
+            "src/requests/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/api.py",
+            "src/requests/help.py",
+            "src/requests/_internal_utils.py"
+          ],
+          "retrieval_latency_ms": 172.17,
+          "tags": [
+            "sessions",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_084",
+          "query": "requests库中Session类如何管理重定向？",
+          "golden_files": [
+            "src/requests/sessions.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/auth.py",
+            "src/requests/__init__.py",
+            "src/requests/models.py"
+          ],
+          "retrieval_latency_ms": 307.98,
+          "tags": [
+            "sessions",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_085",
+          "query": "How does the Requests library configure HTTP connection pools in adapters.py?",
+          "golden_files": [
+            "src/requests/adapters.py"
+          ],
+          "retrieved_files": [
+            "src/requests/adapters.py",
+            "src/requests/sessions.py",
+            "src/requests/__init__.py"
+          ],
+          "retrieval_latency_ms": 313.07,
+          "tags": [
+            "python",
+            "networking",
+            "adapters",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_086",
+          "query": "What is the implementation of SSL certificate verification in the HTTPAdapter class?",
+          "golden_files": [
+            "src/requests/adapters.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/adapters.py",
+            "src/requests/help.py"
+          ],
+          "retrieval_latency_ms": 201.36,
+          "tags": [
+            "python",
+            "security",
+            "adapters",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_087",
+          "query": "Requests库中HTTP适配器如何处理代理服务器的TLS设置？",
+          "golden_files": [
+            "src/requests/adapters.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/adapters.py",
+            "src/requests/exceptions.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 336.12,
+          "tags": [
+            "python",
+            "networking",
+            "adapters",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_088",
+          "query": "How does the CaseInsensitiveDict handle case-insensitive keys in HTTP headers?",
+          "golden_files": [
+            "src/requests/structures.py"
+          ],
+          "retrieved_files": [
+            "src/requests/utils.py",
+            "src/requests/structures.py",
+            "src/requests/models.py",
+            "src/requests/adapters.py",
+            "src/requests/sessions.py"
+          ],
+          "retrieval_latency_ms": 387.04,
+          "tags": [
+            "structures",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_089",
+          "query": "CaseInsensitiveDict implementation in requests library",
+          "golden_files": [
+            "src/requests/structures.py"
+          ],
+          "retrieved_files": [
+            "src/requests/utils.py",
+            "src/requests/structures.py",
+            "src/requests/sessions.py",
+            "src/requests/models.py",
+            "src/requests/adapters.py",
+            "src/requests/cookies.py",
+            "src/requests/help.py",
+            "src/requests/_internal_utils.py"
+          ],
+          "retrieval_latency_ms": 319.58,
+          "tags": [
+            "structures",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_090",
+          "query": "Python 不区分大小写的字典实现原理",
+          "golden_files": [
+            "src/requests/structures.py"
+          ],
+          "retrieved_files": [
+            "src/requests/compat.py",
+            "src/requests/help.py",
+            "src/requests/structures.py",
+            "src/requests/__init__.py",
+            "src/requests/packages.py",
+            "src/requests/_internal_utils.py",
+            "src/requests/utils.py"
+          ],
+          "retrieval_latency_ms": 374.11,
+          "tags": [
+            "structures",
+            "python",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_091",
+          "query": "How does the GET request handle query parameters?",
+          "golden_files": [
+            "src/requests/api.py"
+          ],
+          "retrieved_files": [
+            "src/requests/sessions.py",
+            "src/requests/api.py",
+            "src/requests/utils.py",
+            "src/requests/models.py",
+            "src/requests/auth.py",
+            "src/requests/adapters.py",
+            "src/requests/cookies.py"
+          ],
+          "retrieval_latency_ms": 319.83,
+          "tags": [
+            "python",
+            "api",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_092",
+          "query": "HTTP methods implementation in requests library",
+          "golden_files": [
+            "src/requests/api.py"
+          ],
+          "retrieved_files": [
+            "src/requests/__init__.py",
+            "src/requests/api.py",
+            "src/requests/help.py",
+            "src/requests/utils.py",
+            "src/requests/__version__.py",
+            "src/requests/hooks.py",
+            "src/requests/models.py"
+          ],
+          "retrieval_latency_ms": 326.31,
+          "tags": [
+            "python",
+            "api",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_093",
+          "query": "如何在Python中发送带JSON数据的POST请求",
+          "golden_files": [
+            "src/requests/api.py"
+          ],
+          "retrieved_files": [
+            "src/requests/__init__.py",
+            "src/requests/api.py",
+            "src/requests/models.py",
+            "src/requests/__version__.py",
+            "src/requests/sessions.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 301.62,
+          "tags": [
+            "python",
+            "api",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_094",
+          "query": "How are HTTP status codes mapped to numeric values in Python?",
+          "golden_files": [
+            "src/requests/status_codes.py"
+          ],
+          "retrieved_files": [
+            "src/requests/status_codes.py",
+            "src/requests/models.py",
+            "src/requests/__init__.py"
+          ],
+          "retrieval_latency_ms": 201.24,
+          "tags": [
+            "python",
+            "networking",
+            "status_codes",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_095",
+          "query": "HTTP status code dictionary mapping for Python requests library",
+          "golden_files": [
+            "src/requests/status_codes.py"
+          ],
+          "retrieved_files": [
+            "src/requests/status_codes.py",
+            "src/requests/__init__.py",
+            "src/requests/models.py",
+            "src/requests/exceptions.py",
+            "src/requests/__version__.py"
+          ],
+          "retrieval_latency_ms": 210.96,
+          "tags": [
+            "python",
+            "networking",
+            "status_codes",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_096",
+          "query": "Python中HTTP状态码与数字代码的映射关系是怎样的？",
+          "golden_files": [
+            "src/requests/status_codes.py"
+          ],
+          "retrieved_files": [
+            "src/requests/status_codes.py",
+            "src/requests/__init__.py",
+            "src/requests/__version__.py",
+            "src/requests/help.py",
+            "src/requests/models.py",
+            "src/requests/compat.py"
+          ],
+          "retrieval_latency_ms": 473.78,
+          "tags": [
+            "python",
+            "networking",
+            "status_codes",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_097",
+          "query": "How to get Python implementation details",
+          "golden_files": [
+            "src/requests/help.py"
+          ],
+          "retrieved_files": [
+            "src/requests/help.py",
+            "src/requests/compat.py",
+            "src/requests/api.py",
+            "src/requests/utils.py",
+            "src/requests/__init__.py",
+            "src/requests/models.py",
+            "src/requests/_internal_utils.py",
+            "src/requests/sessions.py",
+            "src/requests/adapters.py"
+          ],
+          "retrieval_latency_ms": 438.37,
+          "tags": [
+            "python",
+            "help",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_098",
+          "query": "Bug报告信息结构",
+          "golden_files": [
+            "src/requests/help.py"
+          ],
+          "retrieved_files": [
+            "src/requests/help.py",
+            "src/requests/__init__.py",
+            "src/requests/models.py",
+            "src/requests/exceptions.py",
+            "src/requests/_internal_utils.py",
+            "src/requests/compat.py",
+            "src/requests/status_codes.py"
+          ],
+          "retrieval_latency_ms": 426.26,
+          "tags": [
+            "python",
+            "help",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_099",
+          "query": "系统SSL版本获取",
+          "golden_files": [
+            "src/requests/help.py"
+          ],
+          "retrieved_files": [
+            "src/requests/adapters.py",
+            "src/requests/exceptions.py",
+            "src/requests/__init__.py",
+            "src/requests/help.py",
+            "src/requests/sessions.py",
+            "src/requests/utils.py"
+          ],
+          "retrieval_latency_ms": 195.94,
+          "tags": [
+            "python",
+            "help",
+            "networking",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_100",
+          "query": "How does the requests library handle Python 2 and 3 compatibility?",
+          "golden_files": [
+            "src/requests/compat.py"
+          ],
+          "retrieved_files": [
+            "src/requests/compat.py",
+            "src/requests/__init__.py",
+            "src/requests/__version__.py",
+            "src/requests/models.py",
+            "src/requests/api.py",
+            "src/requests/exceptions.py",
+            "src/requests/cookies.py",
+            "src/requests/help.py"
+          ],
+          "retrieval_latency_ms": 279.37,
+          "tags": [
+            "python",
+            "networking",
+            "compat",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_101",
+          "query": "urllib3 version detection logic in requests",
+          "golden_files": [
+            "src/requests/compat.py"
+          ],
+          "retrieved_files": [
+            "src/requests/__init__.py",
+            "src/requests/compat.py",
+            "src/requests/__version__.py",
+            "src/requests/help.py"
+          ],
+          "retrieval_latency_ms": 198.63,
+          "tags": [
+            "python",
+            "networking",
+            "compat",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_102",
+          "query": "requests库如何解析字符编码检测库？",
+          "golden_files": [
+            "src/requests/compat.py"
+          ],
+          "retrieved_files": [
+            "src/requests/status_codes.py",
+            "src/requests/help.py",
+            "src/requests/cookies.py",
+            "src/requests/compat.py",
+            "src/requests/exceptions.py",
+            "src/requests/__init__.py",
+            "src/requests/utils.py"
+          ],
+          "retrieval_latency_ms": 346.65,
+          "tags": [
+            "python",
+            "networking",
+            "compat",
+            "http",
+            "repo:psf_requests"
+          ]
+        },
+        {
+          "case_id": "rag_103",
+          "query": "How to create a custom encoded bytes type in Pydantic?",
+          "golden_files": [
+            "pydantic/types.py"
+          ],
+          "retrieved_files": [
+            "pydantic/types.py",
+            "pydantic/v1/json.py",
+            "pydantic/deprecated/json.py",
+            "pydantic/_internal/_generate_schema.py"
+          ],
+          "retrieval_latency_ms": 321.81,
+          "tags": [
+            "types",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_104",
+          "query": "Pydantic 字节大小类型转换",
+          "golden_files": [
+            "pydantic/types.py"
+          ],
+          "retrieved_files": [
+            "pydantic/types.py",
+            "pydantic/_migration.py",
+            "pydantic/v1/errors.py",
+            "pydantic/v1/types.py",
+            "pydantic/_internal/_core_metadata.py"
+          ],
+          "retrieval_latency_ms": 181.69,
+          "tags": [
+            "types",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_105",
+          "query": "Pydantic Discriminator with Tag example",
+          "golden_files": [
+            "pydantic/types.py"
+          ],
+          "retrieved_files": [
+            "pydantic/types.py",
+            "pydantic/errors.py",
+            "pydantic/v1/errors.py"
+          ],
+          "retrieval_latency_ms": 309.57,
+          "tags": [
+            "types",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_106",
+          "query": "How to implement a custom validator in pydantic-core's core_schema?",
+          "golden_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/types.py",
+            "pydantic/plugin/_schema_validator.py",
+            "pydantic/_internal/_known_annotated_metadata.py",
+            "pydantic/json_schema.py",
+            "pydantic/_internal/_generate_schema.py"
+          ],
+          "retrieval_latency_ms": 346.59,
+          "tags": [
+            "validation",
+            "core_schema",
+            "custom_validator",
+            "typing",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_107",
+          "query": "UnionSchema usage examples in pydantic-core",
+          "golden_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/json_schema.py",
+            "pydantic/plugin/__init__.py",
+            "pydantic/_internal/_mock_val_ser.py",
+            "pydantic/v1/types.py",
+            "pydantic/__init__.py",
+            "pydantic/types.py"
+          ],
+          "retrieval_latency_ms": 324.39,
+          "tags": [
+            "typing",
+            "core_schema",
+            "union_schema",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_108",
+          "query": "如何在pydantic-core中使用definitions_schema定义递归模型？",
+          "golden_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/json_schema.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/_internal/_schema_generation_shared.py"
+          ],
+          "retrieval_latency_ms": 197.33,
+          "tags": [
+            "递归模型",
+            "core_schema",
+            "definitions_schema",
+            "类型定义",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_109",
+          "query": "How does Pydantic validate URLs and email addresses?",
+          "golden_files": [
+            "pydantic/networks.py"
+          ],
+          "retrieved_files": [
+            "pydantic/networks.py",
+            "pydantic/v1/networks.py",
+            "pydantic/errors.py",
+            "pydantic/v1/_hypothesis_plugin.py",
+            "pydantic/v1/errors.py",
+            "pydantic/v1/schema.py",
+            "pydantic/v1/__init__.py"
+          ],
+          "retrieval_latency_ms": 220.56,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "networks",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_110",
+          "query": "Pydantic URL parsing and validation methods",
+          "golden_files": [
+            "pydantic/networks.py"
+          ],
+          "retrieved_files": [
+            "pydantic/networks.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/errors.py",
+            "pydantic/config.py",
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/_migration.py",
+            "pydantic/types.py",
+            "pydantic/v1/errors.py"
+          ],
+          "retrieval_latency_ms": 215.14,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "networks",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_111",
+          "query": "Pydantic 如何验证 URL 和电子邮件地址？",
+          "golden_files": [
+            "pydantic/networks.py"
+          ],
+          "retrieved_files": [
+            "pydantic/networks.py",
+            "pydantic/v1/networks.py",
+            "pydantic/errors.py",
+            "pydantic/v1/errors.py",
+            "pydantic/v1/schema.py"
+          ],
+          "retrieval_latency_ms": 180.23,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "networks",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_112",
+          "query": "How to configure extra fields in Pydantic models?",
+          "golden_files": [
+            "pydantic/config.py"
+          ],
+          "retrieved_files": [
+            "pydantic/v1/decorator.py",
+            "pydantic/config.py",
+            "pydantic/v1/env_settings.py",
+            "pydantic/v1/schema.py",
+            "pydantic/v1/dataclasses.py",
+            "pydantic/main.py"
+          ],
+          "retrieval_latency_ms": 460.41,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "config",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_113",
+          "query": "Pydantic 配置字典用法",
+          "golden_files": [
+            "pydantic/config.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_migration.py",
+            "pydantic/main.py",
+            "pydantic/_internal/_typing_extra.py",
+            "pydantic/v1/dataclasses.py",
+            "pydantic-core/python/pydantic_core/__init__.py",
+            "pydantic/config.py",
+            "pydantic/__init__.py"
+          ],
+          "retrieval_latency_ms": 330.69,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "config",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_114",
+          "query": "Pydantic ConfigDict frozen parameter explanation",
+          "golden_files": [
+            "pydantic/config.py"
+          ],
+          "retrieved_files": [
+            "pydantic/dataclasses.py",
+            "pydantic/mypy.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_migration.py",
+            "pydantic/experimental/arguments_schema.py",
+            "pydantic/_internal/_typing_extra.py",
+            "pydantic/v1/decorator.py",
+            "pydantic/v1/mypy.py",
+            "pydantic/_internal/_decorators_v1.py"
+          ],
+          "retrieval_latency_ms": 194.31,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "config",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_115",
+          "query": "How does Pydantic's GenerateJsonSchema handle reference overrides in JSON schemas?",
+          "golden_files": [
+            "pydantic/json_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/json_schema.py",
+            "pydantic/_internal/_core_metadata.py",
+            "pydantic/_internal/_schema_generation_shared.py",
+            "pydantic/v1/schema.py",
+            "pydantic/type_adapter.py",
+            "pydantic/main.py"
+          ],
+          "retrieval_latency_ms": 208.02,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "json_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_116",
+          "query": "Pydantic中如何通过定义引用实现JSON schema的复用？",
+          "golden_files": [
+            "pydantic/json_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/json_schema.py",
+            "pydantic/_internal/_core_metadata.py",
+            "pydantic/_internal/_schema_generation_shared.py",
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieval_latency_ms": 324.94,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "json_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_117",
+          "query": "Customizing JSON schema validation for complex types in Pydantic",
+          "golden_files": [
+            "pydantic/json_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/__init__.py",
+            "pydantic/types.py",
+            "pydantic/json_schema.py",
+            "pydantic/experimental/pipeline.py",
+            "pydantic/_internal/_known_annotated_metadata.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/plugin/_schema_validator.py",
+            "pydantic/_internal/_config.py"
+          ],
+          "retrieval_latency_ms": 379.35,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "json_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_118",
+          "query": "How do field validators work in Pydantic?",
+          "golden_files": [
+            "pydantic/functional_validators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/functional_validators.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/_internal/_decorators_v1.py",
+            "pydantic/v1/types.py",
+            "pydantic/_internal/_validators.py",
+            "pydantic/v1/class_validators.py",
+            "pydantic/config.py",
+            "pydantic/main.py"
+          ],
+          "retrieval_latency_ms": 1011.06,
+          "tags": [
+            "typing",
+            "python",
+            "functional_validators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_119",
+          "query": "Pydantic field validator modes and usage",
+          "golden_files": [
+            "pydantic/functional_validators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/functional_validators.py",
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/v1/types.py",
+            "pydantic/config.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_internal/_decorators.py"
+          ],
+          "retrieval_latency_ms": 192.55,
+          "tags": [
+            "typing",
+            "python",
+            "functional_validators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_120",
+          "query": "Pydantic 字段验证器模式详解",
+          "golden_files": [
+            "pydantic/functional_validators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/functional_validators.py",
+            "pydantic/_migration.py",
+            "pydantic/_internal/_decorators_v1.py",
+            "pydantic/config.py",
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/_internal/_core_metadata.py"
+          ],
+          "retrieval_latency_ms": 333.85,
+          "tags": [
+            "typing",
+            "python",
+            "functional_validators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_121",
+          "query": "How to implement a type-checked validation pipeline in Pydantic?",
+          "golden_files": [
+            "pydantic/experimental/pipeline.py"
+          ],
+          "retrieved_files": [
+            "pydantic/experimental/pipeline.py",
+            "pydantic/plugin/_schema_validator.py",
+            "pydantic/plugin/__init__.py",
+            "pydantic/functional_validators.py",
+            "pydantic/v1/decorator.py"
+          ],
+          "retrieval_latency_ms": 322.3,
+          "tags": [
+            "pipeline",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_122",
+          "query": "Pydantic pipeline type validation example",
+          "golden_files": [
+            "pydantic/experimental/pipeline.py"
+          ],
+          "retrieved_files": [
+            "pydantic/experimental/pipeline.py",
+            "pydantic/v1/types.py",
+            "pydantic/plugin/__init__.py",
+            "pydantic/type_adapter.py"
+          ],
+          "retrieval_latency_ms": 200.69,
+          "tags": [
+            "pipeline",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_123",
+          "query": "Pydantic 验证管道类型转换示例",
+          "golden_files": [
+            "pydantic/experimental/pipeline.py"
+          ],
+          "retrieved_files": [
+            "pydantic/experimental/pipeline.py",
+            "pydantic/_migration.py",
+            "pydantic/v1/types.py",
+            "pydantic/errors.py",
+            "pydantic/v1/dataclasses.py",
+            "pydantic/_internal/_core_metadata.py"
+          ],
+          "retrieval_latency_ms": 430.31,
+          "tags": [
+            "pipeline",
+            "typing",
+            "python",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_124",
+          "query": "How does Pydantic's FieldInfo collect metadata from kwargs?",
+          "golden_files": [
+            "pydantic/fields.py"
+          ],
+          "retrieved_files": [
+            "pydantic/fields.py",
+            "pydantic/mypy.py"
+          ],
+          "retrieval_latency_ms": 462.7,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "fields",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_125",
+          "query": "Pydantic FieldInfo 的元数据收集机制实现",
+          "golden_files": [
+            "pydantic/fields.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_fields.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/fields.py",
+            "pydantic/v1/fields.py"
+          ],
+          "retrieval_latency_ms": 317.47,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "fields",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_126",
+          "query": "ComputedFieldInfo 在 Pydantic 模型中的应用与配置",
+          "golden_files": [
+            "pydantic/fields.py"
+          ],
+          "retrieved_files": [
+            "pydantic/fields.py",
+            "pydantic/_internal/_model_construction.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/main.py",
+            "pydantic/_internal/_dataclasses.py",
+            "pydantic/v1/fields.py"
+          ],
+          "retrieval_latency_ms": 284.09,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "fields",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_127",
+          "query": "Pydantic generate schema for annotated types",
+          "golden_files": [
+            "pydantic/_internal/_generate_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/_internal/_schema_generation_shared.py",
+            "pydantic/annotated_handlers.py",
+            "pydantic/experimental/pipeline.py",
+            "pydantic/types.py",
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieval_latency_ms": 313.7,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "_generate_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_128",
+          "query": "How does Pydantic handle field serializers in schema generation?",
+          "golden_files": [
+            "pydantic/_internal/_generate_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic/functional_validators.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/json_schema.py",
+            "pydantic/__init__.py",
+            "pydantic/v1/schema.py",
+            "pydantic-core/python/pydantic_core/core_schema.py"
+          ],
+          "retrieval_latency_ms": 307.88,
+          "tags": [
+            "serialization",
+            "python",
+            "validation",
+            "_generate_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_129",
+          "query": "如何在 Pydantic 中定义和引用 schema ？",
+          "golden_files": [
+            "pydantic/_internal/_generate_schema.py"
+          ],
+          "retrieved_files": [
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_internal/_schema_gather.py",
+            "pydantic/json_schema.py",
+            "pydantic/types.py",
+            "pydantic/_internal/_schema_generation_shared.py"
+          ],
+          "retrieval_latency_ms": 498.09,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "_generate_schema",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_130",
+          "query": "How does the pydantic mypy plugin handle untyped fields in models?",
+          "golden_files": [
+            "pydantic/mypy.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/v1/mypy.py",
+            "pydantic/_migration.py",
+            "pydantic/mypy.py"
+          ],
+          "retrieval_latency_ms": 206.48,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "mypy",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_131",
+          "query": "如何通过mypy插件配置Pydantic模型的字段验证规则？",
+          "golden_files": [
+            "pydantic/mypy.py"
+          ],
+          "retrieved_files": [
+            "pydantic/mypy.py",
+            "pydantic/config.py",
+            "pydantic/_migration.py",
+            "pydantic/v1/mypy.py",
+            "pydantic/v1/networks.py"
+          ],
+          "retrieval_latency_ms": 192.87,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "mypy",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_132",
+          "query": "What functions are responsible for detecting dynamic aliases in Pydantic models?",
+          "golden_files": [
+            "pydantic/mypy.py"
+          ],
+          "retrieved_files": [
+            "pydantic/v1/mypy.py",
+            "pydantic/mypy.py",
+            "pydantic/functional_serializers.py",
+            "pydantic/aliases.py"
+          ],
+          "retrieval_latency_ms": 177.74,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "mypy",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_133",
+          "query": "How does Pydantic's BaseModel perform data validation?",
+          "golden_files": [
+            "pydantic/main.py"
+          ],
+          "retrieved_files": [
+            "pydantic/config.py",
+            "pydantic/_internal/_core_utils.py",
+            "pydantic/root_model.py",
+            "pydantic/types.py",
+            "pydantic/main.py",
+            "pydantic/deprecated/decorator.py",
+            "pydantic/v1/main.py"
+          ],
+          "retrieval_latency_ms": 194.04,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "main",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_134",
+          "query": "Pydantic 类型验证机制实现原理",
+          "golden_files": [
+            "pydantic/main.py"
+          ],
+          "retrieved_files": [
+            "pydantic/functional_validators.py",
+            "pydantic/_migration.py",
+            "pydantic/v1/dataclasses.py",
+            "pydantic/_internal/_core_utils.py",
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/type_adapter.py",
+            "pydantic/_internal/_core_metadata.py"
+          ],
+          "retrieval_latency_ms": 196.06,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "main",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_135",
+          "query": "Pydantic validation error handling best practices",
+          "golden_files": [
+            "pydantic/main.py"
+          ],
+          "retrieved_files": [
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/main.py",
+            "pydantic/v1/__init__.py",
+            "pydantic/v1/validators.py",
+            "pydantic/v1/dataclasses.py",
+            "pydantic/_internal/_discriminated_union.py",
+            "pydantic/_internal/_config.py",
+            "pydantic/errors.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_internal/_validators.py"
+          ],
+          "retrieval_latency_ms": 205.75,
+          "tags": [
+            "typing",
+            "python",
+            "validation",
+            "main",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_136",
+          "query": "How does pydantic handle decorator metadata for validators and serializers?",
+          "golden_files": [
+            "pydantic/_internal/_decorators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/mypy.py",
+            "pydantic/_internal/_decorators.py",
+            "pydantic/deprecated/class_validators.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/__init__.py"
+          ],
+          "retrieval_latency_ms": 319.64,
+          "tags": [
+            "typing",
+            "python",
+            "_decorators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_137",
+          "query": "装饰器元数据如何用于字段验证器和序列化器的绑定？",
+          "golden_files": [
+            "pydantic/_internal/_decorators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/_internal/_core_utils.py",
+            "pydantic/v1/class_validators.py",
+            "pydantic/v1/fields.py",
+            "pydantic/v1/schema.py"
+          ],
+          "retrieval_latency_ms": 624.79,
+          "tags": [
+            "typing",
+            "python",
+            "_decorators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_138",
+          "query": "What functions implement MRO calculation for TypedDict in pydantic?",
+          "golden_files": [
+            "pydantic/_internal/_decorators.py"
+          ],
+          "retrieved_files": [
+            "pydantic/_internal/_core_metadata.py",
+            "pydantic/_internal/_decorators.py",
+            "pydantic/_internal/_generate_schema.py",
+            "pydantic/mypy.py",
+            "pydantic-core/src/self_schema.py",
+            "pydantic-core/python/pydantic_core/core_schema.py",
+            "pydantic/_migration.py"
+          ],
+          "retrieval_latency_ms": 191.3,
+          "tags": [
+            "typing",
+            "python",
+            "_decorators",
+            "validation",
+            "repo:pydantic_pydantic"
+          ]
+        },
+        {
+          "case_id": "rag_139",
+          "query": "How does the HTTP client handle connection timeouts?",
+          "golden_files": [
+            "httpx/_exceptions.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_config.py",
+            "httpx/_transports/default.py",
+            "httpx/_exceptions.py",
+            "httpx/_transports/base.py",
+            "httpx/_transports/asgi.py"
+          ],
+          "retrieval_latency_ms": 353.65,
+          "tags": [
+            "async",
+            "python",
+            "_exceptions",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_140",
+          "query": "HTTP 异常继承结构详解",
+          "golden_files": [
+            "httpx/_exceptions.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_transports/default.py",
+            "httpx/_exceptions.py",
+            "httpx/_status_codes.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 225.04,
+          "tags": [
+            "async",
+            "python",
+            "_exceptions",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_141",
+          "query": "Async HTTP client timeout exception types",
+          "golden_files": [
+            "httpx/_exceptions.py"
+          ],
+          "retrieved_files": [
+            "httpx/_transports/default.py",
+            "httpx/_exceptions.py",
+            "httpx/_client.py",
+            "httpx/__init__.py",
+            "httpx/_types.py"
+          ],
+          "retrieval_latency_ms": 581.83,
+          "tags": [
+            "async",
+            "python",
+            "_exceptions",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_142",
+          "query": "How does the httpx library handle sensitive headers like authorization in async requests?",
+          "golden_files": [
+            "httpx/_models.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_models.py",
+            "httpx/_transports/asgi.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 325.09,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_models",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_143",
+          "query": "如何在httpx中实现HTTP头的标准化和敏感信息脱敏？",
+          "golden_files": [
+            "httpx/_models.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_main.py",
+            "httpx/_status_codes.py",
+            "httpx/_client.py",
+            "httpx/_transports/default.py",
+            "httpx/_api.py"
+          ],
+          "retrieval_latency_ms": 307.8,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_models",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_144",
+          "query": "What classes and methods are used for parsing Content-Type headers and handling cookie storage in httpx?",
+          "golden_files": [
+            "httpx/_models.py"
+          ],
+          "retrieved_files": [
+            "httpx/_models.py",
+            "httpx/_types.py",
+            "httpx/_client.py",
+            "httpx/_main.py",
+            "httpx/_exceptions.py"
+          ],
+          "retrieval_latency_ms": 189.75,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_models",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_145",
+          "query": "How does the AsyncClient handle request routing?",
+          "golden_files": [
+            "httpx/_client.py"
+          ],
+          "retrieved_files": [
+            "httpx/_transports/mock.py",
+            "httpx/_transports/asgi.py",
+            "httpx/_transports/base.py",
+            "httpx/_client.py",
+            "httpx/_transports/default.py"
+          ],
+          "retrieval_latency_ms": 181.14,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_client",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_146",
+          "query": "URL dispatch mechanism in httpx Client",
+          "golden_files": [
+            "httpx/_client.py"
+          ],
+          "retrieved_files": [
+            "httpx/_transports/default.py",
+            "httpx/_auth.py",
+            "httpx/_api.py",
+            "httpx/_urls.py",
+            "httpx/_client.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 309.53,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_client",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_147",
+          "query": "HTTP客户端如何处理URL路由?",
+          "golden_files": [
+            "httpx/_client.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_client.py",
+            "httpx/_urlparse.py",
+            "httpx/_models.py"
+          ],
+          "retrieval_latency_ms": 2137.14,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_client",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_148",
+          "query": "How does httpx handle different content encodings?",
+          "golden_files": [
+            "httpx/_decoders.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_decoders.py",
+            "httpx/_urls.py",
+            "httpx/_transports/default.py",
+            "httpx/_content.py",
+            "httpx/_models.py"
+          ],
+          "retrieval_latency_ms": 334.11,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_decoders",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_149",
+          "query": "BrotliDecoder implementation details in httpx",
+          "golden_files": [
+            "httpx/_decoders.py"
+          ],
+          "retrieved_files": [
+            "httpx/_decoders.py",
+            "httpx/_models.py",
+            "httpx/_transports/default.py",
+            "httpx/_urlparse.py"
+          ],
+          "retrieval_latency_ms": 176.78,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_decoders",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_150",
+          "query": "HTTP 解码器支持的压缩类型",
+          "golden_files": [
+            "httpx/_decoders.py"
+          ],
+          "retrieved_files": [
+            "httpx/_decoders.py",
+            "httpx/_status_codes.py",
+            "httpx/_transports/default.py",
+            "httpx/_main.py",
+            "httpx/_client.py",
+            "httpx/_urls.py"
+          ],
+          "retrieval_latency_ms": 184.28,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_decoders",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_151",
+          "query": "How does the URL parsing work in httpx's async HTTP client?",
+          "golden_files": [
+            "httpx/_urls.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_client.py",
+            "httpx/_transports/asgi.py",
+            "httpx/_models.py",
+            "httpx/__init__.py"
+          ],
+          "retrieval_latency_ms": 335.82,
+          "tags": [
+            "_urls",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_152",
+          "query": "QueryParams class implementation for URL parameters in httpx",
+          "golden_files": [
+            "httpx/_urls.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_api.py",
+            "httpx/_client.py"
+          ],
+          "retrieval_latency_ms": 192.26,
+          "tags": [
+            "_urls",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_153",
+          "query": "httpx中URL编码解码的实现方法",
+          "golden_files": [
+            "httpx/_urls.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_client.py",
+            "httpx/_multipart.py",
+            "httpx/_urlparse.py"
+          ],
+          "retrieval_latency_ms": 821.65,
+          "tags": [
+            "_urls",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_154",
+          "query": "How does httpx handle HTTP authentication flows in async Python?",
+          "golden_files": [
+            "httpx/_auth.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_auth.py",
+            "httpx/_transports/default.py",
+            "httpx/_status_codes.py",
+            "httpx/_transports/asgi.py",
+            "httpx/_config.py"
+          ],
+          "retrieval_latency_ms": 253.7,
+          "tags": [
+            "async",
+            "python",
+            "_auth",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_155",
+          "query": "如何在httpx中实现自定义认证方案？",
+          "golden_files": [
+            "httpx/_auth.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_urls.py",
+            "httpx/_api.py",
+            "httpx/_transports/default.py",
+            "httpx/_auth.py",
+            "httpx/_utils.py",
+            "httpx/__init__.py"
+          ],
+          "retrieval_latency_ms": 332.22,
+          "tags": [
+            "async",
+            "python",
+            "_auth",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_156",
+          "query": "DigestAuth challenge parsing implementation details",
+          "golden_files": [
+            "httpx/_auth.py"
+          ],
+          "retrieved_files": [
+            "httpx/_auth.py",
+            "httpx/_urlparse.py"
+          ],
+          "retrieval_latency_ms": 175.84,
+          "tags": [
+            "async",
+            "python",
+            "_auth",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_157",
+          "query": "How does httpx's MultipartStream handle streaming file uploads?",
+          "golden_files": [
+            "httpx/_multipart.py"
+          ],
+          "retrieved_files": [
+            "httpx/_multipart.py",
+            "httpx/_content.py",
+            "httpx/_client.py",
+            "httpx/_api.py",
+            "httpx/_exceptions.py"
+          ],
+          "retrieval_latency_ms": 182.4,
+          "tags": [
+            "async",
+            "python",
+            "_multipart",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_158",
+          "query": "Implementing multipart form data encoding in httpx",
+          "golden_files": [
+            "httpx/_multipart.py"
+          ],
+          "retrieved_files": [
+            "httpx/_multipart.py",
+            "httpx/_content.py",
+            "httpx/_client.py",
+            "httpx/_urlparse.py"
+          ],
+          "retrieval_latency_ms": 194.56,
+          "tags": [
+            "async",
+            "python",
+            "_multipart",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_159",
+          "query": "httpx 中 _format_form_param 的编码逻辑是怎样的？",
+          "golden_files": [
+            "httpx/_multipart.py"
+          ],
+          "retrieved_files": [
+            "httpx/_multipart.py",
+            "httpx/_urlparse.py",
+            "httpx/_urls.py",
+            "httpx/_auth.py"
+          ],
+          "retrieval_latency_ms": 510.95,
+          "tags": [
+            "async",
+            "python",
+            "_multipart",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_160",
+          "query": "How does the HTTP transport handle SSL certificate verification?",
+          "golden_files": [
+            "httpx/_transports/default.py"
+          ],
+          "retrieved_files": [
+            "httpx/_client.py",
+            "httpx/_transports/default.py",
+            "httpx/_config.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 195.42,
+          "tags": [
+            "default",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_161",
+          "query": "异步HTTP传输的连接池配置",
+          "golden_files": [
+            "httpx/_transports/default.py"
+          ],
+          "retrieved_files": [
+            "httpx/_transports/default.py",
+            "httpx/_status_codes.py",
+            "httpx/_config.py",
+            "httpx/_main.py",
+            "httpx/_transports/asgi.py"
+          ],
+          "retrieval_latency_ms": 343.77,
+          "tags": [
+            "default",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_162",
+          "query": "How are httpcore exceptions mapped to httpx HTTP errors?",
+          "golden_files": [
+            "httpx/_transports/default.py"
+          ],
+          "retrieved_files": [
+            "httpx/_transports/default.py",
+            "httpx/_transports/wsgi.py",
+            "httpx/_exceptions.py"
+          ],
+          "retrieval_latency_ms": 294.18,
+          "tags": [
+            "default",
+            "async",
+            "python",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_163",
+          "query": "async HTTP request content encoding",
+          "golden_files": [
+            "httpx/_content.py"
+          ],
+          "retrieved_files": [
+            "httpx/_decoders.py",
+            "httpx/_models.py",
+            "httpx/_client.py",
+            "httpx/_status_codes.py",
+            "httpx/_content.py",
+            "httpx/_urlparse.py"
+          ],
+          "retrieval_latency_ms": 311.12,
+          "tags": [
+            "async",
+            "python",
+            "_content",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_164",
+          "query": "How does httpx handle async content encoding for various data types?",
+          "golden_files": [
+            "httpx/_content.py"
+          ],
+          "retrieved_files": [
+            "httpx/_content.py",
+            "httpx/_client.py",
+            "httpx/_decoders.py",
+            "httpx/_models.py"
+          ],
+          "retrieval_latency_ms": 307.67,
+          "tags": [
+            "async",
+            "python",
+            "_content",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_165",
+          "query": "HTTP multipart/form-data 编码实现原理",
+          "golden_files": [
+            "httpx/_content.py"
+          ],
+          "retrieved_files": [
+            "httpx/_multipart.py",
+            "httpx/_content.py",
+            "httpx/_client.py"
+          ],
+          "retrieval_latency_ms": 186.64,
+          "tags": [
+            "async",
+            "python",
+            "_content",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_166",
+          "query": "How does the Timeout class handle different operation timeouts in httpx?",
+          "golden_files": [
+            "httpx/_config.py"
+          ],
+          "retrieved_files": [
+            "httpx/_exceptions.py",
+            "httpx/_config.py",
+            "httpx/_client.py",
+            "httpx/_models.py",
+            "httpx/_decoders.py"
+          ],
+          "retrieval_latency_ms": 202.68,
+          "tags": [
+            "async",
+            "python",
+            "_config",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_167",
+          "query": "HTTP客户端连接限制配置方法",
+          "golden_files": [
+            "httpx/_config.py"
+          ],
+          "retrieved_files": [
+            "httpx/_status_codes.py",
+            "httpx/_config.py",
+            "httpx/_transports/default.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 179.29,
+          "tags": [
+            "async",
+            "python",
+            "_config",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_168",
+          "query": "SSL context creation and certificate configuration in httpx",
+          "golden_files": [
+            "httpx/_config.py"
+          ],
+          "retrieved_files": [
+            "httpx/_config.py",
+            "httpx/_transports/default.py",
+            "httpx/_api.py",
+            "httpx/_client.py",
+            "httpx/_main.py"
+          ],
+          "retrieval_latency_ms": 189.8,
+          "tags": [
+            "async",
+            "python",
+            "_config",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_169",
+          "query": "How does the URL pattern matching work in httpx?",
+          "golden_files": [
+            "httpx/_utils.py"
+          ],
+          "retrieved_files": [
+            "httpx/_utils.py",
+            "httpx/_urls.py",
+            "httpx/_urlparse.py",
+            "httpx/_client.py",
+            "httpx/_transports/default.py",
+            "httpx/_api.py"
+          ],
+          "retrieval_latency_ms": 321.89,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_utils",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_170",
+          "query": "URL routing pattern matching implementation",
+          "golden_files": [
+            "httpx/_utils.py"
+          ],
+          "retrieved_files": [
+            "httpx/_utils.py",
+            "httpx/_urlparse.py",
+            "httpx/_urls.py",
+            "httpx/_client.py"
+          ],
+          "retrieval_latency_ms": 313.43,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_utils",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_171",
+          "query": "HTTP URL 匹配规则实现",
+          "golden_files": [
+            "httpx/_utils.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_urlparse.py",
+            "httpx/_models.py"
+          ],
+          "retrieval_latency_ms": 347.81,
+          "tags": [
+            "async",
+            "python",
+            "http",
+            "_utils",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_172",
+          "query": "How does httpx handle URL path normalization and encoding?",
+          "golden_files": [
+            "httpx/_urlparse.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_urlparse.py",
+            "httpx/_transports/default.py"
+          ],
+          "retrieval_latency_ms": 187.76,
+          "tags": [
+            "async",
+            "python",
+            "_urlparse",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_173",
+          "query": "URL parsing and encoding implementation in Python async HTTP client",
+          "golden_files": [
+            "httpx/_urlparse.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urlparse.py",
+            "httpx/_client.py",
+            "httpx/_content.py",
+            "httpx/_multipart.py",
+            "httpx/_models.py"
+          ],
+          "retrieval_latency_ms": 306.62,
+          "tags": [
+            "async",
+            "python",
+            "_urlparse",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_174",
+          "query": "Python异步HTTP客户端如何解析和规范化URL路径?",
+          "golden_files": [
+            "httpx/_urlparse.py"
+          ],
+          "retrieved_files": [
+            "httpx/_urls.py",
+            "httpx/_urlparse.py",
+            "httpx/_utils.py",
+            "httpx/_client.py"
+          ],
+          "retrieval_latency_ms": 174.48,
+          "tags": [
+            "async",
+            "python",
+            "_urlparse",
+            "http",
+            "repo:encode_httpx"
+          ]
+        },
+        {
+          "case_id": "rag_175",
+          "query": "How to define API information in FastAPI OpenAPI models?",
+          "golden_files": [
+            "fastapi/openapi/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/openapi/models.py",
+            "fastapi/applications.py",
+            "fastapi/routing.py",
+            "fastapi/encoders.py"
+          ],
+          "retrieval_latency_ms": 648.75,
+          "tags": [
+            "models",
+            "python",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_176",
+          "query": "Server URL configuration in FastAPI OpenAPI models",
+          "golden_files": [
+            "fastapi/openapi/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/openapi/models.py",
+            "fastapi/applications.py",
+            "fastapi/openapi/docs.py"
+          ],
+          "retrieval_latency_ms": 222.46,
+          "tags": [
+            "models",
+            "python",
+            "async",
+            "web",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_177",
+          "query": "如何在FastAPI OpenAPI模型中定义许可证信息?",
+          "golden_files": [
+            "fastapi/openapi/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/routing.py",
+            "fastapi/applications.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/openapi/utils.py"
+          ],
+          "retrieval_latency_ms": 318.75,
+          "tags": [
+            "models",
+            "python",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_178",
+          "query": "How does FastAPI match URL paths to endpoints?",
+          "golden_files": [
+            "fastapi/routing.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/routing.py",
+            "fastapi/__init__.py",
+            "fastapi/openapi/utils.py"
+          ],
+          "retrieval_latency_ms": 187.92,
+          "tags": [
+            "routing",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_179",
+          "query": "URL path routing dispatch mechanism in FastAPI",
+          "golden_files": [
+            "fastapi/routing.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 195.36,
+          "tags": [
+            "routing",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_180",
+          "query": "FastAPI路由生命周期事件处理",
+          "golden_files": [
+            "fastapi/routing.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 201.26,
+          "tags": [
+            "routing",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_181",
+          "query": "How does FastAPI's routing system handle different HTTP methods?",
+          "golden_files": [
+            "fastapi/applications.py"
+          ],
+          "retrieved_files": [
+            "fastapi/routing.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/applications.py"
+          ],
+          "retrieval_latency_ms": 209.57,
+          "tags": [
+            "python",
+            "async",
+            "web",
+            "applications",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_182",
+          "query": "FastAPI URL path matching implementation details",
+          "golden_files": [
+            "fastapi/applications.py"
+          ],
+          "retrieved_files": [
+            "fastapi/routing.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/applications.py",
+            "fastapi/sse.py"
+          ],
+          "retrieval_latency_ms": 392.04,
+          "tags": [
+            "python",
+            "async",
+            "web",
+            "applications",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_183",
+          "query": "FastAPI 中间件如何集成到应用中？",
+          "golden_files": [
+            "fastapi/applications.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/openapi/docs.py",
+            "fastapi/param_functions.py"
+          ],
+          "retrieval_latency_ms": 260.86,
+          "tags": [
+            "python",
+            "async",
+            "web",
+            "applications",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_184",
+          "query": "How does FastAPI handle query parameters?",
+          "golden_files": [
+            "fastapi/params.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/security/api_key.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/applications.py"
+          ],
+          "retrieval_latency_ms": 183.06,
+          "tags": [
+            "python",
+            "web",
+            "params",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_185",
+          "query": "FastAPI 中的参数类型如何定义",
+          "golden_files": [
+            "fastapi/params.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/applications.py",
+            "fastapi/openapi/utils.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 325.93,
+          "tags": [
+            "python",
+            "params",
+            "web",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_186",
+          "query": "Query parameter validation implementation in FastAPI",
+          "golden_files": [
+            "fastapi/params.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/security/api_key.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 321.22,
+          "tags": [
+            "python",
+            "async",
+            "params",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_187",
+          "query": "How does FastAPI handle HTTP exceptions?",
+          "golden_files": [
+            "fastapi/exceptions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/__init__.py",
+            "fastapi/exceptions.py",
+            "fastapi/applications.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 189.04,
+          "tags": [
+            "python",
+            "async",
+            "exceptions",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_188",
+          "query": "FastAPI exception classes for HTTP and WebSocket errors",
+          "golden_files": [
+            "fastapi/exceptions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/exceptions.py",
+            "fastapi/exception_handlers.py",
+            "fastapi/applications.py",
+            "fastapi/__init__.py",
+            "fastapi/openapi/utils.py"
+          ],
+          "retrieval_latency_ms": 3138.21,
+          "tags": [
+            "python",
+            "async",
+            "exceptions",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_189",
+          "query": "FastAPI 异常处理类定义",
+          "golden_files": [
+            "fastapi/exceptions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/routing.py",
+            "fastapi/openapi/utils.py"
+          ],
+          "retrieval_latency_ms": 178.42,
+          "tags": [
+            "python",
+            "async",
+            "exceptions",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_190",
+          "query": "How does FastAPI handle multipart form data installation?",
+          "golden_files": [
+            "fastapi/dependencies/utils.py"
+          ],
+          "retrieved_files": [
+            "fastapi/dependencies/utils.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/__init__.py",
+            "fastapi/param_functions.py",
+            "fastapi/routing.py",
+            "fastapi/applications.py"
+          ],
+          "retrieval_latency_ms": 314.4,
+          "tags": [
+            "python",
+            "async",
+            "utils",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_191",
+          "query": "Dependency resolution utils for FastAPI parameter handling",
+          "golden_files": [
+            "fastapi/dependencies/utils.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/routing.py",
+            "fastapi/openapi/utils.py",
+            "fastapi/exceptions.py",
+            "fastapi/applications.py"
+          ],
+          "retrieval_latency_ms": 185.33,
+          "tags": [
+            "python",
+            "async",
+            "utils",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_192",
+          "query": "FastAPI 依赖解析参数处理",
+          "golden_files": [
+            "fastapi/dependencies/utils.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/param_functions.py",
+            "fastapi/openapi/utils.py",
+            "fastapi/security/api_key.py"
+          ],
+          "retrieval_latency_ms": 307.07,
+          "tags": [
+            "python",
+            "async",
+            "utils",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_193",
+          "query": "How does FastAPI implement HTTP Basic authentication?",
+          "golden_files": [
+            "fastapi/security/http.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/http.py",
+            "fastapi/security/__init__.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/security/open_id_connect_url.py",
+            "fastapi/__init__.py"
+          ],
+          "retrieval_latency_ms": 192.24,
+          "tags": [
+            "http",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_194",
+          "query": "HTTPBearer token validation mechanism in FastAPI source code",
+          "golden_files": [
+            "fastapi/security/http.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/http.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/openapi/models.py",
+            "fastapi/param_functions.py"
+          ],
+          "retrieval_latency_ms": 316.4,
+          "tags": [
+            "http",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_195",
+          "query": "如何在FastAPI中实现HTTP基础认证",
+          "golden_files": [
+            "fastapi/security/http.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/http.py",
+            "fastapi/__init__.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/exceptions.py"
+          ],
+          "retrieval_latency_ms": 759.73,
+          "tags": [
+            "http",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_196",
+          "query": "How does FastAPI v2 handle ModelField serialization aliases?",
+          "golden_files": [
+            "fastapi/_compat/v2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/utils.py",
+            "fastapi/_compat/v2.py",
+            "fastapi/param_functions.py",
+            "fastapi/openapi/models.py",
+            "fastapi/applications.py"
+          ],
+          "retrieval_latency_ms": 304.29,
+          "tags": [
+            "python",
+            "async",
+            "v2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_197",
+          "query": "ModelField 类的序列化别名设置方法",
+          "golden_files": [
+            "fastapi/_compat/v2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/_compat/v2.py",
+            "fastapi/_compat/__init__.py",
+            "fastapi/openapi/models.py"
+          ],
+          "retrieval_latency_ms": 176.04,
+          "tags": [
+            "python",
+            "async",
+            "v2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_198",
+          "query": "What is the purpose of the GenerateJsonSchema class in FastAPI v2?",
+          "golden_files": [
+            "fastapi/_compat/v2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/_compat/v2.py",
+            "fastapi/applications.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 311.3,
+          "tags": [
+            "python",
+            "async",
+            "v2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_199",
+          "query": "How does FastAPI handle OAuth2 password flow form data?",
+          "golden_files": [
+            "fastapi/security/oauth2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/oauth2.py",
+            "fastapi/openapi/models.py",
+            "fastapi/security/__init__.py"
+          ],
+          "retrieval_latency_ms": 178.72,
+          "tags": [
+            "python",
+            "async",
+            "oauth2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_200",
+          "query": "OAuth2 bearer token authentication implementation in FastAPI",
+          "golden_files": [
+            "fastapi/security/oauth2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/oauth2.py",
+            "fastapi/security/http.py",
+            "fastapi/param_functions.py"
+          ],
+          "retrieval_latency_ms": 201.08,
+          "tags": [
+            "python",
+            "async",
+            "oauth2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_201",
+          "query": "FastAPI 中 OAuth2 密码模式表单数据处理方式",
+          "golden_files": [
+            "fastapi/security/oauth2.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/oauth2.py"
+          ],
+          "retrieval_latency_ms": 184.2,
+          "tags": [
+            "python",
+            "async",
+            "oauth2",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_202",
+          "query": "How does FastAPI's APIKeyQuery class extract query parameters for authentication?",
+          "golden_files": [
+            "fastapi/security/api_key.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/api_key.py",
+            "fastapi/openapi/models.py",
+            "fastapi/param_functions.py",
+            "fastapi/security/__init__.py"
+          ],
+          "retrieval_latency_ms": 173.17,
+          "tags": [
+            "api_key",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_203",
+          "query": "Implementing async API key header validation in FastAPI security",
+          "golden_files": [
+            "fastapi/security/api_key.py"
+          ],
+          "retrieved_files": [
+            "fastapi/security/api_key.py",
+            "fastapi/security/__init__.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/dependencies/models.py"
+          ],
+          "retrieval_latency_ms": 200.32,
+          "tags": [
+            "api_key",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_204",
+          "query": "FastAPI中API密钥头验证的异步实现方法",
+          "golden_files": [
+            "fastapi/security/api_key.py"
+          ],
+          "retrieved_files": [
+            "fastapi/openapi/docs.py",
+            "fastapi/applications.py",
+            "fastapi/security/api_key.py"
+          ],
+          "retrieval_latency_ms": 262.55,
+          "tags": [
+            "api_key",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_205",
+          "query": "How does FastAPI validate path parameters?",
+          "golden_files": [
+            "fastapi/param_functions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/routing.py",
+            "fastapi/applications.py",
+            "fastapi/__init__.py"
+          ],
+          "retrieval_latency_ms": 349.14,
+          "tags": [
+            "param_functions",
+            "python",
+            "web",
+            "api",
+            "validation",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_206",
+          "query": "FastAPI参数解析器实现原理",
+          "golden_files": [
+            "fastapi/param_functions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/openapi/utils.py",
+            "fastapi/applications.py",
+            "fastapi/param_functions.py",
+            "fastapi/dependencies/utils.py"
+          ],
+          "retrieval_latency_ms": 200.65,
+          "tags": [
+            "param_functions",
+            "python",
+            "web",
+            "api",
+            "parser",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_207",
+          "query": "What's the role of the Path function in FastAPI routing?",
+          "golden_files": [
+            "fastapi/param_functions.py"
+          ],
+          "retrieved_files": [
+            "fastapi/applications.py",
+            "fastapi/routing.py"
+          ],
+          "retrieval_latency_ms": 195.09,
+          "tags": [
+            "param_functions",
+            "python",
+            "async",
+            "web",
+            "routing",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_208",
+          "query": "How does FastAPI's dependency system manage OAuth scopes?",
+          "golden_files": [
+            "fastapi/dependencies/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/dependencies/utils.py"
+          ],
+          "retrieval_latency_ms": 192.02,
+          "tags": [
+            "models",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_209",
+          "query": "Coroutine callable check in FastAPI dependencies",
+          "golden_files": [
+            "fastapi/dependencies/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/param_functions.py",
+            "fastapi/applications.py",
+            "fastapi/dependencies/utils.py",
+            "fastapi/__init__.py",
+            "fastapi/routing.py",
+            "fastapi/dependencies/models.py"
+          ],
+          "retrieval_latency_ms": 1330.51,
+          "tags": [
+            "models",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        },
+        {
+          "case_id": "rag_210",
+          "query": "FastAPI 依赖系统如何处理 OAuth 范围?",
+          "golden_files": [
+            "fastapi/dependencies/models.py"
+          ],
+          "retrieved_files": [
+            "fastapi/openapi/docs.py",
+            "fastapi/openapi/models.py",
+            "fastapi/security/oauth2.py",
+            "fastapi/param_functions.py",
+            "fastapi/security/http.py"
+          ],
+          "retrieval_latency_ms": 189.34,
+          "tags": [
+            "models",
+            "python",
+            "async",
+            "web",
+            "api",
+            "repo:tiangolo_fastapi"
+          ]
+        }
+      ],
+      "hybrid_note": "Cases with repo_name use a HYBRID (FAISS + BM25) index built from local .repos/ directories with openai embeddings."
+    },
+    "baseline_comparison": {
+      "hit_at_1": {
+        "current": 0.5667,
+        "baseline": 0.6,
+        "delta": -0.0333,
+        "regression": false
+      },
+      "hit_at_3": {
+        "current": 0.8238,
+        "baseline": 0.75,
+        "delta": 0.0738,
+        "regression": false
+      },
+      "hit_at_6": {
+        "current": 0.8952,
+        "baseline": 0.85,
+        "delta": 0.0452,
+        "regression": false
+      },
+      "mrr": {
+        "current": 0.7028,
+        "baseline": 0.65,
+        "delta": 0.0528,
+        "regression": false
+      },
+      "ndcg_at_6": {
+        "current": 0.7513,
+        "baseline": 0.7,
+        "delta": 0.0513,
+        "regression": false
+      },
+      "latency_p50_ms": {
+        "current": 223.75,
+        "baseline": 150.0,
+        "delta": 73.75,
+        "regression": false
+      },
+      "latency_p95_ms": {
+        "current": 671.13,
+        "baseline": 500.0,
+        "delta": 171.13,
+        "regression": false
+      },
+      "total_cases": {
+        "current": 210,
+        "baseline": 30,
+        "delta": 180,
+        "regression": false
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@
     "generatePdf": "生成PDF",
     "generatePpt": "生成PPT",
     "generateVideo": "生成视频",
+    "generatePoster": "生成画报",
     "startChat": "开始对话",
     "processing": "处理中...",
     "error": "错误",
@@ -20,7 +21,7 @@
   "home": {
     "welcome": "欢迎使用RepoHelper",
     "welcomeTagline": "AI驱动的代码仓库分析助手",
-    "description": "只需一次点击，即可从GitHub、GitLab或Bitbucket仓库生成易于理解的PDF、PPT、VIDEO。",
+    "description": "只需一次点击，即可从GitHub、GitLab或Bitbucket仓库生成易于理解的PDF、PPT、视频和图文画报。",
     "quickStart": "快速开始",
     "enterRepoUrl": "请以下列格式之一输入仓库URL：",
     "advancedVisualization": "使用Mermaid图表进行高级可视化",
@@ -35,7 +36,7 @@
     "featureAiChat": "AI 对话",
     "featureAiChatDesc": "基于 RAG 的智能 AI 助手，随时提问了解仓库详情。",
     "featureExport": "多格式导出",
-    "featureExportDesc": "将分析结果导出为 PDF 报告、PPT 演示文稿或视频概览。"
+    "featureExportDesc": "将分析结果导出为 PDF 报告、PPT 演示文稿、视频概览或图文画报。"
   },
   "form": {
     "repository": "仓库",
@@ -111,7 +112,9 @@
     "exportAsPpt": "导出PPT演示文稿",
     "exportingPpt": "正在生成PPT...",
     "exportAsVideo": "导出视频概览",
-    "exportingVideo": "正在生成视频..."
+    "exportingVideo": "正在生成视频...",
+    "exportAsPoster": "导出图文画报",
+    "exportingPoster": "正在生成画报..."
   },
   "nav": {},
   "projects": {},
@@ -138,18 +141,20 @@
   "agentChat": {
     "title": "智能助手对话",
     "welcomeTitle": "智能助手对话",
-    "welcomeDesc": "问我关于此仓库的问题，或让我生成 PDF 报告、PPT 演示文稿或视频概览。",
-    "placeholder": "询问关于此仓库的问题，或请求生成 PDF/PPT/视频...",
+    "welcomeDesc": "问我关于此仓库的问题，或让我生成 PDF 报告、PPT 演示文稿、视频概览或图文画报。",
+    "placeholder": "询问关于此仓库的问题，或请求生成 PDF/PPT/视频/画报...",
     "thinking": "思考中...",
     "generating": "生成中...",
     "generatingPdf": "PDF 报告",
     "generatingPpt": "PPT 演示",
     "generatingVideo": "视频概览",
+    "generatingPoster": "图文画报",
     "downloadReady": "已下载！",
     "exportInProgress": "导出进行中...",
-    "hintTools": "智能助手可以按你的请求生成 PDF、PPT 和视频。",
+    "hintTools": "智能助手可以按你的请求生成 PDF、PPT、视频和图文画报。",
     "suggestAnalyze": "分析此仓库",
     "suggestPdf": "生成 PDF 报告",
     "suggestPpt": "生成 PPT 演示",
-    "suggestVideo": "生成视频概览"  }
+    "suggestVideo": "生成视频概览",
+    "suggestPoster": "生成图文画报"  }
 }

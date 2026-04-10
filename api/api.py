@@ -265,6 +265,43 @@ async def export_repo_video(request: DirectPDFExportRequest):
         raise HTTPException(status_code=500, detail=error_msg)
 
 
+@app.post("/export/repo/poster")
+async def export_repo_poster(request: DirectPDFExportRequest):
+    """
+    Generate an illustrated poster via Gemini image generation.
+    """
+    try:
+        from api.export_service import export_repo as _export_repo
+
+        logger.info(f"Direct poster export requested for {request.repo_url} (provider={request.provider})")
+        repo_req = RepoAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            repo_type=request.repo_type,
+            access_token=request.access_token,
+            excluded_dirs=request.excluded_dirs,
+            excluded_files=request.excluded_files,
+            included_dirs=request.included_dirs,
+            included_files=request.included_files,
+        )
+        result = await _export_repo(repo_req, fmt=ExportFormat.POSTER)
+
+        return Response(
+            content=result.content_bytes,
+            media_type=result.media_type,
+            headers={"Content-Disposition": f"attachment; filename={result.filename}"},
+        )
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        error_msg = f"Error generating poster: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
 @app.get("/local_repo/structure")
 async def get_local_repo_structure(path: str = Query(None, description="Path to local repository")):
     """Return the file tree and README content for a local repository."""
@@ -315,6 +352,16 @@ async def get_local_repo_structure(path: str = Query(None, description="Path to 
 # Import the simplified chat implementation
 from api.simple_chat import chat_completions_stream
 from api.websocket_wiki import handle_websocket_chat
+
+# ============================================================================
+# Register Memory, MCP, and Metrics API routes
+# ============================================================================
+from api.routes import register_routers
+
+try:
+    register_routers(app)
+except Exception as e:
+    logger.warning(f"Failed to register Memory/MCP routes: {e}")
 
 # Add the chat_completions_stream endpoint to the main app
 app.add_api_route("/chat/completions/stream", chat_completions_stream, methods=["POST"])

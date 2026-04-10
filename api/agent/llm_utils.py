@@ -19,7 +19,14 @@ async def _collect_streaming_response(provider: str, response) -> str:
 
     if provider == "ollama":
         async for chunk in response:
-            text = getattr(chunk, "response", None) or getattr(chunk, "text", None) or ""
+            # Chat API: content is in chunk.message.content
+            # Generate API: content is in chunk.response
+            text = ""
+            msg = getattr(chunk, "message", None)
+            if msg is not None:
+                text = getattr(msg, "content", None) or ""
+            if not text:
+                text = getattr(chunk, "response", None) or getattr(chunk, "text", None) or ""
             if text and not text.startswith("model=") and not text.startswith("created_at="):
                 parts.append(text.replace("<think>", "").replace("</think>", ""))
 

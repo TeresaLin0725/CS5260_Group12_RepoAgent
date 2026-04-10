@@ -402,7 +402,16 @@ def prepare_data_pipeline(embedder_type: str = None, is_ollama_embedder: bool = 
     if embedder_type is None:
         embedder_type = get_embedder_type()
 
-    splitter = TextSplitter(**configs["text_splitter"])
+    splitter_config = configs["text_splitter"]
+
+    # Use code-aware splitter: splits code files by function/class boundaries,
+    # falls back to word-based splitting for non-code documents.
+    from api.code_splitter import CodeAwareTextSplitter
+    splitter = CodeAwareTextSplitter(
+        chunk_size=splitter_config.get("chunk_size", 200),
+        chunk_overlap=splitter_config.get("chunk_overlap", 30),
+    )
+
     embedder_config = get_embedder_config()
 
     embedder = get_embedder(embedder_type=embedder_type)
@@ -828,7 +837,34 @@ class DatabaseManager:
             logger.error(f"Failed to create repository structure: {e}")
             raise
 
-    def prepare_db_index(self, embedder_type: str = None, is_ollama_embedder: bool = None, 
+    @staticmethod
+    def _get_expected_embedding_dim(embedder_type: str = None) -> int:
+        """Return the embedding output dimension for the current embedder config, or 0 if unknown."""
+        try:
+            from api.config import get_embedder_config, get_embedder_type
+            cfg = get_embedder_config()
+            if not cfg:
+                logger.debug("_get_expected_embedding_dim: no embedder config found")
+                return 0
+            dim = cfg.get("model_kwargs", {}).get("dimensions", 0)
+            if dim:
+                logger.debug("_get_expected_embedding_dim: config dimensions=%d", int(dim))
+                return int(dim)
+            # Known fixed dimensions for models without explicit config
+            model = cfg.get("model_kwargs", {}).get("model", "")
+            _KNOWN = {
+                "nomic-embed-text": 768,
+                "mxbai-embed-large": 1024,
+                "text-embedding-ada-002": 1536,
+            }
+            result = _KNOWN.get(model, 0)
+            logger.debug("_get_expected_embedding_dim: model=%s, known_dim=%d", model, result)
+            return result
+        except Exception as e:
+            logger.warning("_get_expected_embedding_dim failed: %s", e)
+            return 0
+
+    def prepare_db_index(self, embedder_type: str = None, is_ollama_embedder: bool = None,
                         excluded_dirs: List[str] = None, excluded_files: List[str] = None,
                         included_dirs: List[str] = None, included_files: List[str] = None) -> List[Document]:
         """
@@ -889,7 +925,20 @@ class DatabaseManager:
                             "Existing database contains no usable embeddings. Rebuilding embeddings..."
                         )
                     else:
-                        return documents
+                        # Check that stored embedding dimensions match the current embedder.
+                        # A mismatch (e.g. Ollama 768-dim cache vs OpenAI 256-dim) causes a
+                        # FAISS assertion error at query time.  When they differ, fall through
+                        # and re-embed with the current embedder.
+                        stored_dim = sample_sizes[0] if sample_sizes else 0
+                        expected_dim = self._get_expected_embedding_dim(embedder_type)
+                        if expected_dim and stored_dim != expected_dim:
+                            logger.warning(
+                                "Stored embedding dim (%d) != current embedder dim (%d). "
+                                "Rebuilding database with current embedder...",
+                                stored_dim, expected_dim,
+                            )
+                        else:
+                            return documents
             except Exception as e:
                 logger.error(f"Error loading existing database: {e}")
                 # Continue to create a new database

@@ -1,0 +1,13 @@
+{
+  "subsystem": "intent",
+  "version": 1,
+  "description": "Initial baseline for intent classification evaluation. Manually confirmed.",
+  "aggregated_metrics": {
+    "accuracy": 0.85,
+    "ece": 0.10,
+    "export_recall": 0.90,
+    "export_false_positive_rate": 0.05,
+    "ambiguous_unhandled_rate": 0.10,
+    "total_cases": 95
+  }
+}

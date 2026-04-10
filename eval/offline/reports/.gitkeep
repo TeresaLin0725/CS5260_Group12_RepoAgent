@@ -1,0 +1,3 @@
+# Report output directory (auto-created by benchmark runner).
+# Reports are named: eval_report_{subsystem}_{timestamp}.json
+# This directory is excluded from git via .gitignore.

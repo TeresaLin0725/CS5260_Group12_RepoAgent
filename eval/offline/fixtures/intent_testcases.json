@@ -1,0 +1,1099 @@
+[
+  {
+    "id": "intent_001",
+    "query": "帮我生成一份 PDF 技术报告",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_002",
+    "query": "Generate a PDF report for this repository",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_003",
+    "query": "Export as PDF document",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_004",
+    "query": "Create a technical report PDF",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_005",
+    "query": "做一份项目文档",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_006",
+    "query": "导出PDF文件",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_007",
+    "query": "Write a documentation file for this project",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_008",
+    "query": "I need a PDF report of the codebase",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_009",
+    "query": "写一份报告",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_010",
+    "query": "Draft a technical manual for this repo",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_011",
+    "query": "Make slides about this project",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_012",
+    "query": "Generate a PPT presentation",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_013",
+    "query": "做一份演示文稿",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_014",
+    "query": "制作PPT",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_015",
+    "query": "Build a slide deck for presenting this code",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_016",
+    "query": "Create a video walkthrough of this repository",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_017",
+    "query": "制作一个视频概览",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_018",
+    "query": "Generate a video overview of the project",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_019",
+    "query": "做一个项目介绍视频",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_020",
+    "query": "Make an illustrated poster for this repository",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_021",
+    "query": "生成画报",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_022",
+    "query": "Create an infographic poster",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_023",
+    "query": "做一份宣传海报",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_024",
+    "query": "给我一份汇报材料",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_025",
+    "query": "Produce a project video presentation",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_026",
+    "query": "Design a visual summary poster",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_027",
+    "query": "Prepare slides for a team meeting about the repo",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_028",
+    "query": "生成技术报告",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_029",
+    "query": "Make a PowerPoint about the architecture",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_030",
+    "query": "帮我出一份项目介绍的文档",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_031",
+    "query": "Generate a pictorial overview",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_032",
+    "query": "生成幻灯片",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_033",
+    "query": "Create a keynote-style presentation",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_034",
+    "query": "图文海报制作",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.85,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_035",
+    "query": "I'd like a video overview of the main features",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_036",
+    "query": "Export this project as a document",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_037",
+    "query": "做一份视频录像",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_038",
+    "query": "白皮书形式整理这个项目",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_039",
+    "query": "Create documentation for this repo",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_040",
+    "query": "做一份讲解用的演示材料",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "clear_export",
+    "language": "zh"
+  },
+
+  {
+    "id": "intent_041",
+    "query": "帮我整理一下这个项目的信息",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.60,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_042",
+    "query": "Can you make something presentable out of this repo?",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_043",
+    "query": "I need to show this project to my team",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_044",
+    "query": "帮我把这个项目做个总结给领导看",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_045",
+    "query": "Make this repo look professional",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_046",
+    "query": "我想把这个项目的内容展示出来",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_047",
+    "query": "Prepare materials for a demo of this project",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_048",
+    "query": "能把这个项目可视化一下吗",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_049",
+    "query": "Turn this code into something shareable",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_050",
+    "query": "帮我把项目打包成一个可展示的形式",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_051",
+    "query": "Create a summary I can share with stakeholders",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_052",
+    "query": "帮我做个这个项目的介绍",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.55,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_053",
+    "query": "I need to demonstrate this to investors",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+  {
+    "id": "intent_054",
+    "query": "做一个能发朋友圈的项目介绍",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "zh"
+  },
+  {
+    "id": "intent_055",
+    "query": "Package this into marketing material",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "ambiguous_export",
+    "language": "en"
+  },
+
+  {
+    "id": "intent_056",
+    "query": "How does the HybridRetriever work?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_057",
+    "query": "Explain the ReAct loop implementation",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_058",
+    "query": "What is BM25 and how is it used here?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_059",
+    "query": "这个项目的架构是怎样的?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_060",
+    "query": "Show me the error handling in the agent system",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_061",
+    "query": "What testing framework does this project use?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "en"
+  },
+  {
+    "id": "intent_062",
+    "query": "intent_classifier 的分类逻辑是什么?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_063",
+    "query": "Where is the main API entry point?",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_064",
+    "query": "What environment variables do I need to set up?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "en"
+  },
+  {
+    "id": "intent_065",
+    "query": "怎么部署这个项目?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "zh"
+  },
+  {
+    "id": "intent_066",
+    "query": "Find the function that handles WebSocket connections",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_067",
+    "query": "Hello, what can you help me with?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "en"
+  },
+  {
+    "id": "intent_068",
+    "query": "你好",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.90,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "zh"
+  },
+  {
+    "id": "intent_069",
+    "query": "What database does this project use?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "en"
+  },
+  {
+    "id": "intent_070",
+    "query": "How does the RRF algorithm merge results?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_071",
+    "query": "这个项目支持哪些大模型Provider?",
+    "expected_intent": "GENERAL_CHAT",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "general_chat",
+    "language": "zh"
+  },
+  {
+    "id": "intent_072",
+    "query": "Compare FAISS and BM25 in the retrieval pipeline",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "en"
+  },
+  {
+    "id": "intent_073",
+    "query": "What is the purpose of the planner module?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_074",
+    "query": "How does memory consolidation work?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_075",
+    "query": "调度器的工作流程是怎样的?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+
+  {
+    "id": "intent_076",
+    "query": "I need a document, maybe PDF or slides would work",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "en"
+  },
+  {
+    "id": "intent_077",
+    "query": "帮我做份材料，PDF或者PPT都行",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "zh"
+  },
+  {
+    "id": "intent_078",
+    "query": "Create some visual content about this project, poster or slides",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "en"
+  },
+  {
+    "id": "intent_079",
+    "query": "生成一个展示材料,视频或者海报都可以",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "zh"
+  },
+  {
+    "id": "intent_080",
+    "query": "Make a report or presentation for stakeholders",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "en"
+  },
+  {
+    "id": "intent_081",
+    "query": "pdf和ppt你推荐哪个格式？然后帮我生成",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "zh"
+  },
+  {
+    "id": "intent_082",
+    "query": "I want something visual - poster or video overview",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "en"
+  },
+  {
+    "id": "intent_083",
+    "query": "做一份能展示的东西,文档或者幻灯片",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "zh"
+  },
+  {
+    "id": "intent_084",
+    "query": "Generate either a report or a slide deck about the architecture",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "en"
+  },
+  {
+    "id": "intent_085",
+    "query": "视频介绍或者画报,帮我选一个做出来",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.50,
+    "is_ambiguous": true,
+    "category": "format_ambiguous",
+    "language": "zh"
+  },
+
+  {
+    "id": "intent_086",
+    "query": "分析一下这个项目的架构然后帮我做成文档",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.70,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "zh",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_087",
+    "query": "Analyze the codebase and create a technical report",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.70,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "en",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_088",
+    "query": "Explain how the system works and generate presentation slides",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.70,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "en",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_089",
+    "query": "先看看代码结构，再帮我做一份演示PPT",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.70,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "zh",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_090",
+    "query": "Review the architecture and make a poster summarizing it",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.65,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "en",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_091",
+    "query": "研究一下这个项目然后帮我生成一个视频",
+    "expected_intent": "EXPORT_VIDEO",
+    "expected_confidence_min": 0.65,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "zh",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_092",
+    "query": "深入分析代码后制作一份详细的PDF技术报告",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.70,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "zh",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_093",
+    "query": "Study the testing approach and create a summary document",
+    "expected_intent": "EXPORT_PDF",
+    "expected_confidence_min": 0.65,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "en",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_094",
+    "query": "Evaluate the API design patterns and present them as slides",
+    "expected_intent": "EXPORT_PPT",
+    "expected_confidence_min": 0.65,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "en",
+    "needs_reasoning": true
+  },
+  {
+    "id": "intent_095",
+    "query": "总结项目亮点做成宣传海报",
+    "expected_intent": "EXPORT_POSTER",
+    "expected_confidence_min": 0.65,
+    "is_ambiguous": false,
+    "category": "reasoning_export",
+    "language": "zh",
+    "needs_reasoning": true
+  },
+
+  {
+    "id": "intent_096",
+    "query": "Explain how the intent classification pipeline works end-to-end",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_097",
+    "query": "What does the ReActRunner class do?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_098",
+    "query": "Describe how the BM25 tokenizer handles code identifiers",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_099",
+    "query": "这个模块的工作原理是什么?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_100",
+    "query": "How does the agent scheduler decide whether to use a tool?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_101",
+    "query": "解释一下RAG检索流程",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_102",
+    "query": "What is the role of the memory module in the agent?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_103",
+    "query": "Explain the Reciprocal Rank Fusion algorithm used in retrieval",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_104",
+    "query": "How does the export service convert analysis to PDF?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_105",
+    "query": "WebSocket流式响应是怎么实现的?",
+    "expected_intent": "EXPLAIN_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "explain_code",
+    "language": "zh"
+  },
+
+  {
+    "id": "intent_106",
+    "query": "Find the WebSocket connection handler function",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_107",
+    "query": "Where is the BM25 index initialized?",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_108",
+    "query": "找到意图分类器的初始化代码",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_109",
+    "query": "Which file contains the RAG pipeline class?",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_110",
+    "query": "Search for the authentication middleware implementation",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_111",
+    "query": "哪个文件里定义了ReActRunner?",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_112",
+    "query": "Look up where the FAISS retriever is configured",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_113",
+    "query": "Locate the function that generates the PDF export",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+  {
+    "id": "intent_114",
+    "query": "找一下数据库初始化的代码在哪里",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "zh"
+  },
+  {
+    "id": "intent_115",
+    "query": "Where is the main FastAPI router registered?",
+    "expected_intent": "SEARCH_CODE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "search_code",
+    "language": "en"
+  },
+
+  {
+    "id": "intent_116",
+    "query": "Compare FAISS semantic search vs BM25 keyword search for code retrieval",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "en"
+  },
+  {
+    "id": "intent_117",
+    "query": "What is the difference between LLMIntentClassifier and EmbeddingIntentClassifier?",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.80,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "en"
+  },
+  {
+    "id": "intent_118",
+    "query": "对比一下PDF和PPT这两种导出格式的适用场景",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "zh"
+  },
+  {
+    "id": "intent_119",
+    "query": "Which retrieval approach has better recall: embedding-only or hybrid?",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "en"
+  },
+  {
+    "id": "intent_120",
+    "query": "LLM分类器和嵌入分类器哪个更准确?",
+    "expected_intent": "COMPARE",
+    "expected_confidence_min": 0.75,
+    "is_ambiguous": false,
+    "category": "compare",
+    "language": "zh"
+  }
+]

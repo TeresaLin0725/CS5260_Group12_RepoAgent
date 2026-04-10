@@ -14,7 +14,7 @@ import { extractUrlDomain, extractUrlPath } from '@/utils/urlDecoder';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFilePdf, FaFilePowerpoint, FaFileVideo, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
+import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFilePdf, FaFilePowerpoint, FaFileVideo, FaFolder, FaGithub, FaGitlab, FaHome, FaImage, FaSync, FaTimes } from 'react-icons/fa';
 // Define the WikiSection and WikiStructure types directly in this file
 // since the imported types don't have the sections and rootSections properties
 interface WikiSection {
@@ -241,6 +241,8 @@ export default function RepoWikiPage() {
   const [pptPhase, setPptPhase] = useState<string | null>(null);
   const [isVideoExporting, setIsVideoExporting] = useState(false);
   const [videoPhase, setVideoPhase] = useState<string | null>(null);
+  const [isPosterExporting, setIsPosterExporting] = useState(false);
+  const [posterPhase, setPosterPhase] = useState<string | null>(null);
   const [originalMarkdown, setOriginalMarkdown] = useState<Record<string, string>>({});
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [currentToken, setCurrentToken] = useState(token); // Track current effective token
@@ -1735,7 +1737,7 @@ IMPORTANT:
 
       setVideoPhase('Phase 2/3: Generating video...');
 
-      const response = await fetch(`/api/export/video`, {
+      const response = await fetch(`/api/export/repo-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1780,6 +1782,81 @@ IMPORTANT:
     } finally {
       setIsVideoExporting(false);
       setVideoPhase(null);
+    }
+  }, [wikiStructure, generatedPages, effectiveRepoInfo, selectedProviderState, selectedModelState, language]);
+
+  // Function to export wiki as Poster
+  const exportPoster = useCallback(async () => {
+    if (!wikiStructure || Object.keys(generatedPages).length === 0) {
+      setExportError('No wiki content to export');
+      return;
+    }
+
+    try {
+      setIsPosterExporting(true);
+      setExportError(null);
+      setPosterPhase('Phase 1/3: Extracting content...');
+
+      const pagesToExport = wikiStructure.pages.map(page => {
+        const content = generatedPages[page.id]?.content || 'Content not generated';
+        return {
+          id: page.id,
+          title: page.title,
+          content,
+          importance: page.importance || 'medium',
+        };
+      });
+
+      const repoUrl = getRepoUrl(effectiveRepoInfo);
+      const repoName = `${effectiveRepoInfo.owner}/${effectiveRepoInfo.repo}`;
+
+      setPosterPhase('Phase 2/3: Generating poster...');
+
+      const response = await fetch(`/api/export/repo-poster`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo_url: repoUrl,
+          repo_name: repoName,
+          pages: pagesToExport,
+          provider: selectedProviderState || 'openai',
+          model: selectedModelState || null,
+          language: language,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No error details');
+        throw new Error(`Poster export failed: ${response.status} - ${errorText}`);
+      }
+
+      setPosterPhase('Phase 3/3: Downloading Poster...');
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${effectiveRepoInfo.repo}_poster.png`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/"/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting Poster:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during Poster export';
+      setExportError(errorMessage);
+    } finally {
+      setIsPosterExporting(false);
+      setPosterPhase(null);
     }
   }, [wikiStructure, generatedPages, effectiveRepoInfo, selectedProviderState, selectedModelState, language]);
 
@@ -2360,6 +2437,16 @@ IMPORTANT:
                       {isVideoExporting
                         ? (videoPhase || (messages.repoPage?.exportingVideo || 'Generating Video...'))
                         : (messages.repoPage?.exportAsVideo || 'Export Video')}
+                    </button>
+                    <button
+                      onClick={exportPoster}
+                      disabled={isPosterExporting || isExporting}
+                      className="flex items-center text-xs px-3 py-2 bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-primary)]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <FaImage className="mr-2" />
+                      {isPosterExporting
+                        ? (posterPhase || (messages.repoPage?.exportingPoster || 'Generating Poster...'))
+                        : (messages.repoPage?.exportAsPoster || 'Export Poster')}
                     </button>
                   </div>
                   {exportError && (
