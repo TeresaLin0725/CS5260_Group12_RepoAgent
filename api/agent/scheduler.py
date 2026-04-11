@@ -329,7 +329,7 @@ class AgentScheduler:
         if (language or "").lower().startswith("zh"):
             mapping = {
                 "GENERATE_PDF": "我将为该仓库生成一份 PDF 技术报告。",
-                "GENERATE_PPT": "我将为该仓库生成一份 PPT 演示文稿。",
+                "GENERATE_PPT": "我将通过 Gamma 为该仓库生成一份精美 PPT 演示文稿。",
                 "GENERATE_VIDEO": "我将为该仓库生成一个视频概览。",
                 "GENERATE_POSTER": "我将通过 NanoBanana 为该仓库生成一份图文画报。",
             }
@@ -337,7 +337,7 @@ class AgentScheduler:
 
         mapping = {
             "GENERATE_PDF": "I will generate a PDF technical report for this repository.",
-            "GENERATE_PPT": "I will generate a PPT presentation for this repository.",
+            "GENERATE_PPT": "I will generate a professionally designed PPT presentation via Gamma.",
             "GENERATE_VIDEO": "I will generate a video overview for this repository.",
             "GENERATE_POSTER": "I will generate an illustrated poster for this repository via NanoBanana.",
         }
