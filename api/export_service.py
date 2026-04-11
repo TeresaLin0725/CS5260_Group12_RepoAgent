@@ -1,8 +1,8 @@
 """
 Export Service — Unified Orchestration Layer
 
-Routes analyzed content to the appropriate renderer (PDF, PPT, Video).
-This is the single entry point for all export operations.
+Routes analyzed content to the appropriate renderer (PDF, PPT, Video, Poster).
+PPT always uses the Gamma API for professionally designed presentations.
 
 Architecture:
     Request → ContentAnalyzer (Phase 2a: structured JSON)
@@ -61,18 +61,18 @@ def _render_pdf(analyzed: AnalyzedContent) -> ExportResult:
     )
 
 
-def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
-    """Phase 2b-PPT (structured → slide outline) + Phase 3 (pptx render)."""
-    from api.ppt_export import render_ppt_from_analyzed
+async def _render_ppt(analyzed: AnalyzedContent) -> ExportResult:
+    """Phase 2b-PPT (outline) + Phase 3 (Gamma API -> PPTX)."""
+    from api.gamma_ppt_export import render_gamma_ppt_from_analyzed
     from datetime import datetime
 
-    ppt_bytes = render_ppt_from_analyzed(analyzed)
+    pptx_bytes = await render_gamma_ppt_from_analyzed(analyzed)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     short_name = analyzed.repo_name.replace("/", "_")
     filename = f"{short_name}_slides_{timestamp}.pptx"
 
     return ExportResult(
-        content_bytes=ppt_bytes,
+        content_bytes=pptx_bytes,
         filename=filename,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
@@ -129,7 +129,6 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
     """Pretty-print the AnalyzedContent structured fields to console & log."""
     import json
 
-    # Build a dict of the structured fields (exclude raw_llm_text & summary_text)
     data = {
         "repo_name": analyzed.repo_name,
         "repo_url": analyzed.repo_url,
@@ -153,12 +152,10 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
     }
 
     json_str = json.dumps(data, ensure_ascii=False, indent=2)
-
     header = f"\n{'='*60}\nAnalyzedContent (input to {fmt.value.upper()} renderer)\n{'='*60}"
     print(header)
     print(json_str)
     print('='*60 + '\n')
-
     logger.info("AnalyzedContent for %s export:\n%s", fmt.value, json_str)
 
 
@@ -171,13 +168,11 @@ async def export_repo(
     fmt: ExportFormat = ExportFormat.PDF,
 ) -> ExportResult:
     """
-    Full pipeline: repo embeddings → analysis → render to the requested format.
+    Full pipeline: repo embeddings -> analysis -> render to the requested format.
     """
     logger.info("Export repo as %s for %s", fmt.value, request.repo_name or request.repo_url)
 
     analyzed = await analyze_repo_content(request)
-
-    # ── Print AnalyzedContent (LLM structured output) ──
     _print_analyzed_content(analyzed, fmt)
 
     if fmt == ExportFormat.VIDEO:

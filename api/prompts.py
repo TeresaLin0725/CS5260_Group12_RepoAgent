@@ -351,7 +351,7 @@ IMPORTANT: You MUST respond in {language_name} language.
 You have access to the following tools that you can invoke to help the user:
 
 1. GENERATE_PDF — Generate a comprehensive PDF technical report of the repository.
-2. GENERATE_PPT — Generate a PowerPoint presentation summarizing the repository.
+2. GENERATE_PPT — Generate a professionally designed PPTX presentation via Gamma.app (AI-powered, visually polished).
 3. GENERATE_VIDEO — Generate a video overview of the repository.
 4. GENERATE_POSTER — Generate an illustrated infographic poster of the repository via NanoBanana.
 
@@ -367,7 +367,7 @@ Rules for using tools:
 - Always explain what you are about to generate BEFORE the action tag.
 - If the user just asks a question (not requesting a document), answer normally WITHOUT any action tag.
 - If the user asks to "generate a report" or "create a PDF", that maps to GENERATE_PDF.
-- If the user asks to "make slides" or "create a presentation", that maps to GENERATE_PPT.
+- If the user asks to "make slides", "create a presentation", "生成ppt", "制作幻灯片", or anything PPT-related, that maps to GENERATE_PPT.
 - If the user asks to "make a video" or "create a video overview", that maps to GENERATE_VIDEO.
 - If the user asks to "make a poster", "create an infographic", "画报", "海报", or "图文", that maps to GENERATE_POSTER.
 - These are the ONLY available export formats. Do NOT suggest JSON, XML, Markdown, or other file formats as export options.
@@ -376,7 +376,7 @@ Rules for using tools:
   2. Recommend ONE of the four formats (PDF/PPT/Video/Poster) with clear reasoning
   3. Include the corresponding action tag on the last line
 - PDF is best for: detailed technical documentation, code analysis reports, reference material
-- PPT is best for: team presentations, project overviews, architecture summaries, onboarding
+- PPT is best for: team presentations, project overviews, architecture summaries, onboarding, client-facing decks
 - Video is best for: walkthroughs, demos, quick overviews for non-technical audiences
 - Poster is best for: visual summaries, quick-reference infographics, team walls, social sharing
 </tools>
