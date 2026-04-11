@@ -1007,6 +1007,19 @@ class TestListRepoFiles:
             result = asyncio.run(tools["list_repo_files"]("src"))
             assert "main.py" in result
 
+    def test_list_root_accepts_quoted_or_glob_like_inputs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._make_repo(tmpdir)
+            tools = build_react_tools(_FakeRAG(repo_dir=tmpdir), language="en")
+
+            quoted_result = asyncio.run(tools["list_repo_files"]("'.'"))
+            glob_result = asyncio.run(tools["list_repo_files"]("*.*"))
+
+            assert "README.md" in quoted_result
+            assert "src/" in quoted_result
+            assert "README.md" in glob_result
+            assert "src/" in glob_result
+
     def test_list_nonexistent_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tools = build_react_tools(_FakeRAG(repo_dir=tmpdir), language="en")
@@ -1050,6 +1063,22 @@ class TestCodeGrep:
             tools = build_react_tools(_FakeRAG(repo_dir=tmpdir), language="en")
             result = asyncio.run(tools["code_grep"]("class.*Handler"))
             assert "AuthHandler" in result
+
+    def test_grep_strips_wrapped_quotes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._make_repo(tmpdir)
+            tools = build_react_tools(_FakeRAG(repo_dir=tmpdir), language="en")
+            result = asyncio.run(tools["code_grep"]("'authenticate'"))
+            assert "app.py" in result
+            assert "authenticate" in result
+
+    def test_grep_supports_quoted_or_queries(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._make_repo(tmpdir)
+            tools = build_react_tools(_FakeRAG(repo_dir=tmpdir), language="en")
+            result = asyncio.run(tools["code_grep"]("'authenticate' OR 'helper'"))
+            assert "authenticate" in result
+            assert "helper" in result
 
     def test_grep_no_match(self):
         with tempfile.TemporaryDirectory() as tmpdir:

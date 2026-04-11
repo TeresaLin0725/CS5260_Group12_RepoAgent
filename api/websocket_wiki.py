@@ -263,18 +263,6 @@ async def handle_websocket_chat(websocket: WebSocket):
                     "intent": scheduled.intent_result.intent if scheduled.intent_result else None,
                 })
 
-            # Ambiguity → ask user to clarify (no action tag)
-            if scheduled.handled and scheduled.content and "[ACTION:" not in scheduled.content:
-                await websocket.send_text(scheduled.content)
-                await websocket.close()
-                return
-
-            # Direct export invocation (scheduler resolved a single tool)
-            if scheduled.handled and scheduled.content and "[ACTION:" in scheduled.content:
-                await _send(scheduled.content)
-                await websocket.close()
-                return
-
         # ==================================================================
         # RAG context retrieval
         # ==================================================================
@@ -348,9 +336,11 @@ async def handle_websocket_chat(websocket: WebSocket):
                 repo_name=repo_name, language_name=language_name,
             )
         else:
+            export_hint = agent_scheduler.build_export_hint(query)
             system_prompt = AGENT_CHAT_SYSTEM_PROMPT.format(
                 repo_type=repo_type, repo_url=repo_url,
                 repo_name=repo_name, language_name=language_name,
+                export_hint=export_hint,
             )
 
         # ── ReAct loop ──────────────────────────────────────────────

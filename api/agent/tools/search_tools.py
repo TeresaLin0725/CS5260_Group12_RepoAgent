@@ -13,6 +13,37 @@ from typing import Awaitable, Callable, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def _is_wrapped_in_quotes(value: str) -> bool:
+    value = (value or "").strip()
+    return len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}
+
+
+def _strip_wrapped_quotes(value: str) -> str:
+    cleaned = (value or "").strip()
+    while _is_wrapped_in_quotes(cleaned):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
+def _normalize_repo_browse_path(path: str) -> str:
+    cleaned = _strip_wrapped_quotes(path).replace("\\", "/").strip()
+    if cleaned in {"", ".", "./", "/", "*", "*.*"}:
+        return ""
+    return cleaned.lstrip("/")
+
+
+def _normalize_search_pattern(pattern: str) -> str:
+    cleaned = (pattern or "").strip()
+    if not cleaned:
+        return ""
+
+    raw_parts = re.split(r"\s+OR\s+", cleaned, flags=re.IGNORECASE)
+    if len(raw_parts) > 1 and all(_is_wrapped_in_quotes(part) for part in raw_parts):
+        return "|".join(re.escape(_strip_wrapped_quotes(part)) for part in raw_parts)
+
+    return _strip_wrapped_quotes(cleaned)
+
+
 def build_react_tools(
     rag_instance,
     language: str = "en",
@@ -97,7 +128,8 @@ def build_react_tools(
         async def list_repo_files(path: str) -> str:
             """List files and directories under a path in the repository."""
             try:
-                target = os.path.normpath(os.path.join(local_repo_dir, path.strip().lstrip("/")))
+                normalized_path = _normalize_repo_browse_path(path)
+                target = os.path.normpath(os.path.join(local_repo_dir, normalized_path))
                 # Safety: prevent path traversal outside repo
                 if not target.startswith(os.path.normpath(local_repo_dir)):
                     return "Error: path is outside the repository."
@@ -121,7 +153,8 @@ def build_react_tools(
                 if not entries:
                     return f"Directory '{path}' is empty."
 
-                header = f"Contents of {path or '/'}  ({len(entries)} items):\n"
+                display_path = normalized_path or "/"
+                header = f"Contents of {display_path}  ({len(entries)} items):\n"
                 output = header + "\n".join(entries)
                 if len(output) > 8000:
                     output = output[:8000] + "\n... [truncated]"
@@ -140,7 +173,8 @@ def build_react_tools(
         async def code_grep(pattern: str) -> str:
             """Search for an exact string or regex pattern across all files in the repository."""
             try:
-                pattern = pattern.strip()
+                raw_pattern = pattern
+                pattern = _normalize_search_pattern(pattern)
                 if not pattern:
                     return "Error: empty search pattern."
 
@@ -188,7 +222,7 @@ def build_react_tools(
                     output += f"\n... [limited to {max_matches} results]"
                 return output
             except Exception as exc:
-                logger.error("code_grep error for '%s': %s", pattern, exc)
+                logger.error("code_grep error for '%s': %s", raw_pattern, exc)
                 return f"Grep error: {exc}"
 
         tools["code_grep"] = code_grep
@@ -214,8 +248,8 @@ def build_react_tools(
                 if "::" not in query:
                     return "Error: use format 'file_path::function_or_class_name' (e.g. 'src/main.py::my_func')"
                 file_path, target = query.split("::", 1)
-                file_path = file_path.strip().lstrip("/")
-                target = target.strip()
+                file_path = _strip_wrapped_quotes(file_path).lstrip("/")
+                target = _strip_wrapped_quotes(target)
                 full_path = os.path.normpath(os.path.join(local_repo_dir, file_path))
                 if not full_path.startswith(os.path.normpath(local_repo_dir)):
                     return "Error: path is outside the repository."
@@ -250,7 +284,7 @@ def build_react_tools(
             (import, call, definition).
             """
             try:
-                identifier = identifier.strip()
+                identifier = _strip_wrapped_quotes(identifier)
                 if not identifier:
                     return "Error: empty identifier."
 

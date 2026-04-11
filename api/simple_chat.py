@@ -187,15 +187,6 @@ async def chat_completions_stream(request: ChatCompletionRequest):
         scheduled = await _enriched_scheduler.schedule_with_intent(
             query=query, language=request.language or "en",
         )
-        if scheduled.handled and scheduled.content and "[ACTION:" not in scheduled.content:
-            async def _clarify():
-                yield scheduled.content
-            return StreamingResponse(_clarify(), media_type="text/event-stream")
-
-        if scheduled.handled and scheduled.content and "[ACTION:" in scheduled.content:
-            async def _direct():
-                yield scheduled.content
-            return StreamingResponse(_direct(), media_type="text/event-stream")
 
     # RAG context
     context_text = ""
@@ -271,9 +262,11 @@ async def chat_completions_stream(request: ChatCompletionRequest):
         return StreamingResponse(_dr_stream(), media_type="text/event-stream")
 
     # ── Agent / Normal — ReAct (unified: normal = agent) ──────────────────
+    export_hint = agent_scheduler.build_export_hint(query)
     system_prompt = AGENT_CHAT_SYSTEM_PROMPT.format(
         repo_type=repo_type, repo_url=repo_url,
         repo_name=repo_name, language_name=language_name,
+        export_hint=export_hint,
     )
 
     tracer = get_tracer()

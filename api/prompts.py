@@ -391,8 +391,8 @@ Rules for using tools:
 - Think step by step and structure your answer logically
 - Be precise and technical when discussing code
 - When referencing repository files or functions, briefly explain their role and how they connect to the broader system
-- Target 400-1500 characters of substantive content (or equivalent in other languages), adjusting based on question complexity
 - Avoid one-line or overly terse answers — aim to be informative and helpful
+{export_hint}
 </guidelines>
 
 <style>

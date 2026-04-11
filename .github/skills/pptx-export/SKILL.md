@@ -59,6 +59,8 @@ Gamma is configured via environment variables:
 | `GAMMA_POLL_INTERVAL` | `5` | Seconds between status polls |
 | `GAMMA_TIMEOUT` | `300` | Maximum seconds to wait for generation |
 | `GAMMA_NUM_CARDS` | `10` | Number of slides/cards to generate |
+| `GAMMA_THEME_ID` | (empty) | Theme ID from GET /themes for visual styling |
+| `GAMMA_IMAGE_SOURCE` | `aiGenerated` | Image source: `aiGenerated`, `webFreeToUseCommercially`, `pexels`, `pictographic`, `noImages` |
 
 **Note**: Gamma API requires a paid plan (Pro, Ultra, Teams, or Business).
 
@@ -95,18 +97,19 @@ The pipeline uses Gamma's asynchronous generation API:
    ```json
    {
      "inputText": "<outline from Phase 2b>",
-     "textMode": "condense",
+     "textMode": "generate",
      "format": "presentation",
      "numCards": 10,
      "exportAs": "pptx",
+     "themeId": "<optional theme ID>",
      "textOptions": {
        "tone": "professional",
        "audience": "developers and technical stakeholders",
-       "amount": "detailed",
+       "amount": "medium",
        "language": "en"
      },
      "imageOptions": {
-       "source": "webFreeToUseCommercially"
+       "source": "aiGenerated"
      }
    }
    ```
