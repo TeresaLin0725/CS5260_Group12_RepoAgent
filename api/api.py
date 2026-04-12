@@ -232,6 +232,7 @@ async def export_repo_ppt(request: DirectPDFExportRequest):
 async def export_repo_video(request: DirectPDFExportRequest):
     """
     Generate a video overview directly from repo embeddings.
+    Automatically tries AI video API first, falls back to baseline pipeline.
     """
     try:
         from api.export_service import export_repo as _export_repo
