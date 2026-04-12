@@ -1,13 +1,8 @@
 """
 External video generation API renderer.
 
-Generates video by calling external text-to-video APIs instead of the
-baseline Playwright/Pillow + TTS + MoviePy pipeline.
-
-Supported providers:
-  - "fal": fal.ai platform (Kling v3, Seedance, etc.)
-
-Set FAL_API_KEY in .env to enable.
+Generates a short (10s) AI video via fal.ai using shot-by-shot
+script format — concrete UI/code visuals, fast-paced cuts.
 """
 
 import asyncio
@@ -21,42 +16,94 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Provider → default model
-_DEFAULT_MODELS = {
-    "fal": "fal-ai/kling-video/v3/standard/text-to-video",
+_MODELS = {
+    "wan": "fal-ai/wan-25-preview/text-to-video",
+    "kling": "fal-ai/kling-video/v3/standard/text-to-video",
 }
+_DEFAULT_MODEL = os.getenv("VIDEO_API_MODEL", "kling")
 
+
+# ---------------------------------------------------------------------------
+# Shot-by-shot prompt builder
+# ---------------------------------------------------------------------------
 
 def _build_video_prompt(analyzed: "AnalyzedContent", scenes: List[dict]) -> str:
-    """Build a concise text prompt for the video generation API."""
-    parts = []
+    """Build a shot-by-shot video prompt from analyzed content.
 
-    overview = analyzed.project_overview or analyzed.repo_name or "software project"
-    parts.append(f"Create a short explainer video about {analyzed.repo_name}: {overview}")
+    Converts narration scenes into concrete visual shots that AI video
+    models can render well: UI screens, code views, architecture diagrams,
+    abstract data flows. Avoids on-screen text (models render it as gibberish).
+    """
+    name = analyzed.repo_name or "software project"
+    overview = (analyzed.project_overview or "")[:200]
 
-    for i, scene in enumerate(scenes[:6], 1):
-        narration = scene.get("narration", "")
-        title = scene.get("title", f"Scene {i}")
-        if narration:
-            parts.append(f"Scene {i} ({title}): {narration[:120]}")
+    # Gather concrete details
+    tech = ", ".join(
+        (analyzed.tech_stack.languages + analyzed.tech_stack.frameworks)[:3]
+    ) if analyzed.tech_stack else ""
 
-    parts.append(
-        "Style: professional tech explainer, clean motion graphics, "
-        "dark background with colored highlights, smooth transitions."
+    modules = []
+    for m in (analyzed.key_modules or [])[:4]:
+        modules.append(m.name if hasattr(m, "name") else str(m))
+
+    # Build shots from scenes (max 5 shots for 10s video)
+    shots = []
+
+    # Shot 1: Hook
+    shots.append(
+        "Shot 1 (3s): Close-up of a browser search bar, a GitHub URL is typed in. "
+        "Dark modern UI, cursor blinking. Shallow depth of field."
     )
 
-    prompt = "\n".join(parts)
+    # Shot 2-4: Core content
+    shot_templates = [
+        lambda s, mods: (
+            f"Shot {{n}} (3s): CUT TO dark-themed dashboard showing "
+            f"{', '.join(mods[:3]) if mods else 'analysis panels'} as interactive cards. "
+            f"Animated data flows between panels with glowing lines."
+        ),
+        lambda s, mods: (
+            f"Shot {{n}} (3s): CUT TO split-screen — left shows scrolling source code, "
+            f"right shows architecture diagram with {tech or 'tech stack'} icons "
+            f"connected by animated arrows. Camera pans left to right."
+        ),
+        lambda s, mods: (
+            f"Shot {{n}} (3s): CUT TO AI chat interface with real-time analysis "
+            f"results streaming in. Charts and module cards animate into place."
+        ),
+    ]
+
+    for i, tmpl in enumerate(shot_templates):
+        scene = scenes[i + 1] if i + 1 < len(scenes) else {}
+        shot_text = tmpl(scene, modules)
+        shots.append(shot_text.format(n=i + 2))
+
+    # Shot 5: Closure
+    shots.append(
+        "Shot 5 (3s): CUT TO wide shot — full application as holographic display "
+        "floating in dark space. All panels glow softly. Lens flare, fade to dark."
+    )
+
+    prompt = (
+        f"A 15-second tech product video with 5 distinct shots, hard cuts between each. Introducing {name}, {overview}. "
+        + " ".join(shots)
+        + " Each shot is a distinct scene with hard cuts between them. "
+        + "Style: modern dark UI, blue and teal accents, professional motion graphics. No readable text on screen."
+    )
+
     if len(prompt) > 1500:
         prompt = prompt[:1497] + "..."
+
+    logger.info("Video API prompt (%d chars): %s...", len(prompt), prompt[:120])
     return prompt
 
 
 # ---------------------------------------------------------------------------
-# fal.ai provider
+# fal.ai API call
 # ---------------------------------------------------------------------------
 
-async def _render_fal(prompt: str, model: str, api_key: str) -> bytes:
-    """Call fal.ai API for text-to-video."""
+async def _call_fal(prompt: str, model_key: str, api_key: str, duration: str = "15") -> bytes:
+    """Call fal.ai for text-to-video generation."""
     import httpx
 
     os.environ["FAL_KEY"] = api_key
@@ -66,28 +113,35 @@ async def _render_fal(prompt: str, model: str, api_key: str) -> bytes:
     except ImportError:
         raise ImportError("fal-client required. Run: pip install fal-client")
 
-    logger.info("fal.ai text-to-video: model=%s, prompt=%d chars", model, len(prompt))
+    model_id = _MODELS.get(model_key, _MODELS["wan"])
+    logger.info("fal.ai: model=%s, duration=%ss", model_id, duration)
     start = time.perf_counter()
+
+    if "wan" in model_id:
+        arguments = {
+            "prompt": prompt,
+            "duration": duration,
+            "aspect_ratio": "16:9",
+            "resolution": "1080p",
+            "negative_prompt": "readable text, words, letters, titles, watermark, blurry, low quality",
+            "enable_prompt_expansion": True,
+        }
+    else:
+        arguments = {
+            "prompt": prompt,
+            "duration": duration,
+            "aspect_ratio": "16:9",
+            "generate_audio": False,
+            "negative_prompt": "readable text, words, letters, titles, watermark, blurry, low quality",
+        }
 
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: fal_client.subscribe(
-            model,
-            arguments={
-                "prompt": prompt,
-                "duration": "5",
-                "aspect_ratio": "16:9",
-                "generate_audio": False,
-                "negative_prompt": "blur, distort, low quality, text overlay",
-            },
-            with_logs=True,
-        ),
+        lambda: fal_client.subscribe(model_id, arguments=arguments, with_logs=True),
     )
 
     video_url = result["video"]["url"]
-    logger.info("fal.ai video ready at %s, downloading...", video_url)
-
     async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.get(video_url)
         resp.raise_for_status()
@@ -98,59 +152,19 @@ async def _render_fal(prompt: str, model: str, api_key: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Provider registry
+# Public entry point
 # ---------------------------------------------------------------------------
-
-_PROVIDERS = {
-    "fal": _render_fal,
-}
-
 
 async def render_via_api(
     analyzed: "AnalyzedContent",
     scenes: List[dict],
-    provider: Optional[str] = None,
     model: Optional[str] = None,
-    api_key: Optional[str] = None,
 ) -> bytes:
-    """Generate video via external API.
-
-    Args:
-        analyzed: Structured repo analysis.
-        scenes: Narration scenes (used to build the video prompt).
-        provider: "fal" (more providers can be added later).
-        model: Model ID override. Uses provider default if not set.
-        api_key: API key override. Read from env if not set.
-
-    Returns:
-        Raw MP4 bytes.
-    """
-    # Auto-detect provider
-    if not provider:
-        if os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY"):
-            provider = "fal"
-        else:
-            raise ValueError(
-                "No video API provider configured. Set FAL_API_KEY in .env"
-            )
-
-    # Resolve API key
+    """Generate video via fal.ai. Returns raw MP4 bytes (no audio — BGM added by orchestrator)."""
+    api_key = os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY", "")
     if not api_key:
-        if provider == "fal":
-            api_key = os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY", "")
+        raise ValueError("FAL_API_KEY not set in .env")
 
-    if not api_key:
-        raise ValueError(f"No API key found for provider '{provider}'")
-
-    model = model or _DEFAULT_MODELS.get(provider, "")
-    if not model:
-        raise ValueError(f"No default model for provider '{provider}'")
-
+    model_key = model or _DEFAULT_MODEL
     prompt = _build_video_prompt(analyzed, scenes)
-    logger.info("API video render: provider=%s, model=%s", provider, model)
-
-    render_fn = _PROVIDERS.get(provider)
-    if not render_fn:
-        raise ValueError(f"Unknown provider '{provider}'. Supported: {list(_PROVIDERS.keys())}")
-
-    return await render_fn(prompt, model, api_key)
+    return await _call_fal(prompt, model_key, api_key)

@@ -37,14 +37,23 @@ async def render_video_from_analyzed(  # noqa: C901
     """
     Phase 2b-video plus Phase 3: AnalyzedContent to MP4 bytes.
 
-    Renderer with TTS narration: generates scene-specific visuals and
-    TTS audio, then composes them into an MP4 walkthrough.
-    Falls back to silent video if TTS is unavailable.
+    Strategy: if FAL_API_KEY is configured, try AI video API first.
+    On failure (credits exhausted, network error, etc.), fall back to baseline.
     """
     overall_start = time.perf_counter()
-    logger.info("Video export requested for %s", analyzed.repo_name)
 
-    # Approximate: content analysis already done upstream, mark step 1 done here
+    # Try API path if configured
+    fal_key = os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY")
+    if fal_key:
+        logger.info("Video export for %s: trying API path (fal.ai)", analyzed.repo_name)
+        try:
+            return await _render_via_api_path(analyzed, provider, model, job_id)
+        except Exception as api_err:
+            logger.warning("API video generation failed, falling back to baseline: %s", api_err)
+
+    logger.info("Video export for %s: using baseline pipeline", analyzed.repo_name)
+
+    # --- Baseline pipeline below ---
     update_progress(job_id, 1)
     update_progress(job_id, 2)  # Step 2: narration script
     narration_start = time.perf_counter()
@@ -247,6 +256,101 @@ async def render_video_from_analyzed(  # noqa: C901
 # ---------------------------------------------------------------------------
 # Legacy compatibility wrapper
 # ---------------------------------------------------------------------------
+
+async def _render_via_api_path(
+    analyzed: "AnalyzedContent",
+    provider: Optional[str],
+    model: Optional[str],
+    job_id: Optional[str],
+) -> bytes:
+    """Generate video via external API, then overlay TTS narration audio."""
+    from api.video.api_renderer import render_via_api
+
+    update_progress(job_id, 1, "Analyzing repository...")
+    update_progress(job_id, 2, "Generating narration scenes...")
+
+    raw_scenes = await generate_narration_script(analyzed, provider=provider, model=model)
+    normalized = _normalize_scenes(raw_scenes, analyzed.repo_name)
+    scenes = _build_storyline_scenes(analyzed, normalized)
+    scenes = _normalize_scenes(scenes, analyzed.repo_name)
+    logger.info("API path: %d narration scenes prepared", len(scenes))
+
+    update_progress(job_id, 3, "Generating AI video...")
+
+    video_bytes = await render_via_api(analyzed, scenes)
+
+    # --- Add background music ---
+    update_progress(job_id, 4, "Adding background music...")
+    video_bytes = await _add_bgm(video_bytes)
+
+    update_progress(job_id, 5, "Video ready!")
+    return video_bytes
+
+
+async def _add_bgm(video_bytes: bytes) -> bytes:
+    """Add background music to the API-generated video.
+
+    Looks for a BGM file at api/video/assets/bgm.mp3.
+    If not found, returns the silent video as-is.
+    """
+    import tempfile
+
+    assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+    bgm_path = None
+    for name in ("bgm_long.mp3", "bgm.mp3", "bgm.wav", "bgm.m4a"):
+        candidate = os.path.join(assets_dir, name)
+        if os.path.exists(candidate):
+            bgm_path = candidate
+            break
+    if not bgm_path:
+        logger.info("No BGM file in %s, returning silent video", assets_dir)
+        return video_bytes
+
+    with tempfile.TemporaryDirectory(prefix="repohelper_bgm_") as tmpdir:
+        video_path = os.path.join(tmpdir, "input.mp4")
+        output_path = os.path.join(tmpdir, "output.mp4")
+
+        with open(video_path, "wb") as f:
+            f.write(video_bytes)
+
+        try:
+            from moviepy import VideoFileClip, AudioFileClip
+
+            video_clip = VideoFileClip(video_path)
+            audio_clip = AudioFileClip(bgm_path)
+
+            # Trim BGM to video duration, fade out at end
+            if audio_clip.duration > video_clip.duration:
+                audio_clip = audio_clip.subclipped(0, video_clip.duration)
+            if hasattr(audio_clip, "audio_fadeout"):
+                audio_clip = audio_clip.audio_fadeout(1.0)
+
+            # Lower volume to not overwhelm visuals
+            audio_clip = audio_clip.with_volume_scaled(0.4)
+
+            video_with_audio = video_clip.with_audio(audio_clip)
+            video_with_audio.write_videofile(
+                output_path,
+                codec="libx264",
+                audio_codec="aac",
+                preset="ultrafast",
+                logger=None,
+            )
+
+            with open(output_path, "rb") as f:
+                result_bytes = f.read()
+
+            video_clip.close()
+            audio_clip.close()
+            video_with_audio.close()
+
+            logger.info("BGM overlay complete: %d bytes", len(result_bytes))
+            return result_bytes
+
+        except Exception as e:
+            logger.warning("BGM merge failed: %s, returning silent video", e)
+            return video_bytes
+
 
 def render_video(summary_text: str, repo_name: str) -> bytes:
     """Backward-compatible wrapper for sync callers."""
