@@ -276,6 +276,12 @@ def render_pdf(summary_text: str, repo_name: str) -> bytes:
 
     if need_cjk:
         font_path = _find_system_cjk_font()
+        # If CJK is needed but no CJK font is available on this system, we
+        # must downgrade to Helvetica. Helvetica cannot render CJK or ZWSPs,
+        # so sanitize the text (strips non-latin-1 chars with '?' fallback).
+        if not font_path:
+            logger.warning("CJK text detected but no CJK font available; downgrading to Helvetica and sanitizing")
+            need_cjk = False
 
     if not need_cjk:
         summary_text = _sanitize_text(summary_text)
@@ -1003,6 +1009,55 @@ _PDF_ADAPTERS = {
 }
 
 
+def _format_evolution_section(analyzed) -> str:
+    """Format commit history + evolution narrative as a PDF text section.
+
+    Returns empty string when no commit data is available. Always reads
+    directly from ``analyzed.commit_timeline`` so this works even when
+    the LLM failed to produce valid JSON and structured fields are empty.
+    """
+    timeline = getattr(analyzed, "commit_timeline", None)
+    if not timeline or timeline.is_empty():
+        return ""
+
+    lines: list[str] = []
+    lines.append("Project Evolution & Commit History:")
+
+    narrative = getattr(analyzed, "evolution_narrative", "") or ""
+    if narrative.strip():
+        lines.append(narrative.strip())
+        lines.append("")
+
+    # Range summary
+    if timeline.first_commit_date or timeline.latest_commit_date:
+        first = timeline.first_commit_date[:10] if timeline.first_commit_date else "?"
+        latest = timeline.latest_commit_date[:10] if timeline.latest_commit_date else "?"
+        lines.append(f"- Timeline range: {first} to {latest} ({timeline.total_commits_scanned} commits analyzed)")
+
+    # Contributors
+    if timeline.contributors:
+        top = timeline.contributors[:5]
+        names = ", ".join(f"{c.login} ({c.commit_count})" for c in top)
+        lines.append(f"- Top contributors: {names}")
+
+    # Releases
+    if timeline.releases:
+        rels = [f"{r.tag} ({r.date[:10]})" for r in timeline.releases[:5] if r.tag]
+        if rels:
+            lines.append(f"- Releases: {', '.join(rels)}")
+
+    # Recent commits
+    if timeline.commits:
+        lines.append("")
+        lines.append("Recent commits:")
+        for c in timeline.commits[:8]:
+            date = c.date[:10] if c.date else ""
+            msg = c.message[:80] if c.message else ""
+            lines.append(f"- {date} [{c.sha}] {c.author}: {msg}")
+
+    return "\n".join(lines).strip()
+
+
 def render_pdf_from_analyzed(analyzed) -> bytes:
     """
     Phase 2b-PDF + Phase 3: AnalyzedContent → PDF bytes.
@@ -1023,6 +1078,12 @@ def render_pdf_from_analyzed(analyzed) -> bytes:
             analyzed.repo_type_hint, len(stripped_lines),
         )
         summary_text = _adapt_pdf_text_generic(analyzed)
+
+    # Append commit-history section directly from structured data.
+    # Works regardless of whether the LLM produced valid JSON.
+    evolution_block = _format_evolution_section(analyzed)
+    if evolution_block:
+        summary_text = (summary_text.rstrip() + "\n\n" + evolution_block).strip()
 
     return render_pdf(summary_text, analyzed.repo_name)
 
@@ -1055,6 +1116,27 @@ def _print_analyzed_content(analyzed, label: str = "PDF"):
         "deployment_info": analyzed.deployment_info,
         "component_hierarchy": analyzed.component_hierarchy,
         "data_schemas": analyzed.data_schemas,
+        "evolution_narrative": analyzed.evolution_narrative,
+        "commit_timeline": (
+            {
+                "total_commits_scanned": analyzed.commit_timeline.total_commits_scanned,
+                "first_commit_date": analyzed.commit_timeline.first_commit_date,
+                "latest_commit_date": analyzed.commit_timeline.latest_commit_date,
+                "commits_preview": [
+                    {"date": c.date[:10], "sha": c.sha, "author": c.author, "message": c.message}
+                    for c in analyzed.commit_timeline.commits[:10]
+                ],
+                "contributors": [
+                    {"login": c.login, "commits": c.commit_count}
+                    for c in analyzed.commit_timeline.contributors[:5]
+                ],
+                "releases": [
+                    {"tag": r.tag, "date": r.date[:10] if r.date else "", "name": r.name}
+                    for r in analyzed.commit_timeline.releases[:5]
+                ],
+            }
+            if analyzed.commit_timeline else None
+        ),
     }
 
     json_str = _json.dumps(data, ensure_ascii=False, indent=2)

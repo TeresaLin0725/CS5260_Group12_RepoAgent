@@ -241,7 +241,8 @@ Analyze the following repository content and produce a JSON object with this EXA
   ],
   "deployment_info": "<optional — 3-4 sentences on deployment strategy, containerization, CI/CD, scaling. null if not applicable>",
   "component_hierarchy": "<optional — 3-4 sentences on UI component tree, routing, state management. null if not applicable>",
-  "data_schemas": "<optional — 3-4 sentences on key data models, database schema, validation. null if not applicable>"
+  "data_schemas": "<optional — 3-4 sentences on key data models, database schema, validation. null if not applicable>",
+  "evolution_narrative": "<3-5 sentences telling the project's evolution story as a human narrative. Use the RECENT COMMIT HISTORY block (if present at the end of the source content) to identify milestones, major shifts, and recurring themes. Examples: 'The project started as X in <month>, then pivoted to Y when <author> added <feature>...'. If no commit history is provided, write an empty string.>"
 }}
 
 Guidelines:

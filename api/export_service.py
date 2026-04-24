@@ -149,6 +149,27 @@ def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
         "deployment_info": analyzed.deployment_info,
         "component_hierarchy": analyzed.component_hierarchy,
         "data_schemas": analyzed.data_schemas,
+        "evolution_narrative": analyzed.evolution_narrative,
+        "commit_timeline": (
+            {
+                "total_commits_scanned": analyzed.commit_timeline.total_commits_scanned,
+                "first_commit_date": analyzed.commit_timeline.first_commit_date,
+                "latest_commit_date": analyzed.commit_timeline.latest_commit_date,
+                "commits_preview": [
+                    {"date": c.date[:10], "sha": c.sha, "author": c.author, "message": c.message}
+                    for c in analyzed.commit_timeline.commits[:10]
+                ],
+                "contributors": [
+                    {"login": c.login, "commits": c.commit_count}
+                    for c in analyzed.commit_timeline.contributors[:5]
+                ],
+                "releases": [
+                    {"tag": r.tag, "date": r.date[:10] if r.date else "", "name": r.name}
+                    for r in analyzed.commit_timeline.releases[:5]
+                ],
+            }
+            if analyzed.commit_timeline else None
+        ),
     }
 
     json_str = json.dumps(data, ensure_ascii=False, indent=2)

@@ -150,6 +150,53 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
 # Alias for backward compatibility
 download_github_repo = download_repo
 
+
+def ensure_full_history(local_path: str) -> bool:
+    """
+    Upgrade a shallow git clone to a full-history clone in place.
+
+    `download_repo()` uses ``--depth=1`` which means ``.git`` only contains the
+    latest commit — this is fine for source code analysis but loses the commit
+    history needed for timeline/storytelling features.
+
+    This helper runs ``git fetch --unshallow`` when the clone is shallow.
+    It is a no-op if the repo is already fully-cloned.
+
+    Returns:
+        True if history is available after the call (either was already full,
+        or --unshallow succeeded). False if the upgrade failed.
+    """
+    if not local_path or not os.path.isdir(os.path.join(local_path, ".git")):
+        logger.info("ensure_full_history: no .git dir at %s", local_path)
+        return False
+
+    shallow_marker = os.path.join(local_path, ".git", "shallow")
+    if not os.path.exists(shallow_marker):
+        # Already a full clone.
+        return True
+
+    logger.info("Upgrading shallow clone to full history: %s", local_path)
+    try:
+        subprocess.run(
+            ["git", "fetch", "--unshallow"],
+            cwd=local_path,
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        return True
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
+        # A repo cloned from a remote that had few commits may not actually be
+        # shallow even if the marker exists; git reports "not a shallow repo".
+        if "not a shallow repository" in err.lower():
+            return True
+        logger.warning("git fetch --unshallow failed for %s: %s", local_path, err)
+        return False
+    except Exception as e:
+        logger.warning("ensure_full_history failed: %s", e)
+        return False
+
 def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder: bool = None, 
                       excluded_dirs: List[str] = None, excluded_files: List[str] = None,
                       included_dirs: List[str] = None, included_files: List[str] = None):

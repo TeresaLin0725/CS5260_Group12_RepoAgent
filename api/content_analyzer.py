@@ -21,6 +21,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, computed_field
 
+from api.git_metadata import CommitTimeline
+
 logger = logging.getLogger(__name__)
 
 
@@ -291,6 +293,12 @@ class AnalyzedContent(BaseModel):
 
     # Module build-order progression for video storyline
     module_progression: List["ModuleProgressionEntry"] = Field(default_factory=list)
+
+    # Commit-history narrative (populated by api.git_metadata when available)
+    commit_timeline: Optional["CommitTimeline"] = None
+
+    # LLM-generated 3-5 sentence evolution story, derived from commit_timeline
+    evolution_narrative: str = ""
 
     # Fallback: raw LLM response text, used when JSON parsing fails
     raw_llm_text: str = Field(default="", exclude=True)
@@ -572,6 +580,7 @@ def _build_analyzed_content(
         deployment_info=raw_json.get("deployment_info"),
         component_hierarchy=raw_json.get("component_hierarchy"),
         data_schemas=raw_json.get("data_schemas"),
+        evolution_narrative=raw_json.get("evolution_narrative", "") or "",
         raw_llm_text=raw_llm_text,
     )
 
@@ -1115,6 +1124,32 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
         included_files=included_files,
     )
 
+    # Commit history extraction (best-effort; never blocks main flow)
+    commit_timeline: Optional[CommitTimeline] = None
+    try:
+        local_repo_path = None
+        if rag.db_manager and getattr(rag.db_manager, "repo_paths", None):
+            local_repo_path = rag.db_manager.repo_paths.get("save_repo_dir")
+        if local_repo_path:
+            from api.data_pipeline import ensure_full_history
+            from api.git_metadata import extract_commit_timeline
+
+            ensure_full_history(local_repo_path)
+            commit_timeline = extract_commit_timeline(
+                local_path=local_repo_path,
+                repo_url=request.repo_url,
+                access_token=request.access_token,
+            )
+            logger.info(
+                "Commit timeline: %d commits, %d contributors, %d releases",
+                len(commit_timeline.commits),
+                len(commit_timeline.contributors),
+                len(commit_timeline.releases),
+            )
+    except Exception as e:
+        logger.warning("Commit timeline extraction failed (non-fatal): %s", e)
+        commit_timeline = None
+
     # Phase 1
     context_text = _extract_repo_context(rag, request.repo_name)
     if not context_text.strip():
@@ -1123,7 +1158,17 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
 
     if not context_text.strip():
         logger.warning("No repo content retrieved even after fallback; returning empty AnalyzedContent")
-        return AnalyzedContent(repo_name=request.repo_name, repo_url=request.repo_url, language=request.language)
+        empty = AnalyzedContent(repo_name=request.repo_name, repo_url=request.repo_url, language=request.language)
+        empty.commit_timeline = commit_timeline
+        return empty
+
+    # Inject commit timeline into the LLM input so the evolution_narrative field
+    # can be populated. Appended at the end to avoid displacing code context.
+    if commit_timeline and not commit_timeline.is_empty():
+        from api.git_metadata import format_timeline_for_prompt
+        timeline_block = format_timeline_for_prompt(commit_timeline)
+        if timeline_block:
+            context_text = context_text + "\n\n" + timeline_block
 
     # Phase 2a
     raw_text = await _run_llm_structured_analysis(
@@ -1136,6 +1181,7 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
 
     raw_json = _extract_json_from_llm(raw_text)
     analyzed = _build_analyzed_content(raw_json, request.repo_name, request.repo_url, request.language, raw_llm_text=raw_text)
+    analyzed.commit_timeline = commit_timeline
 
     # Post-process raw_llm_text for fallback rendering
     if analyzed.raw_llm_text:
