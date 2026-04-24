@@ -14,6 +14,7 @@ from api.google_embedder_client import GoogleEmbedderClient
 from api.azureai_client import AzureAIClient
 from api.dashscope_client import DashscopeClient
 from adalflow import GoogleGenAIClient
+from adalflow.components.model_client.ollama_client import OllamaClient
 
 # Get API keys from environment variables
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -63,7 +64,8 @@ CLIENT_CLASSES = {
     "OpenRouterClient": OpenRouterClient,
     "BedrockClient": BedrockClient,
     "AzureAIClient": AzureAIClient,
-    "DashscopeClient": DashscopeClient
+    "DashscopeClient": DashscopeClient,
+    "OllamaClient": OllamaClient,
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -131,14 +133,15 @@ def load_generator_config():
             if provider_config.get("client_class") in CLIENT_CLASSES:
                 provider_config["model_client"] = CLIENT_CLASSES[provider_config["client_class"]]
             # Fall back to default mapping based on provider_id
-            elif provider_id in ["google", "openai", "openrouter", "bedrock", "azure", "dashscope"]:
+            elif provider_id in ["google", "openai", "openrouter", "bedrock", "azure", "dashscope", "ollama"]:
                 default_map = {
                     "google": GoogleGenAIClient,
                     "openai": OpenAIClient,
                     "openrouter": OpenRouterClient,
                     "bedrock": BedrockClient,
                     "azure": AzureAIClient,
-                    "dashscope": DashscopeClient
+                    "dashscope": DashscopeClient,
+                    "ollama": OllamaClient,
                 }
                 provider_config["model_client"] = default_map[provider_id]
             else:
@@ -151,7 +154,7 @@ def load_embedder_config():
     embedder_config = load_json_config("embedder.json")
 
     # Process client classes
-    for key in ["embedder", "embedder_google", "embedder_bedrock"]:
+    for key in ["embedder", "embedder_google", "embedder_bedrock", "embedder_ollama"]:
         if key in embedder_config and "client_class" in embedder_config[key]:
             class_name = embedder_config[key]["client_class"]
             if class_name in CLIENT_CLASSES:
@@ -171,6 +174,8 @@ def get_embedder_config():
         return configs.get("embedder_bedrock", {})
     elif embedder_type == 'google' and 'embedder_google' in configs:
         return configs.get("embedder_google", {})
+    elif embedder_type == 'ollama' and 'embedder_ollama' in configs:
+        return configs.get("embedder_ollama", {})
     else:
         return configs.get("embedder", {})
 

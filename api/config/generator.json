@@ -1,6 +1,41 @@
 {
   "default_provider": "openai",
   "providers": {
+    "ollama": {
+      "client_class": "OllamaClient",
+      "default_model": "qwen3:14b",
+      "supportsCustomModel": true,
+      "models": {
+        "qwen3:14b": {
+          "options": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "num_ctx": 8192
+          }
+        },
+        "gemma4:e4b": {
+          "options": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "num_ctx": 8192
+          }
+        },
+        "mistral:7b-instruct": {
+          "options": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "num_ctx": 8192
+          }
+        },
+        "mixtral:latest": {
+          "options": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "num_ctx": 8192
+          }
+        }
+      }
+    },
     "dashscope": {
       "default_model": "qwen-plus",
       "supportsCustomModel": true,
