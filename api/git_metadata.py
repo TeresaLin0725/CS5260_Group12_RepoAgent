@@ -68,6 +68,15 @@ class ReleaseInfo(BaseModel):
     tag: str = ""
     date: str = ""             # ISO 8601
     name: str = ""
+    # Raw release notes from GitHub (markdown). Often contains a clean
+    # changelog when the maintainer wrote one; empty for many small repos.
+    body: str = ""
+    # Final one-liner shown under the milestone in the Act 1 timeline.
+    # Resolved via a 3-step chain (see fill_release_summaries):
+    #   1. cleaned `body` if non-empty
+    #   2. heuristic on inter-release commit messages
+    #   3. (optional, async) LLM fallback when steps 1 & 2 produce nothing.
+    summary: str = ""
 
 
 class RepoStats(BaseModel):
@@ -429,8 +438,187 @@ def _fetch_releases(owner: str, repo: str, access_token: Optional[str]) -> List[
             tag=entry.get("tag_name", "") or "",
             date=entry.get("published_at", "") or entry.get("created_at", "") or "",
             name=entry.get("name", "") or entry.get("tag_name", "") or "",
+            body=(entry.get("body") or "").strip(),
         ))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Release summary builders (C → A chain; B is async, lives in content_analyzer)
+# ---------------------------------------------------------------------------
+
+# Liberal match for commits that ship user-facing change. We prefer to
+# include too much rather than drop something interesting — the goal is to
+# avoid "merge / chore / typo" noise dominating the 3-line summary.
+_SUBSTANTIVE_PREFIX = __import__("re").compile(
+    r"^\s*(feat(?:ure)?|add|fix|bug(?:fix)?|update|impl(?:ement)?|support|"
+    r"enable|allow|introduce|refactor|improve|enhance|optim(?:i[sz]e)?|"
+    r"perf|migrate|rewrite|new|major|"
+    r"feat\([^)]+\)|fix\([^)]+\))[\s:\-/]",
+    __import__("re").IGNORECASE,
+)
+# Explicit no-go list (commits the user almost never wants in a release blurb).
+_SKIP_PREFIX = __import__("re").compile(
+    r"^\s*(merge\b|chore\b|docs?[:\(\s]|typo\b|ci[:\(\s]|style[:\(\s]|"
+    r"format[:\(\s]|bump\s|release\s|version\s|wip\b|tmp\b)",
+    __import__("re").IGNORECASE,
+)
+# Strip leading "feat:" / "fix(scope):" / etc. from a normalized message
+# so the resulting phrase reads naturally in a summary.
+_PREFIX_STRIP = __import__("re").compile(
+    r"^\s*[a-zA-Z]+(?:\([^)]+\))?\s*[:\-]\s*",
+)
+
+
+def _clean_release_body(body: str, max_chars: int = 140) -> str:
+    """Turn raw GitHub release notes (markdown) into a one-line summary.
+
+    Strategy: drop GitHub footers, strip markdown decorations, take the
+    first line that looks like prose, truncate at sentence boundary if
+    possible.
+    """
+    if not body:
+        return ""
+    text = body.strip()
+    # Cut everything from the GitHub auto-generated diff / contributors footer.
+    for marker in ("**Full Changelog**", "## What's Changed", "## New Contributors"):
+        idx = text.find(marker)
+        if idx > 0:
+            text = text[:idx].strip()
+    lines = [
+        ln.strip().lstrip("*-•").strip()
+        for ln in text.splitlines()
+    ]
+    candidates = [
+        ln for ln in lines
+        # Skip empty, headings (only #'s), badge images, and HTML tags.
+        if ln and not ln.startswith(("#", "<", "![", "[!"))
+    ]
+    if not candidates:
+        return ""
+    # Strip inline markdown like **bold** / `code` / [link](url).
+    first = candidates[0]
+    first = __import__("re").sub(r"\*\*([^*]+)\*\*", r"\1", first)
+    first = __import__("re").sub(r"`([^`]+)`", r"\1", first)
+    first = __import__("re").sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", first)
+    if len(first) > max_chars:
+        # Try to break at a sentence end before the limit.
+        cut = first[:max_chars]
+        last_period = max(cut.rfind(". "), cut.rfind("。"))
+        if last_period >= max_chars * 0.5:
+            first = cut[: last_period + 1].strip()
+        else:
+            first = cut.rstrip(",.;: ").rstrip() + "…"
+    return first
+
+
+def _is_substantive_commit(message: str) -> bool:
+    """True if the commit subject reads like a user-facing change."""
+    msg = (message or "").strip()
+    if not msg:
+        return False
+    if _SKIP_PREFIX.match(msg):
+        return False
+    if _SUBSTANTIVE_PREFIX.match(msg):
+        return True
+    # No conventional prefix → accept short messages that don't smell like noise.
+    # Helps with repos that don't follow conventional commits.
+    return len(msg.split()) >= 3 and not msg.lower().startswith(("revert", "remove "))
+
+
+def _extract_change_phrase(message: str, max_chars: int = 60) -> str:
+    """Turn one commit subject into a change phrase suitable for joining.
+
+    Examples:
+        "feat: add async support" -> "Add async support"
+        "fix(parser): handle empty inputs gracefully" -> "Handle empty inputs gracefully"
+        "Update README" -> "Update README"
+    """
+    msg = (message or "").strip()
+    if not msg:
+        return ""
+    # Collapse to first line.
+    msg = msg.splitlines()[0].strip()
+    msg = _PREFIX_STRIP.sub("", msg)
+    # Sentence case (uppercase first letter, lowercase rest if it was ALL CAPS).
+    if msg and msg[0].islower():
+        msg = msg[0].upper() + msg[1:]
+    if len(msg) > max_chars:
+        msg = msg[: max_chars - 1].rstrip(",.;: ") + "…"
+    return msg
+
+
+def _heuristic_release_summary(
+    in_range_commits: List[CommitTimelineEntry], max_phrases: int = 3,
+) -> str:
+    """Build a "Adds X · Fixes Y · Refactors Z" summary from inter-release commits."""
+    substantive = [c for c in in_range_commits if _is_substantive_commit(c.message)]
+    if not substantive:
+        return ""
+    seen: set = set()
+    phrases: List[str] = []
+    for c in substantive:
+        phrase = _extract_change_phrase(c.message)
+        key = phrase.lower()
+        if not phrase or key in seen:
+            continue
+        seen.add(key)
+        phrases.append(phrase)
+        if len(phrases) >= max_phrases:
+            break
+    return " · ".join(phrases)
+
+
+def _commits_between_releases(
+    commits: List[CommitTimelineEntry],
+    later_date: str,
+    earlier_date: Optional[str],
+) -> List[CommitTimelineEntry]:
+    """Return commits whose date sits in (earlier_date, later_date].
+
+    earlier_date = None means "any commit at or before later_date" (used
+    for the oldest release in the list).
+    """
+    if not later_date:
+        return []
+    return [
+        c for c in commits
+        if c.date and c.date <= later_date
+        and (not earlier_date or c.date > earlier_date)
+    ]
+
+
+def fill_release_summaries(timeline: "CommitTimeline") -> None:
+    """Populate ReleaseInfo.summary in place using the C → A chain.
+
+    C: GitHub-provided release body (cleaned to one line)
+    A: heuristic on inter-release commit messages
+
+    The B (LLM) fallback lives in content_analyzer because it needs the
+    user's configured provider/model. Releases left without a summary
+    here can be filled by ``fill_missing_release_summaries_with_llm``.
+    """
+    if not timeline or not timeline.releases:
+        return
+    # Releases come sorted newest-first from the GitHub API.
+    releases = timeline.releases
+    commits = timeline.commits or []
+    for i, release in enumerate(releases):
+        # Step C — maintainer-written notes.
+        body_summary = _clean_release_body(release.body, max_chars=140)
+        if body_summary:
+            release.summary = body_summary
+            continue
+        # Step A — heuristic over commits between the previous (older)
+        # release and this one. `releases[i+1]` is the older neighbor
+        # because the list is newest-first.
+        older_date = (
+            releases[i + 1].date if i + 1 < len(releases) else None
+        )
+        in_range = _commits_between_releases(
+            commits, later_date=release.date, earlier_date=older_date,
+        )
+        release.summary = _heuristic_release_summary(in_range, max_phrases=3)
 
 
 # ---------------------------------------------------------------------------
@@ -502,6 +690,11 @@ def extract_commit_timeline(
                 logger.info("contributors fetch skipped: %s", e)
             try:
                 timeline.releases = _fetch_releases(owner, repo, access_token)
+                # Fill in the human-readable summary for each release using
+                # the C (GitHub body) → A (commit-msg heuristic) chain.
+                # Step B (LLM) runs later in content_analyzer where the
+                # user's provider/model is known.
+                fill_release_summaries(timeline)
             except Exception as e:
                 logger.info("releases fetch skipped: %s", e)
             stats_summary = (

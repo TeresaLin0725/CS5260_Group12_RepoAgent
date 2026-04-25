@@ -357,11 +357,17 @@ def render_act1_intro_html(card: dict) -> str:
                 classes += " first"
             if is_last:
                 classes += " last"
+            summary = (m.get("summary") or "").strip()
+            summary_html = (
+                f'<div class="milestone-summary">{_esc(summary)}</div>'
+                if summary else ''
+            )
             nodes.append(f'''
                 <div class="{classes}">
                     <div class="milestone-dot"></div>
                     <div class="milestone-date">{_esc(m.get("date", ""))}</div>
                     <div class="milestone-label">{_esc(m.get("label", ""))}</div>
+                    {summary_html}
                 </div>
             ''')
         timeline_html = f'''
@@ -472,6 +478,14 @@ def render_act1_intro_html(card: dict) -> str:
         .milestone-label {{
             font-size: 13px; color: {p['text_dim']}; line-height: 1.3;
             word-break: break-word;
+        }}
+        .milestone-summary {{
+            font-size: 11px; color: {p['text_dim']}cc; line-height: 1.35;
+            margin-top: 2px; word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }}
 
         .contributors-section {{ display: flex; flex-direction: column; gap: 10px; }}

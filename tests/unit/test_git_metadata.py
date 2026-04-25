@@ -309,3 +309,127 @@ def test_format_evolution_section_with_data():
     # One-liner summary mentions contributors & latest release
     assert "alice" in section
     assert "v1.0" in section
+
+
+# ---------------------------------------------------------------------------
+# Release-summary chain helpers (steps C and A)
+# ---------------------------------------------------------------------------
+
+def test_clean_release_body_strips_markdown_and_trims():
+    from api.git_metadata import _clean_release_body
+    body = (
+        "## Highlights\n"
+        "* **Adds** `--quiet` flag for suppressing output\n"
+        "* Fix: handle [empty stdin](https://example.com/issue/1) gracefully\n\n"
+        "**Full Changelog**: https://github.com/x/y/compare/v0.1...v0.2\n"
+    )
+    out = _clean_release_body(body, max_chars=140)
+    # First substantive bullet wins, decorations stripped, footer dropped.
+    assert "Adds --quiet flag" in out
+    assert "**" not in out and "`" not in out
+    assert "Full Changelog" not in out
+
+
+def test_clean_release_body_empty_returns_empty():
+    from api.git_metadata import _clean_release_body
+    assert _clean_release_body("") == ""
+    assert _clean_release_body("   \n\n  ") == ""
+
+
+def test_clean_release_body_truncates_with_sentence_break():
+    from api.git_metadata import _clean_release_body
+    long = "Adds support for foo. " + ("And then " * 40) + "."
+    out = _clean_release_body(long, max_chars=80)
+    assert len(out) <= 81  # max_chars + ellipsis allowance
+    assert out.startswith("Adds support for foo")
+
+
+def test_is_substantive_commit_accepts_conventional_prefixes():
+    from api.git_metadata import _is_substantive_commit
+    assert _is_substantive_commit("feat: add async support")
+    assert _is_substantive_commit("fix(parser): handle empty inputs")
+    assert _is_substantive_commit("Add new command")
+    assert _is_substantive_commit("Refactor the rendering pipeline")
+
+
+def test_is_substantive_commit_rejects_noise():
+    from api.git_metadata import _is_substantive_commit
+    assert not _is_substantive_commit("Merge pull request #42")
+    assert not _is_substantive_commit("chore: bump version")
+    assert not _is_substantive_commit("docs: fix typo")
+    assert not _is_substantive_commit("ci: enable caching")
+    assert not _is_substantive_commit("")
+
+
+def test_extract_change_phrase_strips_prefix_and_normalises():
+    from api.git_metadata import _extract_change_phrase
+    assert _extract_change_phrase("feat: add async support") == "Add async support"
+    assert _extract_change_phrase("fix(parser): handle empty inputs") == "Handle empty inputs"
+    assert _extract_change_phrase("Refactor rendering") == "Refactor rendering"
+
+
+def test_extract_change_phrase_caps_length():
+    from api.git_metadata import _extract_change_phrase
+    long = "feat: " + ("really long bit " * 10)
+    out = _extract_change_phrase(long, max_chars=40)
+    assert len(out) <= 41  # 40 + ellipsis
+    assert out.endswith("…")
+
+
+def test_fill_release_summaries_uses_github_body_when_present():
+    from api.git_metadata import (
+        CommitTimeline, ReleaseInfo, fill_release_summaries,
+    )
+    timeline = CommitTimeline(releases=[
+        ReleaseInfo(
+            tag="v1.0", date="2026-01-15T00:00:00",
+            body="* Adds long-awaited streaming support\n\n**Full Changelog**: ...",
+        ),
+    ])
+    fill_release_summaries(timeline)
+    assert "Adds long-awaited streaming support" in timeline.releases[0].summary
+
+
+def test_fill_release_summaries_falls_back_to_heuristic_when_body_empty():
+    from api.git_metadata import (
+        CommitTimeline, CommitTimelineEntry, ReleaseInfo, fill_release_summaries,
+    )
+    # Two releases; commits sit between them. Body is empty so heuristic kicks in.
+    timeline = CommitTimeline(
+        releases=[
+            ReleaseInfo(tag="v0.2", date="2026-03-01T00:00:00", body=""),
+            ReleaseInfo(tag="v0.1", date="2026-01-01T00:00:00", body=""),
+        ],
+        commits=[
+            CommitTimelineEntry(message="feat: add async pipeline", date="2026-02-25T00:00:00"),
+            CommitTimelineEntry(message="fix(cli): handle missing flag", date="2026-02-20T00:00:00"),
+            CommitTimelineEntry(message="chore: bump deps", date="2026-02-15T00:00:00"),
+            CommitTimelineEntry(message="docs: typo", date="2026-02-10T00:00:00"),
+            CommitTimelineEntry(message="Refactor parser", date="2026-02-05T00:00:00"),
+        ],
+    )
+    fill_release_summaries(timeline)
+    s = timeline.releases[0].summary
+    # Top-of-list (v0.2) gets the in-range substantive commits joined.
+    assert "Add async pipeline" in s
+    assert "Handle missing flag" in s
+    # Noise (chore/docs) is filtered out.
+    assert "bump" not in s.lower()
+    assert "typo" not in s.lower()
+
+
+def test_fill_release_summaries_empty_when_no_substantive_commits():
+    from api.git_metadata import (
+        CommitTimeline, CommitTimelineEntry, ReleaseInfo, fill_release_summaries,
+    )
+    timeline = CommitTimeline(
+        releases=[ReleaseInfo(tag="v1.0", date="2026-03-01T00:00:00", body="")],
+        commits=[
+            CommitTimelineEntry(message="chore: bump", date="2026-02-25T00:00:00"),
+            CommitTimelineEntry(message="docs: typo", date="2026-02-20T00:00:00"),
+        ],
+    )
+    fill_release_summaries(timeline)
+    # No body, no substantive commits → summary stays empty
+    # (the LLM step B would fill it later).
+    assert timeline.releases[0].summary == ""

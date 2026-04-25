@@ -809,6 +809,76 @@ def _extract_repo_context_fallback(rag_instance: Any, repo_name: str) -> str:
 # Generic LLM call (used by poster_export and other modules)
 # ---------------------------------------------------------------------------
 
+async def _fill_missing_release_summaries_with_llm(
+    timeline: "CommitTimeline",
+    *,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    max_commits_per_release: int = 12,
+) -> None:
+    """Step B of the release-summary chain.
+
+    Walks ``timeline.releases`` and for each release whose ``summary`` is
+    still empty (i.e. step C — GitHub body — and step A — heuristic on
+    commits — both produced nothing) asks the LLM for a one-line gist of
+    what changed between this release and the previous one.
+
+    Best-effort: any failure is logged and skipped. The user's configured
+    provider is used so cost / privacy match the rest of the analysis.
+    """
+    from api.git_metadata import _commits_between_releases  # private helper, same package
+
+    if not timeline or not timeline.releases:
+        return
+    releases = timeline.releases
+    commits = timeline.commits or []
+
+    for i, release in enumerate(releases):
+        if release.summary:
+            continue
+        older_date = releases[i + 1].date if i + 1 < len(releases) else None
+        in_range = _commits_between_releases(
+            commits, later_date=release.date, earlier_date=older_date,
+        )
+        if not in_range:
+            continue
+        bullets = "\n".join(
+            f"- {c.message.splitlines()[0][:120]}"
+            for c in in_range[:max_commits_per_release]
+            if (c.message or "").strip()
+        )
+        if not bullets:
+            continue
+        prompt = (
+            "Summarize what changed in a software release based on these "
+            "commit messages. Reply with ONE sentence, ≤ 120 characters, "
+            "no quotes, no markdown, no list — just plain prose suitable "
+            "for a video subtitle.\n\n"
+            f"Release: {release.tag or release.name}\n"
+            f"Commits ({len(in_range)} total, showing first {min(len(in_range), max_commits_per_release)}):\n"
+            f"{bullets}\n\n"
+            "Summary:"
+        )
+        try:
+            text = await _call_llm(prompt, provider=provider, model=model)
+        except Exception as e:
+            logger.info("LLM release-summary failed for %s: %s", release.tag, e)
+            continue
+        cleaned = (text or "").strip().strip('"').strip("'")
+        # Take the first non-empty line, drop any leading bullet/dash.
+        for line in cleaned.splitlines():
+            line = line.strip().lstrip("-*•").strip()
+            if line:
+                cleaned = line
+                break
+        if len(cleaned) > 140:
+            cleaned = cleaned[:139].rstrip(",.;: ").rstrip() + "…"
+        if cleaned:
+            release.summary = cleaned
+            logger.info("LLM-filled release summary for %s (%d chars)",
+                        release.tag, len(cleaned))
+
+
 async def _call_llm(
     prompt: str,
     provider: Optional[str] = None,
@@ -1226,6 +1296,18 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
                 len(commit_timeline.contributors),
                 len(commit_timeline.releases),
             )
+            # Step B of the release-summary chain: ask the LLM to summarize
+            # the commits between two releases when steps C (GitHub body)
+            # and A (heuristic) both yielded nothing. Cheap (one call per
+            # missing release, capped) and never fatal.
+            try:
+                await _fill_missing_release_summaries_with_llm(
+                    commit_timeline,
+                    provider=request.provider,
+                    model=request.model,
+                )
+            except Exception as e:
+                logger.info("LLM release-summary fallback skipped: %s", e)
     except Exception as e:
         logger.warning("Commit timeline extraction failed (non-fatal): %s", e)
         commit_timeline = None

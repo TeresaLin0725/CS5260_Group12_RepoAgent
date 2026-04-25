@@ -77,7 +77,7 @@ def _build_act1_intro(analyzed: "AnalyzedContent") -> dict:
         "act_number": 1,
         "section": "intro",
         "title": analyzed.repo_name or "Repository",
-        "narration": one_liner or f"Welcome to {analyzed.repo_name or 'this project'}.",
+        "narration": _act1_narration(analyzed, one_liner),
         "duration_seconds": DEFAULT_DURATIONS["intro"],
         "card": {
             "repo_name": analyzed.repo_name or "Repository",
@@ -123,10 +123,7 @@ def _build_act3_io(analyzed: "AnalyzedContent") -> dict:
         "act_number": 3,
         "section": "io",
         "title": "How it works",
-        "narration": (
-            f"You give it {boxes[0].lower()}; it {boxes[1].lower()}; "
-            f"and you get {boxes[2].lower()}."
-        ),
+        "narration": _act3_narration(analyzed, boxes),
         "duration_seconds": DEFAULT_DURATIONS["io"],
         "card": {
             "boxes": box_with_icons,
@@ -159,10 +156,7 @@ def _build_act5_setup(analyzed: "AnalyzedContent") -> dict:
         "act_number": 5,
         "section": "setup",
         "title": "Get it running in 5 minutes",
-        "narration": (
-            f"Make sure you have {', '.join(prereqs[:2])}. " if prereqs
-            else ""
-        ) + "Then run a few simple commands and open the result in your browser.",
+        "narration": _act5_narration(analyzed, prereqs[:2]),
         "duration_seconds": DEFAULT_DURATIONS["setup"],
         "card": {
             "prerequisites": prereqs[:3],
@@ -186,8 +180,11 @@ def _build_act5_setup(analyzed: "AnalyzedContent") -> dict:
 def _extract_timeline_milestones(analyzed: "AnalyzedContent") -> List[dict]:
     """Pick 3-5 key moments for Act 1 timeline ribbon.
 
-    Heuristic: first commit, latest release (if any), latest commit.
-    Templates flesh this out further in Commit 4.
+    Heuristic: first commit, top releases (with summary), latest commit.
+    Each milestone may carry an optional ``summary`` field — for releases,
+    this is "what shipped between this and the previous release", filled
+    by api.git_metadata.fill_release_summaries (steps C+A) or by the LLM
+    fallback in content_analyzer (step B).
     """
     timeline = getattr(analyzed, "commit_timeline", None)
     if not timeline:
@@ -197,14 +194,20 @@ def _extract_timeline_milestones(analyzed: "AnalyzedContent") -> List[dict]:
         milestones.append({
             "date": timeline.first_commit_date[:10],
             "label": "First commit",
+            "summary": "",
         })
     for r in (timeline.releases or [])[:2]:
         if r.tag and r.date:
-            milestones.append({"date": r.date[:10], "label": f"Release {r.tag}"})
+            milestones.append({
+                "date": r.date[:10],
+                "label": f"Release {r.tag}",
+                "summary": (r.summary or "").strip(),
+            })
     if timeline.latest_commit_date:
         milestones.append({
             "date": timeline.latest_commit_date[:10],
             "label": "Latest activity",
+            "summary": "",
         })
     return milestones
 
@@ -252,24 +255,182 @@ def _pick_headline_contributors(analyzed: "AnalyzedContent") -> List[dict]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Per-act narration with scene-set openers + transition closers.
+# Every helper supports English (default) and Chinese (analyzed.language="zh").
+# Goal: each act sounds like part of a continuous video, not isolated cards —
+# the closer of one act hints at the next, so the viewer stays engaged.
+# ---------------------------------------------------------------------------
+
+def _is_zh(analyzed) -> bool:
+    return (getattr(analyzed, "language", "") or "").lower().startswith("zh")
+
+
+def _join_en(parts: List[str]) -> str:
+    return " ".join(p.strip() for p in parts if p and p.strip())
+
+
+def _join_zh(parts: List[str]) -> str:
+    return "".join(p.strip() for p in parts if p and p.strip())
+
+
+def _act1_narration(analyzed, one_liner: str) -> str:
+    """Welcome → one-liner → milestones (optional) → stats (optional) → closer."""
+    is_zh = _is_zh(analyzed)
+    repo = analyzed.repo_name or ("这个项目" if is_zh else "this project")
+
+    # — Milestones sentence (only when we have at least a first commit) —
+    timeline = getattr(analyzed, "commit_timeline", None)
+    first_date = (timeline.first_commit_date[:10] if timeline and timeline.first_commit_date else "")
+    latest_release = None
+    if timeline and timeline.releases:
+        latest_release = timeline.releases[0]  # releases are sorted newest-first
+
+    milestone_sentence = ""
+    if first_date and latest_release and latest_release.tag and latest_release.date:
+        rdate = latest_release.date[:10]
+        if is_zh:
+            milestone_sentence = f"它从 {first_date} 起步，最新版本 {latest_release.tag} 发布于 {rdate}。"
+        else:
+            milestone_sentence = (
+                f"It's been active since {first_date}, "
+                f"with {latest_release.tag} the most recent release ({rdate})."
+            )
+    elif first_date:
+        milestone_sentence = (
+            f"自 {first_date} 起一直在迭代。" if is_zh
+            else f"Active since {first_date}."
+        )
+
+    # — Stats sentence (stars + headline contributor) —
+    stats_sentence = ""
+    stats = (timeline.stats if timeline else None)
+    headliners = _pick_headline_contributors(analyzed)
+    top = headliners[0] if headliners else None
+    if stats and stats.stars and stats.stars >= 50:
+        if is_zh:
+            stars_part = f"在 GitHub 上有 {stats.stars:,} 颗星"
+        else:
+            stars_part = f"It has {stats.stars:,} stars on GitHub"
+        if top and top.get("followers", 0) >= 500:
+            name = top.get("name") or top.get("login") or ""
+            if is_zh:
+                stats_sentence = f"{stars_part}，由 {name} 主导。"
+            else:
+                stats_sentence = f"{stars_part}, led by {name}."
+        else:
+            stats_sentence = stars_part + ("。" if is_zh else ".")
+
+    # — Closer hooks Act 2 —
+    closer = "我们用一个比喻来理解它。" if is_zh else "Let's see what makes it tick."
+
+    if is_zh:
+        opener = f"欢迎了解 {repo}。"
+        return _join_zh([opener, one_liner, milestone_sentence, stats_sentence, closer])
+    opener = f"Welcome to {repo}."
+    return _join_en([opener, one_liner, milestone_sentence, stats_sentence, closer])
+
+
 def _metaphor_narration(segments, analyzed) -> str:
-    if segments:
-        return " ".join(s.brief for s in segments[:4] if s.brief).strip() or \
-               f"Here's a story about {analyzed.repo_name or 'this project'}."
-    return (
-        f"Imagine {analyzed.repo_name or 'this project'} as something familiar "
-        "from everyday life — let's walk through how it works."
-    )
+    """Scene-setting opener → speaker-tagged dialogue → transition closer."""
+    is_zh = _is_zh(analyzed)
+    repo = analyzed.repo_name or ("这个项目" if is_zh else "this project")
+
+    if not segments:
+        if is_zh:
+            return _join_zh([
+                "想象一下这样的场景：",
+                f"{repo} 就像是日常生活里某个熟悉的角色。",
+                "接下来看看它内部到底是怎么运作的。",
+            ])
+        return _join_en([
+            "Picture this for a moment.",
+            f"{repo} works a lot like something you already know from everyday life.",
+            "Now here's what's really going on inside.",
+        ])
+
+    # Lift speakers out of "Speaker: utterance" briefs so the TTS narrates
+    # naturally ("the diner says: ...") instead of reading the raw "Diner:".
+    import re as _re
+    speaker_re = _re.compile(r"^\s*([^:：]{1,30})\s*[:：]\s+(.+)$")
+
+    lines: List[str] = []
+    for seg in segments[:4]:
+        text = (getattr(seg, "brief", "") or getattr(seg, "detail", "") or "").strip()
+        if not text:
+            continue
+        m = speaker_re.match(text)
+        if m:
+            speaker, utterance = m.group(1).strip(), m.group(2).strip()
+            if is_zh:
+                lines.append(f"{speaker} 说：{utterance}")
+            else:
+                lines.append(f"{speaker} says: {utterance}")
+        else:
+            lines.append(text)
+
+    body = ("。".join(lines) + "。") if is_zh else (". ".join(lines) + ".")
+    body = body.replace("。。", "。").replace("..", ".")
+
+    if is_zh:
+        opener = "想象一下这样的场景。"
+        closer = "这就是它的精髓。接下来看看它内部到底是怎么运作的。"
+        return _join_zh([opener, body, closer])
+    opener = "Picture this for a moment."
+    closer = "That's the gist of it. Now here's what's really going on inside."
+    return _join_en([opener, body, closer])
+
+
+def _act3_narration(analyzed, boxes: List[str]) -> str:
+    """Setup line → 3-box flow → hook into Act 4 use-case."""
+    is_zh = _is_zh(analyzed)
+    if is_zh:
+        return _join_zh([
+            "用最简单的话来描述：",
+            f"你给它 {boxes[0]}，它会 {boxes[1]}，最后给你 {boxes[2]}。",
+            "那真实场景里，谁会用它？我们看一个例子。",
+        ])
+    return _join_en([
+        "Here's the simple version.",
+        f"You give it {boxes[0].lower()}; it {boxes[1].lower()}; and you get {boxes[2].lower()}.",
+        "But what's it actually for? Let's look at a real scenario.",
+    ])
 
 
 def _usecase_narration(analyzed) -> str:
+    """Audience-anchored opener → existing target_users body → hook into Act 5."""
+    is_zh = _is_zh(analyzed)
     target = (analyzed.target_users or "").strip()
-    if target:
-        return target[:200]
-    return (
-        f"Here's how someone might actually use {analyzed.repo_name or 'this project'} "
-        "in real life."
-    )
+
+    body = (target[:240] if target else "")
+    if not body:
+        repo = analyzed.repo_name or ("这个项目" if is_zh else "this project")
+        body = (f"看看普通用户会怎么用 {repo}。" if is_zh
+                else f"Here's how someone might actually use {repo} in real life.")
+
+    if is_zh:
+        opener = "想象一下你正面临这样的需求。"
+        closer = "听起来还不错？只要五分钟就能跑起来。"
+        return _join_zh([opener, body, closer])
+    opener = "Imagine you've got a problem like this."
+    closer = "Sounds useful? You can be running it in five minutes."
+    return _join_en([opener, body, closer])
+
+
+def _act5_narration(analyzed, prereqs: List[str]) -> str:
+    """Action opener → prereqs (optional) → quick-start body → wrap-up closer."""
+    is_zh = _is_zh(analyzed)
+    if is_zh:
+        opener = "现在轮到你试一试。"
+        prereq_part = (f"先确认你装好了 {'、'.join(prereqs)}。" if prereqs else "")
+        body = "然后跑几条简单的命令，在浏览器里打开就好。"
+        closer = "搞定了——你已经成功跑起来了！"
+        return _join_zh([opener, prereq_part, body, closer])
+    opener = "Time to try it yourself."
+    prereq_part = (f"Make sure you have {', '.join(prereqs)}." if prereqs else "")
+    body = "Then a few quick commands and you can open it in your browser."
+    closer = "And that's it — you're up and running. Happy hacking!"
+    return _join_en([opener, prereq_part, body, closer])
 
 
 def _usecase_scene_context(analyzed) -> str:
