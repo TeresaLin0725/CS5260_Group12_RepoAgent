@@ -22,11 +22,89 @@ Public template functions (one per act):
 from __future__ import annotations
 
 import html
+import os
 from typing import Dict, List, Optional
 
 from api.video.constants import VIDEO_SIZE
 
 VIDEO_WIDTH, VIDEO_HEIGHT = VIDEO_SIZE
+
+
+# ---------------------------------------------------------------------------
+# Bundled emoji font (Noto Color Emoji extracted to .venv/system_libs/)
+# Without this, Chromium falls back to "tofu" boxes for ⭐ 🥇 📄 etc. on WSL,
+# where no system color-emoji font is installed. We reference the .ttf via
+# a file:// URL inside @font-face so set_content() (which has no base URL)
+# can still resolve it.
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
+_EMOJI_FONT_PATH = os.path.join(
+    _REPO_ROOT, ".venv", "system_libs", "usr", "share", "fonts",
+    "truetype", "noto", "NotoColorEmoji.ttf",
+)
+
+
+def _font_face_css() -> str:
+    """Return @font-face block for the bundled emoji font, or empty string
+    if the font is not present (graceful fallback to system fonts).
+
+    @font-face with a file:// URL alone proved unreliable in Chromium when
+    pages are loaded via set_content() (no base URL). The primary delivery
+    path is therefore _ensure_emoji_font_registered() below, which makes
+    fontconfig aware of the .ttf. This @font-face block is kept as a
+    belt-and-suspenders fallback for environments without fontconfig.
+    """
+    if not os.path.exists(_EMOJI_FONT_PATH):
+        return ""
+    url = "file://" + _EMOJI_FONT_PATH.replace(os.sep, "/")
+    return f"""
+    @font-face {{
+        font-family: 'NotoColorEmoji';
+        src: url('{url}') format('truetype');
+        font-display: block;
+    }}
+    """
+
+
+def _ensure_emoji_font_registered() -> None:
+    """Idempotently expose the bundled Noto Color Emoji to fontconfig.
+
+    Chromium discovers fonts via fontconfig on Linux. Symlinking the
+    bundled .ttf into ~/.local/share/fonts and refreshing the fontconfig
+    cache makes emoji available without sudo. This runs once at import
+    time; subsequent imports skip the work because the symlink already
+    exists.
+    """
+    if not os.path.exists(_EMOJI_FONT_PATH):
+        return
+    user_fonts_dir = os.path.join(
+        os.path.expanduser("~"), ".local", "share", "fonts"
+    )
+    target = os.path.join(user_fonts_dir, "NotoColorEmoji.ttf")
+    if os.path.exists(target) or os.path.islink(target):
+        return
+    try:
+        os.makedirs(user_fonts_dir, exist_ok=True)
+        os.symlink(_EMOJI_FONT_PATH, target)
+    except OSError:
+        # Symlinks may require privileges on Windows; the @font-face
+        # fallback covers it. Silently skip — never block import.
+        return
+    try:
+        import subprocess
+        subprocess.run(
+            ["fc-cache", "-f", user_fonts_dir],
+            check=False, timeout=15,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except (FileNotFoundError, OSError):
+        pass
+
+
+_ensure_emoji_font_registered()
 
 
 # ---------------------------------------------------------------------------
@@ -178,12 +256,14 @@ def _esc(text) -> str:
 def _base_css(p: Dict[str, str]) -> str:
     """Shared CSS for all 5-act scenes. Copied from api/scene_renderer.py:248."""
     return f"""
+    {_font_face_css()}
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{
         width: {VIDEO_WIDTH}px; height: {VIDEO_HEIGHT}px;
         background: {p['bg']};
         font-family: 'Segoe UI', system-ui, -apple-system, 'Noto Sans SC',
-                     'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+                     'NotoColorEmoji', 'Apple Color Emoji', 'Segoe UI Emoji',
+                     'Noto Color Emoji', sans-serif;
         color: {p['text']}; overflow: hidden; position: relative;
     }}
     .header {{
@@ -298,19 +378,31 @@ def render_act1_intro_html(card: dict) -> str:
     if headliners:
         cards = []
         for c in headliners[:3]:
-            avatar_or_medal = (
-                f'<img class="ctr-avatar" src="{_esc(c.get("avatar_url", ""))}" alt=""/>'
-                if c.get("avatar_url") else
-                f'<div class="ctr-medal">{_esc(c.get("medal", "▫️"))}</div>'
-            )
-            stats_line = f'{c.get("commits", 0)} commits'
+            medal = _esc(c.get("medal", "▫️"))
+            avatar_url = c.get("avatar_url") or ""
+            if avatar_url:
+                # Both <img> and <div class="ctr-medal"> are emitted; the
+                # img's onerror handler swaps to the medal if the GitHub CDN
+                # blocks/fails (Chromium occasionally can't load the avatar).
+                avatar_or_medal = (
+                    f'<img class="ctr-avatar" src="{_esc(avatar_url)}" alt=""'
+                    f' onerror="this.style.display=\'none\';'
+                    f'this.nextElementSibling.style.display=\'flex\';"/>'
+                    f'<div class="ctr-medal" style="display:none">{medal}</div>'
+                )
+            else:
+                avatar_or_medal = f'<div class="ctr-medal">{medal}</div>'
+            stats_parts = [f'\U0001f4dd {c.get("commits", 0)}']  # 📝 commits
             if c.get("followers"):
-                stats_line += f' · {c["followers"]:,} followers'
+                stats_parts.append(f'\U0001f465 {c["followers"]:,}')  # 👥 followers
+            stats_line = '  ·  '.join(stats_parts)
             cards.append(f'''
                 <div class="ctr-card">
                     {avatar_or_medal}
-                    <div class="ctr-name">{_esc(c.get("name") or c.get("login", ""))}</div>
-                    <div class="ctr-stats">{_esc(stats_line)}</div>
+                    <div class="ctr-text">
+                        <div class="ctr-name">{_esc(c.get("name") or c.get("login", ""))}</div>
+                        <div class="ctr-stats">{stats_line}</div>
+                    </div>
                 </div>
             ''')
         contributor_html = f'''
@@ -413,10 +505,10 @@ def render_act1_intro_html(card: dict) -> str:
             white-space: nowrap;
         }}
         .ctr-stats {{
-            font-size: 12px; color: {p['text_dim']}; margin-top: 2px;
+            font-size: 13px; color: {p['text_dim']}; margin-top: 2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }}
-        .ctr-card > div:nth-child(2) {{ flex: 1; min-width: 0; }}
+        .ctr-text {{ flex: 1; min-width: 0; }}
     """
 
     return _wrap_page(
@@ -433,6 +525,7 @@ def render_act1_intro_html(card: dict) -> str:
         palette=p,
         extra_css=extra_css,
         footer=card.get("footer", ""),
+        narration=card.get("narration", ""),
     )
 
 
@@ -440,19 +533,34 @@ def render_act1_intro_html(card: dict) -> str:
 # Act 2 — Metaphor: comic-bullet dialogue (image gen comes in v2)
 # ---------------------------------------------------------------------------
 
+_SPEAKER_PATTERN = __import__("re").compile(r"^\s*([^:：]{1,30})\s*[:：]\s+(.+)$")
+
+
+def _split_speaker(text: str):
+    """If text looks like 'Speaker: ...', return (speaker, utterance);
+    otherwise ('', text). Treats both ':' and full-width '：' as separators."""
+    if not text:
+        return "", ""
+    m = _SPEAKER_PATTERN.match(text)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return "", text.strip()
+
+
 def render_act2_metaphor_html(card: dict) -> str:
     """Render the Act 2 metaphor as a comic-bullet dialogue.
 
     card:
         {
-            "segments": [{"detail": str, "brief": str}, ...],   # 2-5 entries
+            "segments": [{"detail": str, "brief": str}, ...],   # 3-6 entries
             "fallback_subject": str,   # used when segments is empty
         }
 
-    Each segment becomes one speech bubble in a vertical conversation
-    flow, alternating left/right alignment for visual rhythm. v1 = no
-    images. v2 will add an AI-generated illustration per segment using
-    the `detail` field as the image-gen prompt.
+    Each segment becomes one speech bubble. If the brief begins with
+    "Speaker: ..." the speaker is lifted out into a small uppercase label
+    above the bubble (so the bubble itself only carries the utterance).
+    Sizing/spacing scales with segment count so 3 segments fill the frame
+    and 6 segments still fit without overflow.
     """
     p = _get_palette("metaphor")
     segments = card.get("segments") or []
@@ -466,27 +574,47 @@ def render_act2_metaphor_html(card: dict) -> str:
             {"detail": "", "brief": "…and hands you back exactly the right thing."},
         ]
 
-    # Cap at 5 segments, build alternating bubbles.
+    usable = [
+        s for s in segments[:6]
+        if (s.get("brief") or s.get("detail") or "").strip()
+    ]
+    n = max(1, len(usable))
+
+    # Dynamic sizing: fewer segments → bigger text, taller padding.
+    # 3 → 22px / gap 24, 4 → 19/20, 5 → 17/16, 6 → 15/12
+    text_size = max(15, 28 - (n - 2) * 2)
+    row_gap = max(10, 28 - (n - 2) * 4)
+    bubble_pad_v = max(10, 18 - (n - 3) * 2)
+    svg_size = max(48, 78 - (n - 3) * 6)
+
     bubble_html: list[str] = []
-    for i, seg in enumerate(segments[:5]):
+    for i, seg in enumerate(usable):
         side = "left" if i % 2 == 0 else "right"
-        text = (seg.get("brief") or seg.get("detail") or "").strip()
-        if not text:
-            continue
-        # Alternate the SVG character so the eye has someone "to listen to".
+        raw = (seg.get("brief") or seg.get("detail") or "").strip()
+        speaker, utterance = _split_speaker(raw)
         svg_key = "person_thinking" if side == "left" else "person_happy"
         svg_html = _SVG_MAP.get(svg_key, SVG_PERSON_THINKING)
+        speaker_html = (
+            f'<div class="bubble-speaker">{_esc(speaker)}</div>'
+            if speaker else ''
+        )
         bubble_html.append(f'''
             <div class="bubble-row {side}">
                 <div class="bubble-svg" style="color:{p['accent']};">{svg_html}</div>
-                <div class="bubble-card">
-                    <div class="bubble-text">{_esc(text)}</div>
+                <div class="bubble-stack">
+                    {speaker_html}
+                    <div class="bubble-card">
+                        <div class="bubble-text">{_esc(utterance)}</div>
+                    </div>
                 </div>
             </div>
         ''')
 
     extra_css = f"""
-        .content {{ padding: 24px 64px 28px; gap: 14px; justify-content: center; }}
+        .content {{
+            padding: 28px 72px 28px; gap: {row_gap}px;
+            justify-content: center; align-items: stretch;
+        }}
         .bubble-row {{
             display: flex; align-items: center; gap: 18px;
             max-width: 100%;
@@ -494,13 +622,24 @@ def render_act2_metaphor_html(card: dict) -> str:
         .bubble-row.left {{ justify-content: flex-start; }}
         .bubble-row.right {{ justify-content: flex-end; flex-direction: row-reverse; }}
         .bubble-svg {{
-            flex-shrink: 0; width: 64px; height: 64px;
+            flex-shrink: 0; width: {svg_size}px; height: {svg_size}px;
         }}
         .bubble-svg svg {{ width: 100%; height: 100%; }}
+        .bubble-stack {{
+            display: flex; flex-direction: column; min-width: 0;
+            flex: 1; max-width: 880px; gap: 4px;
+        }}
+        .bubble-row.right .bubble-stack {{ align-items: flex-end; }}
+        .bubble-speaker {{
+            font-size: 12px; letter-spacing: 1.8px;
+            color: {p['accent']}; font-weight: 700;
+            text-transform: uppercase;
+            padding: 0 4px;
+        }}
         .bubble-card {{
-            position: relative; flex: 1; max-width: 720px;
+            position: relative; align-self: stretch;
             background: {p['node_bg']}; border: 2px solid {p['node_border']};
-            border-radius: 18px; padding: 14px 22px;
+            border-radius: 18px; padding: {bubble_pad_v}px 22px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         }}
         .bubble-row.left .bubble-card::before {{
@@ -514,7 +653,7 @@ def render_act2_metaphor_html(card: dict) -> str:
             border-left: 12px solid {p['node_border']};
         }}
         .bubble-text {{
-            font-size: 18px; color: {p['text']}; line-height: 1.5;
+            font-size: {text_size}px; color: {p['text']}; line-height: 1.5;
             font-style: italic; word-break: break-word;
         }}
     """
@@ -530,6 +669,7 @@ def render_act2_metaphor_html(card: dict) -> str:
         palette=p,
         extra_css=extra_css,
         footer=card.get("footer", ""),
+        narration=card.get("narration", ""),
     )
 
 
@@ -549,7 +689,7 @@ def render_act3_io_html(card: dict) -> str:
         # acts.py guarantees 3, but be defensive.
         boxes = (boxes + [{"label": "...", "icon": "❓"}] * 3)[:3]
 
-    role_titles = ["INPUT", "PROCESS", "OUTPUT"]
+    role_titles = ["\U0001f4e5 INPUT", "⚙️ PROCESS", "\U0001f4e4 OUTPUT"]
     box_html: list[str] = []
     for i, b in enumerate(boxes):
         is_last = i == len(boxes) - 1
@@ -602,6 +742,7 @@ def render_act3_io_html(card: dict) -> str:
         palette=p,
         extra_css=extra_css,
         footer=card.get("footer", ""),
+        narration=card.get("narration", ""),
     )
 
 
@@ -653,30 +794,59 @@ def render_act4_usecase_html(card: dict) -> str:
         if scene_context else ''
     )
 
+    # Dynamic font size based on the longest panel speech: short text gets
+    # bigger letters to fill the frame; long text shrinks so it still fits
+    # without truncation. CSS line-height + word-break handle wrapping.
+    longest = max(
+        (len((p_.get("speech") or "")) for p_ in panels),
+        default=0,
+    )
+    if longest <= 70:
+        bubble_font = 18
+    elif longest <= 130:
+        bubble_font = 16
+    elif longest <= 200:
+        bubble_font = 14
+    else:
+        bubble_font = 13
+
     extra_css = f"""
+        .panels-row {{
+            display: flex; align-items: stretch; justify-content: center;
+            gap: 0; flex: 1; padding: 0 20px; min-height: 0;
+        }}
         .comic-panel {{
             flex: 1; display: flex; flex-direction: column; align-items: center;
-            justify-content: flex-start; min-width: 0; max-width: 340px;
+            justify-content: flex-end;          /* stick figure + label anchor at bottom */
+            min-width: 0; max-width: 380px;
             text-align: center; padding: 0 8px;
+            gap: 12px;
         }}
         .comic-bubble {{
             position: relative; background: {p['node_bg']}; border: 2px solid {p['node_border']};
-            border-radius: 16px; padding: 14px 20px; margin-bottom: 16px;
-            font-size: 16px; color: {p['text']}; line-height: 1.4;
-            text-align: center; max-width: 280px; word-break: break-word;
+            border-radius: 16px; padding: 14px 20px;
+            font-size: {bubble_font}px; color: {p['text']}; line-height: 1.45;
+            text-align: center; max-width: 100%;
+            word-break: break-word; overflow-wrap: anywhere;
+            /* bubble grows upward as text gets longer; flex-end on the
+               panel keeps the stick figure pinned to the bottom. */
         }}
         .comic-bubble::after {{
             content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
             border-left: 9px solid transparent; border-right: 9px solid transparent;
             border-top: 11px solid {p['node_border']};
         }}
-        .comic-svg {{ width: 90px; height: 90px; margin-bottom: 8px; }}
+        .comic-svg {{ width: 88px; height: 88px; }}
         .comic-svg svg {{ width: 100%; height: 100%; }}
         .comic-label {{
-            font-size: 16px; font-weight: 700; color: {p['accent']};
+            font-size: 17px; font-weight: 700; color: {p['accent']};
             letter-spacing: 0.5px;
         }}
-        .comic-arrow {{ flex-shrink: 0; width: 50px; padding: 0 2px; display: flex; align-items: center; }}
+        .comic-arrow {{
+            flex-shrink: 0; width: 50px; padding: 0 2px;
+            display: flex; align-items: center; justify-content: center;
+            align-self: center;
+        }}
         .comic-arrow svg {{ width: 100%; height: 24px; }}
     """
 
@@ -686,13 +856,14 @@ def render_act4_usecase_html(card: dict) -> str:
         body=(
             '<div class="content">'
             + scene_bar
-            + '<div style="display:flex;align-items:flex-start;justify-content:center;gap:0;flex:1;padding:0 20px;">'
+            + '<div class="panels-row">'
             + ''.join(flow) + '</div>'
             + '</div>'
         ),
         palette=p,
         extra_css=extra_css,
         footer=card.get("footer", ""),
+        narration=card.get("narration", ""),
     )
 
 
@@ -716,8 +887,9 @@ def render_act5_setup_html(card: dict) -> str:
     # Prerequisites (top section, optional)
     prereq_html = ""
     if prereqs:
+        from api.video.onboard_5act.icons import guess_prereq_icon
         chips = "".join(
-            f'<span class="prereq-chip">📋 {_esc(pr)}</span>'
+            f'<span class="prereq-chip">{guess_prereq_icon(pr)} {_esc(pr)}</span>'
             for pr in prereqs[:3]
         )
         prereq_html = f'''
@@ -791,6 +963,7 @@ def render_act5_setup_html(card: dict) -> str:
         palette=p,
         extra_css=extra_css,
         footer=card.get("footer", ""),
+        narration=card.get("narration", ""),
     )
 
 
@@ -798,20 +971,65 @@ def render_act5_setup_html(card: dict) -> str:
 # Page wrapper (header + body + footer + base css + extra css)
 # ---------------------------------------------------------------------------
 
+SUBTITLE_BAR_HEIGHT_PX = 96  # reserved space at bottom for the narration bar
+
+
+def _subtitle_bar_css() -> str:
+    """CSS injected when a narration string is present (subtitle overlay).
+
+    The .content area gets padding-bottom so flex children don't overlap
+    the bar; the bar itself is fixed to the page bottom with a translucent
+    black background and crisp white text — same look as TV captions.
+    """
+    return f"""
+    .content {{ padding-bottom: {SUBTITLE_BAR_HEIGHT_PX + 8}px !important; }}
+    .footer {{ display: none; }}
+    .subtitle-bar {{
+        position: absolute; left: 0; right: 0; bottom: 0;
+        min-height: {SUBTITLE_BAR_HEIGHT_PX}px;
+        padding: 16px 64px 18px;
+        background: rgba(0, 0, 0, 0.72);
+        color: #ffffff;
+        font-size: 22px; font-weight: 500;
+        text-align: center; line-height: 1.45;
+        word-break: break-word;
+        display: flex; align-items: center; justify-content: center;
+    }}
+    .subtitle-bar .text {{
+        max-width: 1100px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }}
+    """
+
+
 def _wrap_page(
     *, title: str, subtitle: str, body: str, palette: Dict[str, str],
-    extra_css: str = "", footer: str = "",
+    extra_css: str = "", footer: str = "", narration: str = "",
 ) -> str:
-    """Wrap an act body in the standard page chrome (header + footer)."""
+    """Wrap an act body in the standard page chrome (header + footer + subtitle).
+
+    When ``narration`` is provided, a TV-caption style bar is drawn across
+    the bottom of the frame and content is shrunk to leave room for it.
+    """
+    narration = (narration or "").strip()
+    subtitle_css = _subtitle_bar_css() if narration else ""
+    subtitle_html = (
+        f'<div class="subtitle-bar"><div class="text">{_esc(narration)}</div></div>'
+        if narration else ''
+    )
     return (
         '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
         + f'<meta name="viewport" content="width={VIDEO_WIDTH}">'
-        + '<style>' + _base_css(palette) + extra_css + '</style></head><body>'
+        + '<style>' + _base_css(palette) + subtitle_css + extra_css + '</style></head><body>'
         + '<div class="header">'
         + (f'<div class="subtitle">{_esc(subtitle)}</div>' if subtitle else '')
         + f'<div class="title">{_esc(title)}</div>'
         + '</div>'
         + body
         + (f'<div class="footer">{_esc(footer)}</div>' if footer else '')
+        + subtitle_html
         + '</body></html>'
     )

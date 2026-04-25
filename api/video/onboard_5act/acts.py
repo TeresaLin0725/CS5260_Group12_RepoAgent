@@ -273,14 +273,17 @@ def _usecase_narration(analyzed) -> str:
 
 
 def _usecase_scene_context(analyzed) -> str:
-    """One-line setting for the comic bar."""
+    """One-line setting for the comic bar.
+
+    Cap is generous (160 chars); the .scene-bar CSS wraps to two lines
+    cleanly when needed, which beats a mid-word truncation.
+    """
     target = (analyzed.target_users or "").strip()
     if target:
-        # Take first sentence
         for sep in [". ", "。", "; "]:
             if sep in target:
-                return target.split(sep)[0].strip()[:80]
-        return target[:80]
+                return target.split(sep)[0].strip()[:160]
+        return target[:160]
     return f"A typical day with {analyzed.repo_name or 'this project'}"
 
 
@@ -328,30 +331,37 @@ def _usecase_panels(analyzed) -> List[dict]:
     ]
 
 
+_PROBLEM_CAP = 200
+_USE_CAP = 220
+_VALUE_CAP = 220
+
+
 def _derive_problem_speech(audience: str, analyzed) -> str:
-    """Build a relatable pain-point speech bubble (≤90 chars)."""
-    # If audience text mentions a verb phrase like "want to ...", lift it.
+    """Build a relatable pain-point speech bubble.
+
+    The renderer's Act 4 layout shrinks font dynamically and wraps
+    multi-line, so the cap here exists only as a safety net — set well
+    above the layout's preferred density.
+    """
     if audience:
-        # Pick the first sentence that hints at a need.
         sentences = audience.replace("。", ".").split(".")
         for s in sentences:
             s = s.strip()
             if any(kw in s.lower() for kw in ["want", "need", "trying to", "looking for", "想", "需要"]):
-                return _clip(f"I {s.lower().split('want')[-1].split('need')[-1].strip(', ')}…", 110) \
-                    if "want" in s.lower() or "need" in s.lower() else _clip(s, 110)
+                return _clip(f"I {s.lower().split('want')[-1].split('need')[-1].strip(', ')}…", _PROBLEM_CAP) \
+                    if "want" in s.lower() or "need" in s.lower() else _clip(s, _PROBLEM_CAP)
     return "I keep running into the same headache — there has to be a faster way."
 
 
 def _derive_use_speech(concrete_io: str, name: str) -> str:
     """Build a short 'how I used it' speech."""
-    # Look for "you give X" / "paste X" / "input X" patterns.
     if concrete_io:
         low = concrete_io.lower()
         for trigger in ["paste", "give it", "input", "upload", "send"]:
             if trigger in low:
                 idx = low.find(trigger)
-                snippet = concrete_io[idx:idx + 90].strip()
-                return _clip(f"I just {snippet[0].lower()}{snippet[1:]}", 110)
+                snippet = concrete_io[idx:idx + 200].strip()
+                return _clip(f"I just {snippet[0].lower()}{snippet[1:]}", _USE_CAP)
     return f"I just opened {name} and pointed it at the thing I had."
 
 
@@ -359,12 +369,11 @@ def _derive_value_speech(concrete_io: str, name: str) -> str:
     """Build the 'and now…' outcome speech."""
     if concrete_io:
         low = concrete_io.lower()
-        # Find "you get Y" half.
         for trigger in ["you get", "i get", "it gives", "returns", "produces"]:
             if trigger in low:
                 idx = low.find(trigger)
-                snippet = concrete_io[idx:idx + 100].strip(". ")
-                return _clip(f"…and now {snippet[0].lower()}{snippet[1:]}.", 120)
+                snippet = concrete_io[idx:idx + 200].strip(". ")
+                return _clip(f"…and now {snippet[0].lower()}{snippet[1:]}.", _VALUE_CAP)
     return "Now I get exactly what I need — in one step."
 
 

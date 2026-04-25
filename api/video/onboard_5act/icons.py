@@ -169,3 +169,29 @@ _SETUP_KEYWORDS = [
 def guess_setup_step_icon(step_text: str) -> str:
     """Return an icon for one Act 5 setup step (clone / install / run / open / ...)."""
     return _match(_SETUP_KEYWORDS, step_text, "🔸")
+
+
+# ---------------------------------------------------------------------------
+# Prerequisite chip icons (Act 5, before the numbered checklist)
+# ---------------------------------------------------------------------------
+
+_PREREQ_KEYWORDS = [
+    (re.compile(r"\bpython\b", re.I), "🐍"),
+    (re.compile(r"\b(node|node\.?js|npm|yarn)\b", re.I), "🟢"),
+    (re.compile(r"\b(docker|container)\b", re.I), "🐳"),
+    (re.compile(r"\b(go(?:lang)?)\b", re.I), "🐹"),
+    (re.compile(r"\brust\b", re.I), "🦀"),
+    (re.compile(r"\b(java|jdk|jre|maven|gradle)\b", re.I), "☕"),
+    (re.compile(r"\b(ruby|rails|gem)\b", re.I), "💎"),
+    (re.compile(r"\b(api[\s-]?key|secret|token|credential)\b", re.I), "🔑"),
+    (re.compile(r"\b(account|signup|register)\b", re.I), "👤"),
+    (re.compile(r"\b(browser|chrome|firefox)\b", re.I), "🌐"),
+    (re.compile(r"\bgit\b", re.I), "📦"),
+    (re.compile(r"\b(database|postgres|mysql|mongo|redis|sqlite)\b", re.I), "🗄️"),
+    (re.compile(r"\b(gpu|cuda|nvidia)\b", re.I), "🎮"),
+]
+
+
+def guess_prereq_icon(label: str) -> str:
+    """Return an icon for one Act 5 prerequisite chip (Python / Node / Docker / ...)."""
+    return _match(_PREREQ_KEYWORDS, label, "📋")

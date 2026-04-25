@@ -37,8 +37,10 @@ def build_act_html(act: dict) -> str:
     section = act.get("section", "intro")
     builder = _TEMPLATE_DISPATCH.get(section, _r.render_act3_io_html)
     card = dict(act.get("card") or {})
-    # Pass top-level title/subtitle/footer through unless the card overrides.
+    # Pass top-level title/narration through unless the card overrides.
+    # narration drives the bottom subtitle bar (TV-caption style).
     card.setdefault("title", act.get("title", ""))
+    card.setdefault("narration", act.get("narration", ""))
     return builder(card)
 
 
