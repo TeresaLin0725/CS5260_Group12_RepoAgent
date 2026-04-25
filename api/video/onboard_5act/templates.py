@@ -23,49 +23,9 @@ logger = logging.getLogger(__name__)
 # Section → HTML builder
 # ---------------------------------------------------------------------------
 
-# Acts 1 and 2 land in commit 4. For now they fall back to the I/O
-# template so the integration test in this commit can still render
-# the full 5-frame sequence end-to-end (just with placeholder visuals).
-
-def _placeholder_act1_intro_html(card: dict) -> str:
-    return _r.render_act3_io_html({
-        "title": card.get("title", ""),
-        "subtitle": "Act 1 — Intro (template lands in commit 4)",
-        "boxes": [
-            {"label": card.get("repo_name", "Repo"), "icon": "📦"},
-            {"label": card.get("one_liner", "")[:40] or "What it does", "icon": "💡"},
-            {"label": "Coming up next…", "icon": "▶️"},
-        ],
-        "footer": "",
-    })
-
-
-def _placeholder_act2_metaphor_html(card: dict) -> str:
-    segs = card.get("segments") or []
-    if segs:
-        boxes = [
-            {"label": (s.get("brief") or "")[:40] or "…", "icon": "💭"}
-            for s in segs[:3]
-        ]
-    else:
-        boxes = [
-            {"label": "Imagine…", "icon": "💭"},
-            {"label": card.get("fallback_subject", "the project"), "icon": "🎯"},
-            {"label": "…makes sense now", "icon": "✨"},
-        ]
-    while len(boxes) < 3:
-        boxes.append({"label": "…", "icon": "💭"})
-    return _r.render_act3_io_html({
-        "title": "Think of it like this…",
-        "subtitle": "Act 2 — Metaphor (template lands in commit 4)",
-        "boxes": boxes[:3],
-        "footer": "",
-    })
-
-
 _TEMPLATE_DISPATCH: Dict[str, Callable[[dict], str]] = {
-    "intro": _placeholder_act1_intro_html,
-    "metaphor": _placeholder_act2_metaphor_html,
+    "intro": _r.render_act1_intro_html,
+    "metaphor": _r.render_act2_metaphor_html,
     "io": _r.render_act3_io_html,
     "usecase": _r.render_act4_usecase_html,
     "setup": _r.render_act5_setup_html,

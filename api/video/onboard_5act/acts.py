@@ -287,30 +287,92 @@ def _usecase_scene_context(analyzed) -> str:
 def _usecase_panels(analyzed) -> List[dict]:
     """Three speech-bubble panels: problem / use / value.
 
-    Commit 3 fleshes this out with LLM-derived text. For now, return
-    structured placeholders that the renderer can already lay out.
+    Speech is derived from analyzed content when possible, falling back
+    to project-name templated text. The three roles always exist (one
+    per panel) so the comic layout is consistent.
     """
     name = analyzed.repo_name or "the project"
+    onboard = getattr(analyzed, "onboard", None)
+
+    # Problem speech: prefer the "audience pain" framing if onboard is
+    # available, else generic.
+    audience = (onboard.audience if onboard and onboard.audience else "").strip()
+    problem_speech = _derive_problem_speech(audience, analyzed)
+
+    # Use speech: short instruction grounded in concrete_io.
+    concrete_io = (onboard.concrete_io if onboard and onboard.concrete_io else "").strip()
+    use_speech = _derive_use_speech(concrete_io, name)
+
+    # Value speech: outcome from concrete_io's "you get Y" half.
+    value_speech = _derive_value_speech(concrete_io, name)
+
     return [
         {
             "role": "problem",
             "label": "Problem",
-            "speech": "I keep running into the same headache — there has to be a better way.",
+            "speech": problem_speech,
             "svg": "person_thinking",
         },
         {
             "role": "use",
             "label": "Use",
-            "speech": f"I just opened {name} and pointed it at what I had.",
+            "speech": use_speech,
             "svg": "person_at_desk",
         },
         {
             "role": "value",
             "label": "Value",
-            "speech": "Now I get the answer in seconds — done in one step.",
+            "speech": value_speech,
             "svg": "person_happy",
         },
     ]
+
+
+def _derive_problem_speech(audience: str, analyzed) -> str:
+    """Build a relatable pain-point speech bubble (≤90 chars)."""
+    # If audience text mentions a verb phrase like "want to ...", lift it.
+    if audience:
+        # Pick the first sentence that hints at a need.
+        sentences = audience.replace("。", ".").split(".")
+        for s in sentences:
+            s = s.strip()
+            if any(kw in s.lower() for kw in ["want", "need", "trying to", "looking for", "想", "需要"]):
+                return _clip(f"I {s.lower().split('want')[-1].split('need')[-1].strip(', ')}…", 110) \
+                    if "want" in s.lower() or "need" in s.lower() else _clip(s, 110)
+    return "I keep running into the same headache — there has to be a faster way."
+
+
+def _derive_use_speech(concrete_io: str, name: str) -> str:
+    """Build a short 'how I used it' speech."""
+    # Look for "you give X" / "paste X" / "input X" patterns.
+    if concrete_io:
+        low = concrete_io.lower()
+        for trigger in ["paste", "give it", "input", "upload", "send"]:
+            if trigger in low:
+                idx = low.find(trigger)
+                snippet = concrete_io[idx:idx + 90].strip()
+                return _clip(f"I just {snippet[0].lower()}{snippet[1:]}", 110)
+    return f"I just opened {name} and pointed it at the thing I had."
+
+
+def _derive_value_speech(concrete_io: str, name: str) -> str:
+    """Build the 'and now…' outcome speech."""
+    if concrete_io:
+        low = concrete_io.lower()
+        # Find "you get Y" half.
+        for trigger in ["you get", "i get", "it gives", "returns", "produces"]:
+            if trigger in low:
+                idx = low.find(trigger)
+                snippet = concrete_io[idx:idx + 100].strip(". ")
+                return _clip(f"…and now {snippet[0].lower()}{snippet[1:]}.", 120)
+    return "Now I get exactly what I need — in one step."
+
+
+def _clip(text: str, max_chars: int) -> str:
+    text = " ".join(text.split())
+    if len(text) > max_chars:
+        text = text[:max_chars - 1].rstrip(",.;:") + "…"
+    return text
 
 
 def _parse_setup_steps(raw: str) -> List[str]:

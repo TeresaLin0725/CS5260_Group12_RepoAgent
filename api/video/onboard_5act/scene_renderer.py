@@ -12,8 +12,8 @@ infrastructure (HTML → PNG) and we want a single Chromium instance per
 process, not two.
 
 Public template functions (one per act):
-    - render_act1_intro_html(card)    — placeholder; filled in commit 4
-    - render_act2_metaphor_html(card) — placeholder; filled in commit 4
+    - render_act1_intro_html(card)    — IMPLEMENTED here (timeline + stats + contributors)
+    - render_act2_metaphor_html(card) — IMPLEMENTED here (comic-bullet dialogue)
     - render_act3_io_html(card)       — IMPLEMENTED here
     - render_act4_usecase_html(card)  — IMPLEMENTED here
     - render_act5_setup_html(card)    — IMPLEMENTED here
@@ -209,6 +209,328 @@ def _base_css(p: Dict[str, str]) -> str:
         color: {p['text']}; font-weight: 500; margin-bottom: 16px;
     }}
     """
+
+
+# ---------------------------------------------------------------------------
+# Act 1 — Intro: project card + commit timeline + stats + contributors
+# ---------------------------------------------------------------------------
+
+def render_act1_intro_html(card: dict) -> str:
+    """Render the Act 1 intro card.
+
+    card:
+        {
+            "repo_name": str,
+            "one_liner": str,
+            "timeline": [{"date": "YYYY-MM-DD", "label": str}, ...],
+            "stats": {"stars": int, "forks": int, "license": str, "pushed_at": str} | None,
+            "headline_contributors": [
+                {"rank": 1..3, "login": str, "name": str,
+                 "commits": int, "followers": int, "medal": str}, ...
+            ],
+        }
+    """
+    p = _get_palette("intro")
+    repo_name = card.get("repo_name") or "Repository"
+    one_liner = card.get("one_liner") or ""
+    milestones = card.get("timeline") or []
+    stats = card.get("stats") or {}
+    headliners = card.get("headline_contributors") or []
+
+    # ── Stats badges (top right corner; only shown when present) ──
+    stat_chips: list[str] = []
+    if stats.get("stars"):
+        stat_chips.append(f'<span class="stat">⭐ {stats["stars"]:,}</span>')
+    if stats.get("forks"):
+        stat_chips.append(f'<span class="stat">🍴 {stats["forks"]:,}</span>')
+    if stats.get("license"):
+        stat_chips.append(f'<span class="stat">📄 {_esc(stats["license"])}</span>')
+    if stats.get("pushed_at"):
+        stat_chips.append(f'<span class="stat">📅 {_esc(stats["pushed_at"][:10])}</span>')
+    stats_html = (
+        f'<div class="stats-row">{"".join(stat_chips)}</div>' if stat_chips else ''
+    )
+
+    # ── Project card (huge title + tagline) ──
+    one_liner_html = (
+        f'<div class="oneliner">{_esc(one_liner)}</div>' if one_liner else ''
+    )
+    project_card = f'''
+        <div class="project-card">
+            <div class="project-emoji">📦</div>
+            <div class="project-text">
+                <div class="repo-name">{_esc(repo_name)}</div>
+                {one_liner_html}
+            </div>
+        </div>
+    '''
+
+    # ── Timeline ribbon (horizontal milestones with dots + dates) ──
+    timeline_html = ''
+    if milestones:
+        nodes: list[str] = []
+        for i, m in enumerate(milestones[:5]):
+            is_first = i == 0
+            is_last = i == len(milestones) - 1
+            classes = "milestone"
+            if is_first:
+                classes += " first"
+            if is_last:
+                classes += " last"
+            nodes.append(f'''
+                <div class="{classes}">
+                    <div class="milestone-dot"></div>
+                    <div class="milestone-date">{_esc(m.get("date", ""))}</div>
+                    <div class="milestone-label">{_esc(m.get("label", ""))}</div>
+                </div>
+            ''')
+        timeline_html = f'''
+            <div class="timeline-section">
+                <div class="timeline-track">
+                    <div class="timeline-line"></div>
+                    {"".join(nodes)}
+                </div>
+            </div>
+        '''
+
+    # ── Contributor showcase (medals + names) ──
+    contributor_html = ''
+    if headliners:
+        cards = []
+        for c in headliners[:3]:
+            avatar_or_medal = (
+                f'<img class="ctr-avatar" src="{_esc(c.get("avatar_url", ""))}" alt=""/>'
+                if c.get("avatar_url") else
+                f'<div class="ctr-medal">{_esc(c.get("medal", "▫️"))}</div>'
+            )
+            stats_line = f'{c.get("commits", 0)} commits'
+            if c.get("followers"):
+                stats_line += f' · {c["followers"]:,} followers'
+            cards.append(f'''
+                <div class="ctr-card">
+                    {avatar_or_medal}
+                    <div class="ctr-name">{_esc(c.get("name") or c.get("login", ""))}</div>
+                    <div class="ctr-stats">{_esc(stats_line)}</div>
+                </div>
+            ''')
+        contributor_html = f'''
+            <div class="contributors-section">
+                <div class="section-label">CORE CONTRIBUTORS</div>
+                <div class="contributors-row">{"".join(cards)}</div>
+            </div>
+        '''
+
+    extra_css = f"""
+        .content {{ padding: 20px 48px 28px; gap: 16px; }}
+        .stats-row {{
+            position: absolute; top: 24px; right: 48px;
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }}
+        .stat {{
+            background: {p['accent']}22; border: 1px solid {p['accent']}55;
+            border-radius: 16px; padding: 4px 12px;
+            font-size: 14px; color: {p['accent']}; font-weight: 500;
+            white-space: nowrap;
+        }}
+
+        .project-card {{
+            display: flex; align-items: center; gap: 22px;
+            background: {p['node_bg']}; border: 2px solid {p['node_border']};
+            border-radius: 18px; padding: 22px 28px;
+        }}
+        .project-emoji {{ font-size: 64px; line-height: 1; flex-shrink: 0; }}
+        .project-text {{ flex: 1; min-width: 0; }}
+        .repo-name {{
+            font-size: 32px; font-weight: 700; color: {p['text']};
+            line-height: 1.2; word-break: break-word;
+        }}
+        .oneliner {{
+            margin-top: 6px; font-size: 17px; color: {p['text_dim']};
+            line-height: 1.4;
+        }}
+
+        .timeline-section {{ flex: 1; display: flex; flex-direction: column; justify-content: center; }}
+        .timeline-track {{
+            position: relative; display: flex; justify-content: space-between;
+            align-items: flex-start; padding: 0 20px;
+        }}
+        .timeline-line {{
+            position: absolute; top: 8px; left: 30px; right: 30px;
+            height: 2px; background: {p['accent']}55;
+        }}
+        .milestone {{
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            min-width: 0; max-width: 200px; text-align: center;
+            z-index: 1; gap: 6px;
+        }}
+        .milestone-dot {{
+            width: 16px; height: 16px; border-radius: 50%;
+            background: {p['accent']}; border: 3px solid {p['header_bg']};
+            box-shadow: 0 0 12px {p['accent']}99;
+        }}
+        .milestone.first .milestone-dot {{ background: {p['accent2']}; }}
+        .milestone.last .milestone-dot {{
+            background: {p['accent']}; box-shadow: 0 0 18px {p['accent']}cc;
+            transform: scale(1.2);
+        }}
+        .milestone-date {{
+            font-size: 13px; color: {p['accent']}; font-weight: 600;
+            letter-spacing: 0.5px; margin-top: 4px;
+        }}
+        .milestone-label {{
+            font-size: 13px; color: {p['text_dim']}; line-height: 1.3;
+            word-break: break-word;
+        }}
+
+        .contributors-section {{ display: flex; flex-direction: column; gap: 10px; }}
+        .section-label {{
+            font-size: 12px; letter-spacing: 2px; color: {p['accent']};
+            font-weight: 700;
+        }}
+        .contributors-row {{
+            display: flex; gap: 16px; align-items: stretch;
+        }}
+        .ctr-card {{
+            flex: 1; max-width: 240px;
+            background: {p['node_bg']}; border: 1px solid {p['node_border']}66;
+            border-radius: 12px; padding: 12px 16px;
+            display: flex; align-items: center; gap: 12px;
+            min-width: 0;
+        }}
+        .ctr-avatar {{
+            width: 44px; height: 44px; border-radius: 50%;
+            border: 2px solid {p['accent']}; flex-shrink: 0;
+            object-fit: cover;
+        }}
+        .ctr-medal {{
+            width: 44px; height: 44px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; line-height: 1;
+        }}
+        .ctr-name {{
+            font-size: 15px; font-weight: 600; color: {p['text']};
+            line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        .ctr-stats {{
+            font-size: 12px; color: {p['text_dim']}; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }}
+        .ctr-card > div:nth-child(2) {{ flex: 1; min-width: 0; }}
+    """
+
+    return _wrap_page(
+        title=card.get("title", repo_name),
+        subtitle=card.get("subtitle", ""),
+        body=(
+            '<div class="content">'
+            + stats_html
+            + project_card
+            + timeline_html
+            + contributor_html
+            + '</div>'
+        ),
+        palette=p,
+        extra_css=extra_css,
+        footer=card.get("footer", ""),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Act 2 — Metaphor: comic-bullet dialogue (image gen comes in v2)
+# ---------------------------------------------------------------------------
+
+def render_act2_metaphor_html(card: dict) -> str:
+    """Render the Act 2 metaphor as a comic-bullet dialogue.
+
+    card:
+        {
+            "segments": [{"detail": str, "brief": str}, ...],   # 2-5 entries
+            "fallback_subject": str,   # used when segments is empty
+        }
+
+    Each segment becomes one speech bubble in a vertical conversation
+    flow, alternating left/right alignment for visual rhythm. v1 = no
+    images. v2 will add an AI-generated illustration per segment using
+    the `detail` field as the image-gen prompt.
+    """
+    p = _get_palette("metaphor")
+    segments = card.get("segments") or []
+    fallback_subject = card.get("fallback_subject") or "this project"
+
+    # Fallback when LLM didn't produce a metaphor.
+    if not segments or len(segments) < 2:
+        segments = [
+            {"detail": "", "brief": f"Imagine {fallback_subject} as a friendly assistant."},
+            {"detail": "", "brief": "It quietly listens to what you need…"},
+            {"detail": "", "brief": "…and hands you back exactly the right thing."},
+        ]
+
+    # Cap at 5 segments, build alternating bubbles.
+    bubble_html: list[str] = []
+    for i, seg in enumerate(segments[:5]):
+        side = "left" if i % 2 == 0 else "right"
+        text = (seg.get("brief") or seg.get("detail") or "").strip()
+        if not text:
+            continue
+        # Alternate the SVG character so the eye has someone "to listen to".
+        svg_key = "person_thinking" if side == "left" else "person_happy"
+        svg_html = _SVG_MAP.get(svg_key, SVG_PERSON_THINKING)
+        bubble_html.append(f'''
+            <div class="bubble-row {side}">
+                <div class="bubble-svg" style="color:{p['accent']};">{svg_html}</div>
+                <div class="bubble-card">
+                    <div class="bubble-text">{_esc(text)}</div>
+                </div>
+            </div>
+        ''')
+
+    extra_css = f"""
+        .content {{ padding: 24px 64px 28px; gap: 14px; justify-content: center; }}
+        .bubble-row {{
+            display: flex; align-items: center; gap: 18px;
+            max-width: 100%;
+        }}
+        .bubble-row.left {{ justify-content: flex-start; }}
+        .bubble-row.right {{ justify-content: flex-end; flex-direction: row-reverse; }}
+        .bubble-svg {{
+            flex-shrink: 0; width: 64px; height: 64px;
+        }}
+        .bubble-svg svg {{ width: 100%; height: 100%; }}
+        .bubble-card {{
+            position: relative; flex: 1; max-width: 720px;
+            background: {p['node_bg']}; border: 2px solid {p['node_border']};
+            border-radius: 18px; padding: 14px 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }}
+        .bubble-row.left .bubble-card::before {{
+            content: ''; position: absolute; left: -10px; top: 22px;
+            border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+            border-right: 12px solid {p['node_border']};
+        }}
+        .bubble-row.right .bubble-card::before {{
+            content: ''; position: absolute; right: -10px; top: 22px;
+            border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+            border-left: 12px solid {p['node_border']};
+        }}
+        .bubble-text {{
+            font-size: 18px; color: {p['text']}; line-height: 1.5;
+            font-style: italic; word-break: break-word;
+        }}
+    """
+
+    return _wrap_page(
+        title=card.get("title", "Think of it like this…"),
+        subtitle=card.get("subtitle", ""),
+        body=(
+            '<div class="content">'
+            + ''.join(bubble_html)
+            + '</div>'
+        ),
+        palette=p,
+        extra_css=extra_css,
+        footer=card.get("footer", ""),
+    )
 
 
 # ---------------------------------------------------------------------------
