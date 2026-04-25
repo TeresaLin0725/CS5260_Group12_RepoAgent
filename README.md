@@ -2,7 +2,7 @@
 
 > AI-powered repository documentation generator
 
-RepoHelper analyzes any GitHub, GitLab, or Bitbucket repository and produces structured, navigable technical documentation enriched with Mermaid diagrams. It also supports local folder analysis, PDF/PPT/Video/Poster export, and interactive AI chat powered by RAG.
+RepoHelper analyzes any GitHub, GitLab, or Bitbucket repository and produces structured. It also supports local folder analysis, PDF/PPT/Video/Poster export, and interactive AI chat powered by RAG (normal+deepresearch).
 
 ## Demo
 
@@ -22,7 +22,6 @@ RepoHelper analyzes any GitHub, GitLab, or Bitbucket repository and produces str
 | Capability | Description |
 |---|---|
 | **Auto Documentation** | Auto-generates multi-page documentation from repository code structure |
-| **Diagram Generation** | Mermaid flow charts, sequence diagrams, and architecture visuals |
 | **AI Chat (Ask)** | RAG-powered Q&A — ask questions about any repository |
 | **Agent Chat** | Intelligent agent with intent classification, ReAct reasoning, and deep research |
 | **Multi-provider LLM** | Google Gemini, OpenAI, OpenRouter, Azure OpenAI, Ollama, AWS Bedrock, DashScope |
@@ -320,7 +319,7 @@ MIT — see [LICENSE](LICENSE).
 
 > AI 驱动的代码仓库文档自动生成工具
 
-RepoHelper 可以分析任意 GitHub、GitLab 或 Bitbucket 仓库，自动生成结构化、可导航的技术文档，并附带 Mermaid 架构图。同时支持本地文件夹分析、PDF/PPT/视频/画报导出，以及基于 RAG 的智能问答。
+RepoHelper 可以分析任意 GitHub、GitLab 或 Bitbucket 仓库，同时支持本地文件夹分析、PDF/PPT/视频/画报导出，以及基于 RAG 的智能问答（普通模式+研究模式）。
 
 ---
 
@@ -329,7 +328,6 @@ RepoHelper 可以分析任意 GitHub、GitLab 或 Bitbucket 仓库，自动生�
 | 功能 | 说明 |
 |---|---|
 | **自动文档生成** | 根据代码结构自动生成多页文档 |
-| **图表生成** | Mermaid 流程图、时序图、架构可视化 |
 | **AI 问答 (Ask)** | 基于 RAG 的仓库智能问答 |
 | **智能助手** | 意图分类 + ReAct 推理 + 深度研究的智能 Agent |
 | **多模型支持** | Google Gemini、OpenAI、OpenRouter、Azure OpenAI、Ollama、AWS Bedrock、DashScope |
