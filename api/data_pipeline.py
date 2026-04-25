@@ -361,6 +361,16 @@ def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder:
                     content = f.read()
                     relative_path = os.path.relpath(file_path, path)
 
+                    # Drop empty / near-empty files. OpenAI's batch
+                    # embedding endpoint rejects any empty-string input
+                    # with a 400, which fails the entire batch — and
+                    # repos like Python packages routinely ship zero-byte
+                    # __init__.py files. ollama_patch.py applies the same
+                    # threshold downstream; we apply it here so every
+                    # embedder benefits.
+                    if len(content.strip()) < 10:
+                        continue
+
                     # Determine if this is an implementation file
                     is_implementation = (
                         not relative_path.startswith("test_")
@@ -401,6 +411,10 @@ def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder:
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                     relative_path = os.path.relpath(file_path, path)
+
+                    # See note above on the empty-file filter.
+                    if len(content.strip()) < 10:
+                        continue
 
                     # Check token count
                     token_count = count_tokens(content, embedder_type)
