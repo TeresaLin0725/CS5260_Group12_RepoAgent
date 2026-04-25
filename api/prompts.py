@@ -254,11 +254,14 @@ Analyze the following repository content and produce a JSON object with this EXA
   "metaphor_story": [
     {{
       "detail": "<1-2 sentences describing this scene of an everyday-life ANALOGY for the project. Pick ONE relatable metaphor (kitchen / courier / library / construction site / hospital / factory) and stick with it across all segments. The detail is rich enough to imagine as a single illustration. Example for a code-doc generator: 'A hungry diner sits down at a busy restaurant and hands their order ticket to the head waiter, who eyes the kitchen door anxiously.'>",
-      "brief": "<≤80 chars, comic-bubble conversational line that captures the same beat. Use casual humor. Example: 'Diner: Hi! What can you make for me with this messy order?'>"
+      "brief": "<≤80 chars comic-bubble line. MUST start with 'Speaker:' (e.g. 'Diner: ', 'Chef: ') so the renderer can lift the speaker into a label. Use casual humor. Example: 'Diner: Hi! What can you make for me with this messy order?'>",
+      "entities": [
+        {{"role": "<the metaphor character/object that appears in this segment, e.g. 'diner', 'chef', 'order ticket', 'kitchen'>", "repo_concept": "<exactly what this represents in the repo — a module name, an API endpoint, a data type, a user role, an external service. Be specific, no hand-waving. Example: 'the AI analyzer (RAG + LLM pipeline)' or 'the user pasting a GitHub URL'>"}}
+      ]
     }},
-    {{"detail": "<segment 2 — typically the moment the work begins>", "brief": "<≤80 chars>"}},
-    {{"detail": "<segment 3 — the heart of the analogy, usually shows the magic step>", "brief": "<≤80 chars>"}},
-    {{"detail": "<segment 4 — the moment of delivery / the result>", "brief": "<≤80 chars>"}}
+    {{"detail": "<segment 2 — typically the moment the work begins>", "brief": "<Speaker: line>", "entities": [{{"role": "<role>", "repo_concept": "<concept>"}}]}},
+    {{"detail": "<segment 3 — the heart of the analogy, usually shows the magic step>", "brief": "<Speaker: line>", "entities": [{{"role": "<role>", "repo_concept": "<concept>"}}]}},
+    {{"detail": "<segment 4 — the moment of delivery / the result>", "brief": "<Speaker: line>", "entities": [{{"role": "<role>", "repo_concept": "<concept>"}}]}}
   ]
 }}
 
@@ -267,6 +270,14 @@ Metaphor guidance:
 - All segments must use ONE coherent metaphor (do not switch from "kitchen" to "spaceship" mid-story).
 - The metaphor MUST map to what the repo actually does. A code-doc generator → kitchen (raw ingredients = code, chef = AI, plated dish = doc). A scheduling app → bus dispatch. Choose carefully.
 - Brief lines should sound like comic dialogue, not narration. Use first-person speech with personality.
+- CRITICAL: USE AT LEAST 2 DIFFERENT SPEAKERS across the segments — alternate who is talking (e.g. customer asks, chef answers). Do NOT have the same character speaking in every bubble.
+- CRITICAL: Every metaphor character/object MUST map to exactly ONE concept in the repo via the `entities` field. The whole point of the metaphor is to anchor abstract code to something familiar — a metaphor with no mapping is just a cute story, not a useful explanation. Reuse the same role+concept across segments when the same character recurs.
+- Example mapping for a doc generator (kitchen metaphor):
+  diner ↔ "developer who wants to understand a repo"
+  chef ↔ "the AI analyzer (RAG + LLM pipeline)"
+  order ticket ↔ "the GitHub URL the user pastes"
+  kitchen ↔ "the repo's source code being scanned"
+  plated dish ↔ "the generated PDF/video output"
 
 Guidelines:
 - repo_type_hint: infer from the code — library/SDK, web app, microservice system, data/ML pipeline, CLI tool, or generic

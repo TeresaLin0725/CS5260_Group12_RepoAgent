@@ -601,6 +601,20 @@ def render_act2_metaphor_html(card: dict) -> str:
     bubble_pad_v = max(10, 18 - (n - 3) * 2)
     svg_size = max(48, 78 - (n - 3) * 6)
 
+    # Build a global role → repo_concept lookup from every segment's
+    # entities list. The same role can appear in multiple segments;
+    # last write wins (LLM is supposed to be consistent — last-write
+    # is just a defensive default).
+    role_to_concept: dict = {}
+    for s in usable:
+        for ent in (s.get("entities") or []):
+            role = (ent.get("role") if isinstance(ent, dict) else getattr(ent, "role", "")) or ""
+            concept = (ent.get("repo_concept") if isinstance(ent, dict) else getattr(ent, "repo_concept", "")) or ""
+            role = role.strip().lower()
+            concept = concept.strip()
+            if role and concept:
+                role_to_concept[role] = concept
+
     bubble_html: list[str] = []
     for i, seg in enumerate(usable):
         side = "left" if i % 2 == 0 else "right"
@@ -608,10 +622,22 @@ def render_act2_metaphor_html(card: dict) -> str:
         speaker, utterance = _split_speaker(raw)
         svg_key = "person_thinking" if side == "left" else "person_happy"
         svg_html = _SVG_MAP.get(svg_key, SVG_PERSON_THINKING)
-        speaker_html = (
-            f'<div class="bubble-speaker">{_esc(speaker)}</div>'
-            if speaker else ''
-        )
+
+        # Look up repo_concept for this speaker so the audience can see
+        # what the metaphor character represents in the codebase.
+        concept = role_to_concept.get(speaker.lower(), "") if speaker else ""
+        speaker_html = ""
+        if speaker:
+            mapping_html = (
+                f'<span class="bubble-mapping">= {_esc(concept)}</span>'
+                if concept else ''
+            )
+            speaker_html = (
+                f'<div class="bubble-speaker">'
+                f'<span class="bubble-role">{_esc(speaker)}</span>'
+                f'{mapping_html}'
+                f'</div>'
+            )
         bubble_html.append(f'''
             <div class="bubble-row {side}">
                 <div class="bubble-svg" style="color:{p['accent']};">{svg_html}</div>
@@ -649,6 +675,19 @@ def render_act2_metaphor_html(card: dict) -> str:
             color: {p['accent']}; font-weight: 700;
             text-transform: uppercase;
             padding: 0 4px;
+            display: flex; align-items: baseline; gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .bubble-row.right .bubble-speaker {{ justify-content: flex-end; }}
+        .bubble-role {{
+            color: {p['accent']};
+        }}
+        .bubble-mapping {{
+            font-size: 11px;
+            letter-spacing: 0.3px;
+            color: {p['text_dim']};
+            font-weight: 500;
+            text-transform: none;
         }}
         .bubble-card {{
             position: relative; align-self: stretch;
@@ -859,7 +898,12 @@ def render_act4_usecase_html(card: dict) -> str:
         .comic-arrow {{
             flex-shrink: 0; width: 50px; padding: 0 2px;
             display: flex; align-items: center; justify-content: center;
-            align-self: center;
+            /* Anchor with the stick figure (which sits at the panel
+               bottom because .comic-panel uses justify-content: flex-end).
+               margin-bottom = label-height + svg-height/2 so the arrow
+               points at the middle of the SVG, not floating mid-panel. */
+            align-self: flex-end;
+            margin-bottom: 56px;
         }}
         .comic-arrow svg {{ width: 100%; height: 24px; }}
     """

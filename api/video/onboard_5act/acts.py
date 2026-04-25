@@ -53,14 +53,63 @@ def build_acts(analyzed: "AnalyzedContent") -> List[dict]:
     Always returns exactly 5 dicts in fixed order (intro → metaphor →
     io → usecase → setup). Empty / fallback acts still render so the
     video pacing stays consistent.
+
+    Each act dict gets a ``narration_lines`` field (list of subtitle
+    chunks split from ``narration``) so the orchestrator can render one
+    PNG per chunk and switch the on-screen subtitle in time with the
+    spoken TTS — proper TV-caption behavior.
     """
-    return [
+    acts = [
         _build_act1_intro(analyzed),
         _build_act2_metaphor(analyzed),
         _build_act3_io(analyzed),
         _build_act4_usecase(analyzed),
         _build_act5_setup(analyzed),
     ]
+    for act in acts:
+        act["narration_lines"] = _split_narration_into_lines(
+            act.get("narration", "")
+        )
+    return acts
+
+
+_SENTENCE_BOUNDARY = __import__("re").compile(r"(?<=[\.!?。!?])\s+")
+
+
+def _split_narration_into_lines(narration: str, *, min_chars: int = 24) -> List[str]:
+    """Split a TTS narration into subtitle-friendly chunks.
+
+    Splits on sentence terminators ('.', '!', '?', '。', '！', '？') and
+    merges any chunk shorter than ``min_chars`` with its neighbour so
+    that no caption flashes by too quickly. Returns ``[narration]``
+    unchanged if it's already short enough that splitting wouldn't help.
+    """
+    text = (narration or "").strip()
+    if not text:
+        return []
+    parts = [p.strip() for p in _SENTENCE_BOUNDARY.split(text) if p and p.strip()]
+    if len(parts) <= 1:
+        return [text]
+
+    merged: List[str] = []
+    buffer = ""
+    for part in parts:
+        if buffer:
+            buffer = (buffer + " " + part).strip()
+            if len(buffer) >= min_chars:
+                merged.append(buffer)
+                buffer = ""
+        else:
+            if len(part) >= min_chars:
+                merged.append(part)
+            else:
+                buffer = part
+    if buffer:
+        if merged:
+            merged[-1] = (merged[-1] + " " + buffer).strip()
+        else:
+            merged.append(buffer)
+    return merged or [text]
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +149,17 @@ def _build_act2_metaphor(analyzed: "AnalyzedContent") -> dict:
         "duration_seconds": DEFAULT_DURATIONS["metaphor"],
         "card": {
             # `segments` is a list of MetaphorSegment objects (or empty for fallback).
-            "segments": [{"detail": s.detail, "brief": s.brief} for s in segments],
+            "segments": [
+                {
+                    "detail": s.detail,
+                    "brief": s.brief,
+                    "entities": [
+                        {"role": e.role, "repo_concept": e.repo_concept}
+                        for e in (s.entities or [])
+                    ],
+                }
+                for s in segments
+            ],
             "fallback_subject": analyzed.repo_name or "this project",
         },
     }
@@ -274,6 +333,23 @@ def _join_zh(parts: List[str]) -> str:
     return "".join(p.strip() for p in parts if p and p.strip())
 
 
+def _connect_oneliner(one_liner: str, *, is_zh: bool) -> str:
+    """Wrap the one-liner with a smooth connector so the narration doesn't
+    read as two abrupt sentences. "Welcome to typer. Transforms X..." sounds
+    robotic — "Welcome to typer. In a nutshell, it transforms X..." flows.
+    """
+    text = (one_liner or "").strip().rstrip(".。")
+    if not text:
+        return ""
+    # Lowercase first letter so "It X" reads naturally regardless of the
+    # one-liner's original capitalization.
+    if text[0].isupper():
+        text = text[0].lower() + text[1:]
+    if is_zh:
+        return f"简单来说，它{text}。"
+    return f"In a nutshell, it {text}."
+
+
 def _act1_narration(analyzed, one_liner: str) -> str:
     """Welcome → one-liner → milestones (optional) → stats (optional) → closer."""
     is_zh = _is_zh(analyzed)
@@ -324,15 +400,24 @@ def _act1_narration(analyzed, one_liner: str) -> str:
     # — Closer hooks Act 2 —
     closer = "我们用一个比喻来理解它。" if is_zh else "Let's see what makes it tick."
 
+    one_liner_sentence = _connect_oneliner(one_liner, is_zh=is_zh)
+
     if is_zh:
         opener = f"欢迎了解 {repo}。"
-        return _join_zh([opener, one_liner, milestone_sentence, stats_sentence, closer])
+        return _join_zh([opener, one_liner_sentence, milestone_sentence, stats_sentence, closer])
     opener = f"Welcome to {repo}."
-    return _join_en([opener, one_liner, milestone_sentence, stats_sentence, closer])
+    return _join_en([opener, one_liner_sentence, milestone_sentence, stats_sentence, closer])
 
 
 def _metaphor_narration(segments, analyzed) -> str:
-    """Scene-setting opener → speaker-tagged dialogue → transition closer."""
+    """Scene-setting opener → speaker-tagged dialogue with repo-concept
+    mapping → transition closer.
+
+    The first time a speaker appears we expand them with their entity
+    mapping ("Chef, the typer library, says: ...") so the TTS audience
+    learns who's who. Subsequent appearances drop the mapping to keep
+    the dialogue flowing.
+    """
     is_zh = _is_zh(analyzed)
     repo = analyzed.repo_name or ("这个项目" if is_zh else "this project")
 
@@ -349,25 +434,48 @@ def _metaphor_narration(segments, analyzed) -> str:
             "Now here's what's really going on inside.",
         ])
 
+    # Aggregate role → repo_concept across all segments.
+    role_to_concept: dict = {}
+    for s in segments:
+        for ent in (getattr(s, "entities", None) or []):
+            role = (getattr(ent, "role", "") or "").strip().lower()
+            concept = (getattr(ent, "repo_concept", "") or "").strip()
+            if role and concept and role not in role_to_concept:
+                role_to_concept[role] = concept
+
     # Lift speakers out of "Speaker: utterance" briefs so the TTS narrates
-    # naturally ("the diner says: ...") instead of reading the raw "Diner:".
+    # naturally ("Diner, the developer, says: ...") instead of reading the
+    # raw "Diner:".
     import re as _re
     speaker_re = _re.compile(r"^\s*([^:：]{1,30})\s*[:：]\s+(.+)$")
 
+    introduced: set = set()
     lines: List[str] = []
     for seg in segments[:4]:
         text = (getattr(seg, "brief", "") or getattr(seg, "detail", "") or "").strip()
         if not text:
             continue
         m = speaker_re.match(text)
-        if m:
-            speaker, utterance = m.group(1).strip(), m.group(2).strip()
-            if is_zh:
-                lines.append(f"{speaker} 说：{utterance}")
-            else:
-                lines.append(f"{speaker} says: {utterance}")
-        else:
+        if not m:
             lines.append(text)
+            continue
+        speaker, utterance = m.group(1).strip(), m.group(2).strip()
+        speaker_key = speaker.lower()
+        concept = role_to_concept.get(speaker_key, "")
+        # First appearance of this speaker gets the "= concept" expansion;
+        # later appearances stay tight so the dialogue doesn't drag.
+        first_time = speaker_key not in introduced
+        introduced.add(speaker_key)
+        if is_zh:
+            if concept and first_time:
+                lines.append(f"{speaker}（也就是{concept}）说：{utterance}")
+            else:
+                lines.append(f"{speaker} 说：{utterance}")
+        else:
+            if concept and first_time:
+                lines.append(f"The {speaker.lower()}, which is {concept}, says: {utterance}")
+            else:
+                lines.append(f"The {speaker.lower()} says: {utterance}")
 
     body = ("。".join(lines) + "。") if is_zh else (". ".join(lines) + ".")
     body = body.replace("。。", "。").replace("..", ".")

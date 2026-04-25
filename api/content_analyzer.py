@@ -53,6 +53,18 @@ class ModuleProgressionEntry(BaseModel):
     position: str = ""
 
 
+class MetaphorEntity(BaseModel):
+    """A character/object in the metaphor story mapped to a real repo concept.
+
+    Without this mapping, an LLM-generated metaphor like "the chef cooks
+    a dish" leaves the viewer guessing what "the chef" actually represents
+    in the codebase. We force the LLM to declare the mapping so we can
+    show it under the speaker label and read it in the narration.
+    """
+    role: str = ""           # the metaphor character/object: "diner", "chef", "kitchen"
+    repo_concept: str = ""   # what it represents in the repo: "the typer library", "user code"
+
+
 class MetaphorSegment(BaseModel):
     """One segment of an LLM-generated analogy story (e.g. "kitchen", "courier").
 
@@ -60,9 +72,15 @@ class MetaphorSegment(BaseModel):
     the project via a familiar everyday metaphor. Each segment has a
     detailed version (used as image-generation prompt in v2) and a
     brief, conversational one-liner (used as the v1 comic-bullet text).
+
+    The optional ``entities`` list anchors the metaphor's characters back
+    to repo concepts so the audience knows what each role represents.
+    Same role can repeat across segments — entities are de-duplicated by
+    role at render time.
     """
     detail: str = ""    # 1-2 sentences for image-gen / scene description
     brief: str = ""     # very short conversational line (≤80 chars), comic bubble style
+    entities: List["MetaphorEntity"] = Field(default_factory=list)
 
 
 class OnboardSnapshot(BaseModel):
@@ -654,9 +672,22 @@ def _build_analyzed_content(
             if not isinstance(seg, dict):
                 continue
             try:
+                # Parse entity mappings (role → repo_concept). Defensive
+                # against malformed LLM output: drop empty/non-dict entries.
+                entities: list[MetaphorEntity] = []
+                ent_raw = seg.get("entities") or []
+                if isinstance(ent_raw, list):
+                    for e in ent_raw[:6]:
+                        if not isinstance(e, dict):
+                            continue
+                        role = str(e.get("role") or "").strip()[:40]
+                        concept = str(e.get("repo_concept") or "").strip()[:80]
+                        if role and concept:
+                            entities.append(MetaphorEntity(role=role, repo_concept=concept))
                 segments.append(MetaphorSegment(
                     detail=str(seg.get("detail") or "").strip()[:300],
                     brief=str(seg.get("brief") or "").strip()[:120],
+                    entities=entities,
                 ))
             except Exception as e:
                 logger.debug("Skipping malformed metaphor segment: %s", e)
@@ -1252,6 +1283,17 @@ async def analyze_repo_content(request: RepoAnalysisRequest) -> AnalyzedContent:
     Phase 1: FAISS retrieval of representative code chunks (pure Python).
     Phase 2a: Single LLM call → structured JSON → AnalyzedContent.
     """
+    # Derive repo_name from URL if the caller didn't provide one.
+    # Without this, downstream code (Act 1 title, evolution section,
+    # markdown rendering) falls back to placeholder strings like
+    # "Repository" — which is what the user sees when invoking via the
+    # CLI script that only knows the URL.
+    if not request.repo_name and request.repo_url:
+        try:
+            tail = request.repo_url.rstrip("/").rsplit("/", 1)[-1]
+            request.repo_name = tail.removesuffix(".git") or request.repo_name
+        except Exception:
+            pass
     logger.info("analyze_repo_content: repo=%s", request.repo_name)
 
     from api.rag import RAG
