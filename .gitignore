@@ -66,6 +66,7 @@ yarn-error.log*
 next-env.d.ts
 
 .idea/
+.claude/
 
 # ignore adding self-signed certs
 certs/
