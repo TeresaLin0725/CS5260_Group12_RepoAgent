@@ -229,6 +229,17 @@ def _build_clips(
         if audio_path and os.path.exists(audio_path):
             try:
                 audio_clip = AudioFileClip(audio_path)
+                # Safety belt: if TTS audio is somehow longer than the
+                # visual (would happen if SCENE_DURATION_MAX clamped the
+                # visual but TTS exceeded the cap), trim the audio so it
+                # doesn't bleed into the next act and create overlapping
+                # voices. Leave a 100ms gap so the cut isn't audible.
+                if getattr(audio_clip, "duration", 0) and audio_clip.duration > duration:
+                    trim_to = max(0.5, duration - 0.1)
+                    if hasattr(audio_clip, "subclipped"):
+                        audio_clip = audio_clip.subclipped(0, trim_to)
+                    elif hasattr(audio_clip, "subclip"):
+                        audio_clip = audio_clip.subclip(0, trim_to)
                 if hasattr(clip, "with_audio"):
                     clip = clip.with_audio(audio_clip)
                 else:
