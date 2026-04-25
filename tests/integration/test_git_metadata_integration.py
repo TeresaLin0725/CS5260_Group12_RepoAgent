@@ -130,7 +130,10 @@ def test_demo_pdf_evolution_section():
     print("=" * 70 + "\n")
 
     assert "Commit History" in section
-    assert timeline.commits[0].sha[:4] in section
+    # Compact PDF format: SHA was dropped to fit the single-page budget.
+    # Author + commit message must still appear.
+    assert timeline.commits[0].author.split()[0] in section
+    assert timeline.commits[0].message[:20] in section
 
 
 # ---------------------------------------------------------------------------
