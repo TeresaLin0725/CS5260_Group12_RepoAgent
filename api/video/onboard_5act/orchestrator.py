@@ -31,8 +31,6 @@ from typing import TYPE_CHECKING, Optional
 
 from api.video.compose import _compose_final_video, _read_file_bytes
 from api.video.constants import (
-    AUDIO_PADDING_SECONDS,
-    SCENE_DURATION_MAX,
     SCENE_DURATION_MIN,
     TRANSITION_SECONDS,
 )
@@ -46,6 +44,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 COMPOSE_TIMEOUT_SECONDS = max(60, int(os.getenv("VIDEO_COMPOSE_TIMEOUT_SECONDS", "480")))
+
+# Per-subtitle-line timing (Step 2 / Step 4):
+SUBLINE_MIN_SECONDS = 1.4         # never flash a subtitle by faster than this
+SUBLINE_AUDIO_PAD = 0.15          # tiny tail of silence after each TTS line
 
 
 # ---------------------------------------------------------------------------
@@ -74,45 +76,77 @@ async def render_onboard_5act_video(
     with tempfile.TemporaryDirectory(prefix="repohelper_5act_") as tmpdir:
         tmp_path = Path(tmpdir)
 
-        # ── Step 2: TTS audio per act (parallelized) ───────────────────
+        # ── Step 2: TTS audio per subtitle line (parallelized) ─────────
+        # One TTS call per ``narration_lines`` entry so each subtitle
+        # frame ships with its own audio. This keeps voice and subtitle
+        # perfectly in sync — no proportional-duration arithmetic to get
+        # wrong, and an act's total duration becomes simply the sum of
+        # its line durations.
         update_progress(job_id, 2, "Generating narration audio...")
         tts_start = time.perf_counter()
-        audio_paths = await _generate_act_audio(acts, tmp_path, analyzed.language)
-        has_audio = any(p is not None for p in audio_paths)
+        per_line_audio_paths = await _generate_subtitle_audio(
+            acts, tmp_path, analyzed.language,
+        )
+        has_audio = any(p for line_list in per_line_audio_paths for p in line_list)
+        line_count = sum(len(line_list) for line_list in per_line_audio_paths)
+        ok_count = sum(1 for line_list in per_line_audio_paths for p in line_list if p)
         logger.info(
-            "onboard_5act: TTS done in %.2fs (%d/%d acts with audio)",
-            time.perf_counter() - tts_start,
-            sum(1 for p in audio_paths if p),
-            len(acts),
+            "onboard_5act: TTS done in %.2fs (%d/%d subtitle lines with audio across %d acts)",
+            time.perf_counter() - tts_start, ok_count, line_count, len(acts),
         )
 
-        # Stretch each act's visual duration to match its audio when known.
-        for act, audio_path in zip(acts, audio_paths):
-            audio_duration = _audio_duration(audio_path)
-            if audio_duration > 0:
-                act["duration_seconds"] = max(
-                    SCENE_DURATION_MIN,
-                    min(audio_duration + AUDIO_PADDING_SECONDS, SCENE_DURATION_MAX),
-                )
+        # Each act's total duration is now the sum of its sub-line
+        # audio durations. Visual frames are sized to match each line's
+        # audio (with a small floor for very short lines).
+        for act, line_audios in zip(acts, per_line_audio_paths):
+            durations = [
+                max(SUBLINE_MIN_SECONDS, _audio_duration(p) + SUBLINE_AUDIO_PAD)
+                for p in line_audios
+            ]
+            act["sub_durations"] = durations
+            act["duration_seconds"] = max(SCENE_DURATION_MIN, sum(durations))
 
-        # ── Step 3: render PNG per act (parallel) ──────────────────────
+        # ── Step 3: render N PNGs per act (one per subtitle line) ───────
+        # Each act renders one frame per ``narration_lines`` entry so the
+        # subtitle bar at the bottom advances sentence-by-sentence in
+        # time with the TTS. Single-line narrations still produce a
+        # single PNG (back-compat).
         update_progress(job_id, 3, "Rendering act visuals...")
         render_start = time.perf_counter()
-        png_paths: list[str] = []
+        per_act_pngs: list[list[str]] = []
         render_coros = []
         for i, act in enumerate(acts, start=1):
-            png = str(tmp_path / f"act{i:02d}_{act['section']}.png")
-            png_paths.append(png)
-            render_coros.append(render_act_to_png(act, png))
+            lines = act.get("narration_lines") or [act.get("narration", "")]
+            if not lines or (len(lines) == 1 and not lines[0].strip()):
+                lines = [act.get("narration", "")]
+            act_pngs: list[str] = []
+            for sub_idx, line in enumerate(lines):
+                # Render one frame per subtitle line: clone the act dict
+                # and override its narration so _wrap_page draws this
+                # specific line in the bottom subtitle bar.
+                act_frame = dict(act)
+                act_frame["narration"] = line
+                png = str(
+                    tmp_path
+                    / f"act{i:02d}_{act['section']}_{sub_idx:02d}.png"
+                )
+                act_pngs.append(png)
+                render_coros.append(render_act_to_png(act_frame, png))
+            per_act_pngs.append(act_pngs)
         await _asyncio.gather(*render_coros)
+        total_pngs = sum(len(p) for p in per_act_pngs)
         logger.info(
-            "onboard_5act: %d PNGs rendered in %.2fs",
-            len(png_paths), time.perf_counter() - render_start,
+            "onboard_5act: %d PNGs rendered across %d acts in %.2fs",
+            total_pngs, len(acts), time.perf_counter() - render_start,
         )
 
-        # ── Step 4: assemble clips with audio + transitions ────────────
+        # ── Step 4: assemble per-act composite clips ──────────────────
+        # Each act becomes ONE clip whose visual is a chain of subtitle
+        # frames, and each frame carries its OWN per-line TTS audio.
+        # Sub-clips chain via concatenate_videoclips, so audios sequence
+        # naturally with zero drift between voice and subtitle.
         update_progress(job_id, 4, "Assembling video clips...")
-        clips = _build_clips(acts, png_paths, audio_paths)
+        clips = _build_clips(acts, per_act_pngs, per_line_audio_paths)
 
         # Close the shared Playwright browser between renders and ffmpeg
         # so resources are released before the (heavy) MP4 encoding step.
@@ -156,27 +190,55 @@ async def render_onboard_5act_video(
 # TTS helpers — adapted to act dict shape
 # ---------------------------------------------------------------------------
 
-async def _generate_act_audio(
+async def _generate_subtitle_audio(
     acts: list[dict], tmp_path: Path, language: str,
-) -> list[Optional[str]]:
-    """Generate a TTS audio file per act. Reuses tts_service which expects
-    scene-shaped dicts with a "narration" key — and our act dicts already
-    carry one. Returns a list of file paths (or None when TTS failed for
-    that act).
+) -> list[list[Optional[str]]]:
+    """Generate one TTS audio file per subtitle line.
+
+    Returns a list of lists matching the structure of ``narration_lines``:
+    ``result[act_index][line_index]`` is the path (or None on failure).
+
+    Internally we flatten every line into pseudo-scenes for one batched
+    ``generate_all_scene_audio`` call — same parallelism as before, just
+    finer granularity — then re-group by act.
     """
     try:
         from api.tts_service import generate_all_scene_audio
     except Exception as e:
         logger.warning("TTS service import failed: %s", e)
-        return [None] * len(acts)
+        return [[None] * len(act.get("narration_lines") or [act.get("narration", "")])
+                for act in acts]
 
-    # tts_service.generate_all_scene_audio mutates each scene with
-    # "audio_path" / "audio_duration" — we treat acts the same way.
+    # Flatten subtitle lines into pseudo-scenes. We tag each pseudo-scene
+    # with a sub-directory of tmp_path so individual MP3 files don't
+    # clobber each other (tts_service writes scene_{idx:02d}.mp3).
+    flat_dir = tmp_path / "sublines"
+    flat_dir.mkdir(parents=True, exist_ok=True)
+
+    flat_scenes: list[dict] = []
+    mapping: list[tuple[int, int]] = []  # (act_idx, line_idx)
+    for ai, act in enumerate(acts):
+        lines = act.get("narration_lines") or [act.get("narration", "")]
+        for li, line in enumerate(lines):
+            flat_scenes.append({
+                "narration": (line or "").strip(),
+                "section": f"{act.get('section', 'act')}_{ai:02d}_{li:02d}",
+            })
+            mapping.append((ai, li))
+
     try:
-        return await generate_all_scene_audio(acts, str(tmp_path), language=language)
+        flat_paths = await generate_all_scene_audio(
+            flat_scenes, str(flat_dir), language=language,
+        )
     except Exception as e:
         logger.warning("TTS generation failed for onboard_5act, going silent: %s", e)
-        return [None] * len(acts)
+        flat_paths = [None] * len(flat_scenes)
+
+    # Re-group into [[...act 1 lines...], [...act 2 lines...], ...]
+    grouped: list[list[Optional[str]]] = [[] for _ in acts]
+    for (ai, _li), path in zip(mapping, flat_paths):
+        grouped[ai].append(path)
+    return grouped
 
 
 def _audio_duration(audio_path: Optional[str]) -> float:
@@ -209,47 +271,87 @@ def _audio_duration(audio_path: Optional[str]) -> float:
 # ---------------------------------------------------------------------------
 
 def _build_clips(
-    acts: list[dict], png_paths: list[str], audio_paths: list[Optional[str]],
+    acts: list[dict],
+    per_act_pngs: list[list[str]],
+    per_act_audio: list[list[Optional[str]]],
 ) -> list:
-    """Build a list of ImageClips (one per act) with audio + fade transitions."""
+    """Build one composite clip per act.
+
+    Each subtitle frame in the act:
+      * carries its OWN per-line TTS audio (sized exactly to the audio)
+      * runs back-to-back with the next frame via concatenate(method="chain")
+
+    Result: voice and subtitle never drift because each pair is one
+    self-contained sub-clip. Cross-fade transitions are only applied
+    between acts (outer concatenate).
+    """
     try:
-        from moviepy import ImageClip, AudioFileClip
-    except ImportError:
-        from moviepy.editor import ImageClip, AudioFileClip  # type: ignore
+        from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
+    except ImportError:  # moviepy 1.x compatibility
+        from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips  # type: ignore
 
     clips = []
-    for act, png, audio_path in zip(acts, png_paths, audio_paths):
-        duration = float(act.get("duration_seconds", 6.0))
-        clip = ImageClip(png)
-        if hasattr(clip, "with_duration"):
-            clip = clip.with_duration(duration)
-        else:
-            clip = clip.set_duration(duration)
+    for act, png_list, audio_list in zip(acts, per_act_pngs, per_act_audio):
+        composite = _build_act_composite(
+            act, png_list, audio_list, ImageClip, AudioFileClip, concatenate_videoclips,
+        )
+        if composite is None:
+            continue
+        if hasattr(composite, "fadein"):
+            composite = composite.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
+        clips.append(composite)
+
+    return clips
+
+
+def _build_act_composite(
+    act: dict,
+    png_list: list[str],
+    audio_list: list[Optional[str]],
+    ImageClip, AudioFileClip, concatenate_videoclips,
+):
+    """Build the per-act composite: chain of (image + matching audio)
+    sub-clips, one per subtitle line.
+
+    Visual duration of each sub-clip = its own audio duration + small
+    padding (or SUBLINE_MIN_SECONDS when no audio). No proportional
+    arithmetic — sync is exact by construction.
+    """
+    if not png_list:
+        return None
+
+    sub_clips = []
+    for sub_idx, png in enumerate(png_list):
+        audio_path = audio_list[sub_idx] if sub_idx < len(audio_list) else None
+        audio_clip = None
+        sub_duration = SUBLINE_MIN_SECONDS
 
         if audio_path and os.path.exists(audio_path):
             try:
                 audio_clip = AudioFileClip(audio_path)
-                # Safety belt: if TTS audio is somehow longer than the
-                # visual (would happen if SCENE_DURATION_MAX clamped the
-                # visual but TTS exceeded the cap), trim the audio so it
-                # doesn't bleed into the next act and create overlapping
-                # voices. Leave a 100ms gap so the cut isn't audible.
-                if getattr(audio_clip, "duration", 0) and audio_clip.duration > duration:
-                    trim_to = max(0.5, duration - 0.1)
-                    if hasattr(audio_clip, "subclipped"):
-                        audio_clip = audio_clip.subclipped(0, trim_to)
-                    elif hasattr(audio_clip, "subclip"):
-                        audio_clip = audio_clip.subclip(0, trim_to)
-                if hasattr(clip, "with_audio"):
-                    clip = clip.with_audio(audio_clip)
-                else:
-                    clip = clip.set_audio(audio_clip)
+                a_dur = float(getattr(audio_clip, "duration", 0) or 0)
+                sub_duration = max(SUBLINE_MIN_SECONDS, a_dur + SUBLINE_AUDIO_PAD)
             except Exception as e:
-                logger.warning("Failed to attach audio for act %d: %s",
-                               act.get("act_number", -1), e)
+                logger.warning("Failed to load audio for act %d line %d: %s",
+                               act.get("act_number", -1), sub_idx, e)
+                audio_clip = None
 
-        if hasattr(clip, "fadein"):
-            clip = clip.fadein(TRANSITION_SECONDS).fadeout(TRANSITION_SECONDS)
-        clips.append(clip)
+        clip = ImageClip(png)
+        if hasattr(clip, "with_duration"):
+            clip = clip.with_duration(sub_duration)
+        else:
+            clip = clip.set_duration(sub_duration)
 
-    return clips
+        if audio_clip is not None:
+            if hasattr(clip, "with_audio"):
+                clip = clip.with_audio(audio_clip)
+            else:
+                clip = clip.set_audio(audio_clip)
+
+        sub_clips.append(clip)
+
+    if len(sub_clips) == 1:
+        return sub_clips[0]
+    # method="chain" → hard cuts between subtitle frames (visual is
+    # identical except for the subtitle bar; cross-fading would jitter).
+    return concatenate_videoclips(sub_clips, method="chain")
