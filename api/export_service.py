@@ -125,6 +125,58 @@ _RENDERERS = {
 }
 
 
+def format_onboard_markdown(analyzed: AnalyzedContent) -> str:
+    """Render AnalyzedContent.onboard + social stats as a markdown chat reply.
+
+    Designed for absolute beginners — no jargon-heavy fields. Used by
+    the /export/repo/onboard endpoint and any chat path that wants
+    a fast, friendly summary instead of a file export.
+    """
+    parts: list[str] = []
+    name = analyzed.repo_name or "this repository"
+    parts.append(f"# 🚀 Quick start: {name}")
+
+    onboard = analyzed.onboard
+    if onboard and not onboard.is_empty():
+        if onboard.one_liner:
+            parts.append(f"\n**What is it?**  \n{onboard.one_liner}")
+        if onboard.concrete_io:
+            parts.append(f"\n**What does it do?**  \n{onboard.concrete_io}")
+        if onboard.audience:
+            parts.append(f"\n**Is this for you?**  \n{onboard.audience}")
+        if onboard.prerequisites:
+            prereqs = "\n".join(f"- {p}" for p in onboard.prerequisites)
+            parts.append(f"\n**You should know first:**  \n{prereqs}")
+        if onboard.mental_model_3_boxes:
+            arrow = "  →  "
+            chain = arrow.join(f"`{b}`" for b in onboard.mental_model_3_boxes[:3])
+            parts.append(f"\n**Mental model:**  \n{chain}")
+        if onboard.first_5_minutes:
+            parts.append(f"\n**Your first 5 minutes:**  \n{onboard.first_5_minutes}")
+    else:
+        # Onboard missing — gracefully fall back to project_overview
+        if analyzed.project_overview:
+            parts.append(f"\n{analyzed.project_overview}")
+
+    # "Is this alive?" social signals
+    timeline = analyzed.commit_timeline
+    stats = timeline.stats if timeline else None
+    if stats:
+        liveness_bits = []
+        if stats.stars:
+            liveness_bits.append(f"⭐ {stats.stars:,} stars")
+        if stats.forks:
+            liveness_bits.append(f"🍴 {stats.forks:,} forks")
+        if stats.pushed_at:
+            liveness_bits.append(f"📅 last push {stats.pushed_at[:10]}")
+        if stats.license:
+            liveness_bits.append(f"📄 {stats.license}")
+        if liveness_bits:
+            parts.append(f"\n**Project signals:** {' · '.join(liveness_bits)}")
+
+    return "\n".join(parts).strip()
+
+
 def _print_analyzed_content(analyzed: AnalyzedContent, fmt: ExportFormat):
     """Pretty-print the AnalyzedContent structured fields to console & log."""
     import json

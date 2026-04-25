@@ -265,6 +265,54 @@ async def export_repo_video(request: DirectPDFExportRequest):
         raise HTTPException(status_code=500, detail=error_msg)
 
 
+@app.post("/export/repo/onboard")
+async def export_repo_onboard(request: DirectPDFExportRequest):
+    """
+    Beginner-friendly onboarding snapshot — returns JSON with markdown text,
+    NOT a binary file. The frontend renders the markdown inline as a chat reply.
+
+    Includes the LLM-generated OnboardSnapshot plus repo social signals
+    (stars / pushed_at / license) as a quick "is this project alive?" check.
+    """
+    try:
+        from api.content_analyzer import analyze_repo_content
+
+        logger.info(f"Onboard requested for {request.repo_url} (provider={request.provider})")
+        repo_req = RepoAnalysisRequest(
+            repo_url=request.repo_url,
+            repo_name=request.repo_name,
+            provider=request.provider,
+            model=request.model,
+            language=request.language,
+            repo_type=request.repo_type,
+            access_token=request.access_token,
+            excluded_dirs=request.excluded_dirs,
+            excluded_files=request.excluded_files,
+            included_dirs=request.included_dirs,
+            included_files=request.included_files,
+        )
+        analyzed = await analyze_repo_content(repo_req)
+
+        # Build a plain-markdown summary for the chat bubble
+        from api.export_service import format_onboard_markdown
+        markdown = format_onboard_markdown(analyzed)
+
+        # Return JSON so the frontend can render inline (no file download)
+        return JSONResponse(content={
+            "markdown": markdown,
+            "onboard": analyzed.onboard.model_dump() if analyzed.onboard else None,
+            "stats": (
+                analyzed.commit_timeline.stats.model_dump()
+                if analyzed.commit_timeline and analyzed.commit_timeline.stats
+                else None
+            ),
+        })
+    except Exception as e:
+        error_msg = f"Error generating onboard snapshot: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
 @app.post("/export/repo/poster")
 async def export_repo_poster(request: DirectPDFExportRequest):
     """

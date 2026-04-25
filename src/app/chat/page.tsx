@@ -15,7 +15,7 @@ interface Message {
 }
 
 // Action types the agent can trigger
-type AgentAction = 'GENERATE_PDF' | 'GENERATE_PPT' | 'GENERATE_VIDEO' | 'GENERATE_POSTER';
+type AgentAction = 'GENERATE_PDF' | 'GENERATE_PPT' | 'GENERATE_VIDEO' | 'GENERATE_POSTER' | 'GENERATE_ONBOARD';
 
 interface ActionStatus {
   type: AgentAction;
@@ -116,7 +116,7 @@ function AgentChatContent() {
   // ── Detect action tags in assistant response ─────────────
   const parseActions = (content: string): AgentAction[] => {
     const actions: AgentAction[] = [];
-    const actionRegex = /\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER)\]/g;
+    const actionRegex = /\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER|GENERATE_ONBOARD)\]/g;
     let match;
     while ((match = actionRegex.exec(content)) !== null) {
       actions.push(match[1] as AgentAction);
@@ -126,7 +126,7 @@ function AgentChatContent() {
 
   // Strip action tags from display text
   const stripActionTags = (content: string): string => {
-    return content.replace(/\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER)\]/g, '').trim();
+    return content.replace(/\[ACTION:(GENERATE_PDF|GENERATE_PPT|GENERATE_VIDEO|GENERATE_POSTER|GENERATE_ONBOARD)\]/g, '').trim();
   };
 
   // ── Deep Research helpers ──────────────────────────────────
@@ -271,9 +271,38 @@ function AgentChatContent() {
     } else if (action === 'GENERATE_POSTER') {
       endpoint = '/api/export/repo-poster';
       defaultFilename = `${repoName.split('/').pop() || 'repo'}_poster.png`;
+    } else if (action === 'GENERATE_ONBOARD') {
+      endpoint = '/api/export/repo-onboard';
+      // Onboard returns JSON; no file download. Handled in special branch below.
     }
 
     setActionStatuses(prev => [...prev.filter(a => a.type !== action), { type: action, status: 'running', phase: 'Generating...' }]);
+
+    // ── Onboard: render markdown inline as a new chat message instead of downloading
+    if (action === 'GENERATE_ONBOARD') {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyPayload),
+        });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          throw new Error(`Onboard failed: ${response.status} - ${errorText}`);
+        }
+        const data = await response.json();
+        const markdown = (data && typeof data.markdown === 'string') ? data.markdown : '';
+        if (markdown) {
+          // Append as a new assistant message so the chat renders it.
+          setConversationHistory(prev => [...prev, { role: 'assistant', content: markdown }]);
+        }
+        setActionStatuses(prev => prev.map(a => a.type === action ? { ...a, status: 'done', phase: undefined } : a));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setActionStatuses(prev => prev.map(a => a.type === action ? { ...a, status: 'error', error: errorMessage, phase: undefined } : a));
+      }
+      return;
+    }
 
     try {
       const response = await fetch(endpoint, {
@@ -471,6 +500,7 @@ function AgentChatContent() {
       GENERATE_PPT: t?.agentChat?.generatingPpt || 'PPT Slides',
       GENERATE_VIDEO: t?.agentChat?.generatingVideo || 'Video Overview',
       GENERATE_POSTER: t?.agentChat?.generatingPoster || 'Poster',
+      GENERATE_ONBOARD: t?.agentChat?.generatingOnboard || 'Beginner Quick Start',
     };
     return labels[action];
   };
@@ -479,6 +509,7 @@ function AgentChatContent() {
     if (action === 'GENERATE_PDF') return '📄';
     if (action === 'GENERATE_PPT') return '📊';
     if (action === 'GENERATE_POSTER') return '🖼️';
+    if (action === 'GENERATE_ONBOARD') return '🚀';
     return '🎬';
   };
 
