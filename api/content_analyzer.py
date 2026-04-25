@@ -53,6 +53,18 @@ class ModuleProgressionEntry(BaseModel):
     position: str = ""
 
 
+class MetaphorSegment(BaseModel):
+    """One segment of an LLM-generated analogy story (e.g. "kitchen", "courier").
+
+    Used by the 5-act onboard video (Act 2) to walk a beginner through
+    the project via a familiar everyday metaphor. Each segment has a
+    detailed version (used as image-generation prompt in v2) and a
+    brief, conversational one-liner (used as the v1 comic-bullet text).
+    """
+    detail: str = ""    # 1-2 sentences for image-gen / scene description
+    brief: str = ""     # very short conversational line (≤80 chars), comic bubble style
+
+
 class OnboardSnapshot(BaseModel):
     """Beginner-friendly aggregated view of a repo.
 
@@ -323,6 +335,11 @@ class AnalyzedContent(BaseModel):
 
     # Beginner-friendly onboarding snapshot (populated by LLM in same call)
     onboard: Optional["OnboardSnapshot"] = None
+
+    # LLM-generated analogy story for the 5-act onboard video (Act 2).
+    # 3-5 segments; empty list means the LLM didn't produce one and
+    # the renderer should generate a fallback at runtime.
+    metaphor_story: List["MetaphorSegment"] = Field(default_factory=list)
 
     # Fallback: raw LLM response text, used when JSON parsing fails
     raw_llm_text: str = Field(default="", exclude=True)
@@ -628,6 +645,24 @@ def _build_analyzed_content(
             )
         except Exception as e:
             logger.warning("Failed to parse onboard snapshot: %s", e)
+
+    # Parse metaphor_story (optional; for Act 2 of onboard_5act video).
+    metaphor_raw = raw_json.get("metaphor_story") or []
+    if isinstance(metaphor_raw, list):
+        segments: list[MetaphorSegment] = []
+        for seg in metaphor_raw[:6]:  # cap at 6 to bound prompt size
+            if not isinstance(seg, dict):
+                continue
+            try:
+                segments.append(MetaphorSegment(
+                    detail=str(seg.get("detail") or "").strip()[:300],
+                    brief=str(seg.get("brief") or "").strip()[:120],
+                ))
+            except Exception as e:
+                logger.debug("Skipping malformed metaphor segment: %s", e)
+        # Only attach if we got at least 2 valid segments (otherwise fallback at render time)
+        if len(segments) >= 2:
+            analyzed.metaphor_story = segments
 
     if not raw_json:
         logger.warning("_build_analyzed_content received empty JSON; raw_llm_text fallback active (len=%d)", len(raw_llm_text))

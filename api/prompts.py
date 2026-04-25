@@ -250,8 +250,23 @@ Analyze the following repository content and produce a JSON object with this EXA
     "prerequisites": ["<one short item, e.g. 'Basic Python (functions, imports)'>", "<another item if any; max 3 items, prefer 1-2; use empty list [] if no prereqs>"],
     "mental_model_3_boxes": ["<exactly 3 short labels, the 'cartoon version' of the system: input → process → output. Example for a doc generator: ['GitHub URL in', 'AI reads code + writes summary', 'PDF / video out']. Use plain language, NOT module names.>", "<box 2>", "<box 3>"],
     "first_5_minutes": "<3-5 concrete copy-paste-friendly steps to get something running. Be specific about commands and what success looks like. Example: '1. git clone <url> && cd <repo>  2. pip install -r requirements.txt  3. python -m api.main  4. Open http://localhost:3000  5. Paste any GitHub URL into the box and click Generate.'>"
-  }}
+  }},
+  "metaphor_story": [
+    {{
+      "detail": "<1-2 sentences describing this scene of an everyday-life ANALOGY for the project. Pick ONE relatable metaphor (kitchen / courier / library / construction site / hospital / factory) and stick with it across all segments. The detail is rich enough to imagine as a single illustration. Example for a code-doc generator: 'A hungry diner sits down at a busy restaurant and hands their order ticket to the head waiter, who eyes the kitchen door anxiously.'>",
+      "brief": "<≤80 chars, comic-bubble conversational line that captures the same beat. Use casual humor. Example: 'Diner: Hi! What can you make for me with this messy order?'>"
+    }},
+    {{"detail": "<segment 2 — typically the moment the work begins>", "brief": "<≤80 chars>"}},
+    {{"detail": "<segment 3 — the heart of the analogy, usually shows the magic step>", "brief": "<≤80 chars>"}},
+    {{"detail": "<segment 4 — the moment of delivery / the result>", "brief": "<≤80 chars>"}}
+  ]
 }}
+
+Metaphor guidance:
+- Aim for 3 to 5 segments total. Each segment is one tiny scene.
+- All segments must use ONE coherent metaphor (do not switch from "kitchen" to "spaceship" mid-story).
+- The metaphor MUST map to what the repo actually does. A code-doc generator → kitchen (raw ingredients = code, chef = AI, plated dish = doc). A scheduling app → bus dispatch. Choose carefully.
+- Brief lines should sound like comic dialogue, not narration. Use first-person speech with personality.
 
 Guidelines:
 - repo_type_hint: infer from the code — library/SDK, web app, microservice system, data/ML pipeline, CLI tool, or generic

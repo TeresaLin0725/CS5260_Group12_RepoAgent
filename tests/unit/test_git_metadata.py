@@ -172,6 +172,90 @@ def test_build_analyzed_content_handles_missing_onboard():
     assert analyzed.onboard is None
 
 
+def test_metaphor_segment_defaults():
+    from api.content_analyzer import MetaphorSegment
+    s = MetaphorSegment()
+    assert s.detail == ""
+    assert s.brief == ""
+
+
+def test_build_analyzed_content_parses_metaphor_story():
+    """LLM JSON with metaphor_story list should populate AnalyzedContent.metaphor_story."""
+    from api.content_analyzer import _build_analyzed_content
+    raw_json = {
+        "repo_type_hint": "library",
+        "project_overview": "x",
+        "metaphor_story": [
+            {"detail": "A diner enters a kitchen.", "brief": "Diner: I'm hungry!"},
+            {"detail": "The chef fires up the stove.", "brief": "Chef: Time to cook!"},
+            {"detail": "A plated dish is served.", "brief": "Diner: Wow, delicious!"},
+        ],
+    }
+    analyzed = _build_analyzed_content(raw_json, repo_name="x", repo_url="", language="en")
+    assert len(analyzed.metaphor_story) == 3
+    assert analyzed.metaphor_story[0].detail.startswith("A diner")
+    assert "hungry" in analyzed.metaphor_story[0].brief
+
+
+def test_build_analyzed_content_drops_metaphor_story_with_one_segment():
+    """A single segment is too short to be a story; should fall back to empty."""
+    from api.content_analyzer import _build_analyzed_content
+    raw_json = {
+        "repo_type_hint": "library",
+        "metaphor_story": [{"detail": "Only one scene.", "brief": "Hi."}],
+    }
+    analyzed = _build_analyzed_content(raw_json, repo_name="x", repo_url="", language="en")
+    assert analyzed.metaphor_story == []
+
+
+def test_build_analyzed_content_caps_metaphor_story_lengths():
+    """Detail and brief should be truncated to safe sizes."""
+    from api.content_analyzer import _build_analyzed_content
+    long_detail = "x" * 500
+    long_brief = "y" * 500
+    raw_json = {
+        "metaphor_story": [
+            {"detail": long_detail, "brief": long_brief},
+            {"detail": long_detail, "brief": long_brief},
+        ],
+    }
+    analyzed = _build_analyzed_content(raw_json, repo_name="x", repo_url="", language="en")
+    assert len(analyzed.metaphor_story[0].detail) <= 300
+    assert len(analyzed.metaphor_story[0].brief) <= 120
+
+
+def test_contributor_info_extension_defaults():
+    """ContributorInfo gains followers/public_repos/bio/name with safe defaults."""
+    from api.git_metadata import ContributorInfo
+    c = ContributorInfo(login="alice", commit_count=10)
+    assert c.followers == 0
+    assert c.public_repos == 0
+    assert c.bio == ""
+    assert c.name == ""
+
+
+def test_enrich_top_contributors_skips_bots(monkeypatch):
+    """Bot logins (ending with '[bot]') must not trigger profile fetch."""
+    from api.git_metadata import ContributorInfo, _enrich_top_contributors
+    fetch_calls = []
+    def fake_fetch(login, token):
+        fetch_calls.append(login)
+        return {"followers": 1, "public_repos": 1, "bio": "", "name": login}
+    monkeypatch.setattr("api.git_metadata._fetch_contributor_profile", fake_fetch)
+
+    contributors = [
+        ContributorInfo(login="alice", commit_count=50),
+        ContributorInfo(login="dependabot[bot]", commit_count=200),
+        ContributorInfo(login="bob", commit_count=10),
+    ]
+    _enrich_top_contributors(contributors, access_token=None, limit=5)
+    assert "alice" in fetch_calls
+    assert "bob" in fetch_calls
+    assert "dependabot[bot]" not in fetch_calls
+    assert contributors[0].followers == 1
+    assert contributors[1].followers == 0  # bot was skipped
+
+
 def test_extract_commit_timeline_missing_path_returns_empty():
     from api.git_metadata import extract_commit_timeline
     timeline = extract_commit_timeline(local_path="/nonexistent/path/xyz", repo_url="")

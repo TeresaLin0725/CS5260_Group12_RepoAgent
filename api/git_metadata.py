@@ -55,6 +55,13 @@ class ContributorInfo(BaseModel):
     login: str = ""
     commit_count: int = 0
     avatar_url: Optional[str] = None
+    # Optional GitHub-wide reputation signals (only populated for top contributors
+    # that we explicitly enrich via _fetch_contributor_profile). Used to pick
+    # "headline" contributors for the onboard video Act 1.
+    followers: int = 0
+    public_repos: int = 0
+    bio: str = ""
+    name: str = ""             # display name; falls back to login if empty
 
 
 class ReleaseInfo(BaseModel):
@@ -231,6 +238,111 @@ def _github_api_headers(access_token: Optional[str]) -> dict:
     return headers
 
 
+_CONTRIBUTOR_CACHE_TTL_SECONDS = 24 * 3600  # 1 day
+_CONTRIBUTOR_CACHE_PATH = os.path.join(
+    os.path.expanduser("~"), ".adalflow", "contributor_cache.json"
+)
+
+
+def _load_contributor_cache() -> dict:
+    """Load on-disk cache of {login: {"fetched_at": ts, "data": {...}}}."""
+    if not os.path.exists(_CONTRIBUTOR_CACHE_PATH):
+        return {}
+    try:
+        import json as _json
+        with open(_CONTRIBUTOR_CACHE_PATH, "r", encoding="utf-8") as f:
+            return _json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _save_contributor_cache(cache: dict) -> None:
+    try:
+        import json as _json
+        os.makedirs(os.path.dirname(_CONTRIBUTOR_CACHE_PATH), exist_ok=True)
+        with open(_CONTRIBUTOR_CACHE_PATH, "w", encoding="utf-8") as f:
+            _json.dump(cache, f, ensure_ascii=False)
+    except Exception as e:
+        logger.debug("Failed to save contributor cache: %s", e)
+
+
+def _fetch_contributor_profile(login: str, access_token: Optional[str]) -> Optional[dict]:
+    """Fetch a single GitHub user profile via GET /users/{login}.
+
+    Used to enrich top contributors with followers/public_repos/bio so we
+    can pick "headline" contributors for the onboard video Act 1.
+
+    Caches results to ~/.adalflow/contributor_cache.json with a 1-day TTL
+    to bound API rate-limit cost across repeated runs.
+    """
+    if not login or not login.strip():
+        return None
+    try:
+        import time as _time
+        cache = _load_contributor_cache()
+        entry = cache.get(login)
+        if entry and isinstance(entry, dict):
+            fetched_at = float(entry.get("fetched_at") or 0)
+            if _time.time() - fetched_at < _CONTRIBUTOR_CACHE_TTL_SECONDS:
+                return entry.get("data") or None
+    except Exception:
+        cache = {}
+
+    try:
+        import requests
+    except ImportError:
+        return None
+
+    url = f"https://api.github.com/users/{login}"
+    try:
+        resp = requests.get(url, headers=_github_api_headers(access_token), timeout=10)
+        if resp.status_code != 200:
+            logger.debug("user profile API returned %d for %s", resp.status_code, login)
+            return None
+        data = resp.json()
+    except Exception as e:
+        logger.debug("user profile fetch failed for %s: %s", login, e)
+        return None
+
+    profile = {
+        "followers": int(data.get("followers") or 0),
+        "public_repos": int(data.get("public_repos") or 0),
+        "bio": (data.get("bio") or "").strip()[:200],
+        "name": (data.get("name") or login).strip()[:80],
+    }
+    try:
+        import time as _time
+        cache[login] = {"fetched_at": _time.time(), "data": profile}
+        _save_contributor_cache(cache)
+    except Exception:
+        pass
+    return profile
+
+
+def _enrich_top_contributors(
+    contributors: List[ContributorInfo],
+    access_token: Optional[str],
+    limit: int = 5,
+) -> None:
+    """Enrich the top-N contributors in place with GitHub-wide reputation data.
+
+    Only fetches profiles for the first `limit` contributors (already sorted
+    by commit_count from the GitHub API). Caches per-user via
+    _fetch_contributor_profile, so repeat runs on the same set of repos are
+    free after the first call within the TTL window.
+    """
+    for c in contributors[:limit]:
+        if not c.login or c.login.endswith("[bot]"):
+            continue
+        profile = _fetch_contributor_profile(c.login, access_token)
+        if not profile:
+            continue
+        c.followers = profile.get("followers", 0)
+        c.public_repos = profile.get("public_repos", 0)
+        c.bio = profile.get("bio", "")
+        c.name = profile.get("name", c.login)
+
+
 def _fetch_repo_stats(owner: str, repo: str, access_token: Optional[str]) -> Optional[RepoStats]:
     """Fetch stars, watchers, forks, license, topics from /repos/{owner}/{repo}."""
     try:
@@ -381,6 +493,11 @@ def extract_commit_timeline(
                 logger.info("repo stats fetch skipped: %s", e)
             try:
                 timeline.contributors = _fetch_contributors(owner, repo, access_token)
+                # Enrich the top contributors with GitHub-wide reputation
+                # signals (followers, public_repos, bio, display name).
+                # Cached on disk; first-run cost = N extra GET /users/{login}.
+                if timeline.contributors:
+                    _enrich_top_contributors(timeline.contributors, access_token, limit=5)
             except Exception as e:
                 logger.info("contributors fetch skipped: %s", e)
             try:
