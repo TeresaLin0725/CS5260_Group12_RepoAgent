@@ -91,6 +91,87 @@ def test_format_timeline_for_prompt_has_sections():
     assert "v1.0" in block
 
 
+def test_repo_stats_model_defaults():
+    from api.git_metadata import RepoStats
+    stats = RepoStats()
+    assert stats.stars == 0
+    assert stats.topics == []
+    assert stats.license == ""
+
+
+def test_format_timeline_includes_repo_stats():
+    """Stats block should appear in the LLM prompt when present."""
+    from api.git_metadata import (
+        CommitTimeline, CommitTimelineEntry, RepoStats, format_timeline_for_prompt,
+    )
+    timeline = CommitTimeline(
+        commits=[CommitTimelineEntry(sha="abc12345", message="init", author="A", date="2025-01-01")],
+        stats=RepoStats(
+            stars=1234, watchers=42, forks=88, open_issues=3,
+            pushed_at="2026-04-01T00:00:00Z",
+            description="A great project",
+            topics=["python", "cli"],
+            license="MIT",
+        ),
+    )
+    block = format_timeline_for_prompt(timeline)
+    assert "REPO SOCIAL STATS" in block
+    assert "1234 stars" in block
+    assert "MIT" in block
+    assert "python, cli" in block
+    assert "A great project" in block
+
+
+def test_commit_timeline_is_empty_with_only_stats():
+    """A timeline with only social stats should NOT be considered empty."""
+    from api.git_metadata import CommitTimeline, RepoStats
+    t = CommitTimeline(stats=RepoStats(stars=10))
+    assert not t.is_empty()
+
+
+def test_onboard_snapshot_defaults():
+    from api.content_analyzer import OnboardSnapshot
+    snap = OnboardSnapshot()
+    assert snap.is_empty()
+    assert snap.prerequisites == []
+
+
+def test_onboard_snapshot_not_empty_with_data():
+    from api.content_analyzer import OnboardSnapshot
+    snap = OnboardSnapshot(one_liner="A doc generator.")
+    assert not snap.is_empty()
+
+
+def test_build_analyzed_content_parses_onboard():
+    """LLM JSON with onboard block should be parsed into AnalyzedContent.onboard."""
+    from api.content_analyzer import _build_analyzed_content
+    raw_json = {
+        "repo_type_hint": "library",
+        "project_overview": "A test project.",
+        "onboard": {
+            "one_liner": "Turn a GitHub link into a guide.",
+            "concrete_io": "Input: URL, Output: PDF.",
+            "audience": "Programmers who run Python scripts.",
+            "prerequisites": ["Basic Python", "pip install"],
+            "mental_model_3_boxes": ["URL in", "AI reads code", "PDF out"],
+            "first_5_minutes": "1. clone\n2. pip install\n3. python -m api.main",
+        },
+    }
+    analyzed = _build_analyzed_content(raw_json, repo_name="x", repo_url="", language="en")
+    assert analyzed.onboard is not None
+    assert analyzed.onboard.one_liner == "Turn a GitHub link into a guide."
+    assert analyzed.onboard.prerequisites == ["Basic Python", "pip install"]
+    assert len(analyzed.onboard.mental_model_3_boxes) == 3
+
+
+def test_build_analyzed_content_handles_missing_onboard():
+    """Missing onboard key should leave AnalyzedContent.onboard as None."""
+    from api.content_analyzer import _build_analyzed_content
+    raw_json = {"repo_type_hint": "library", "project_overview": "x"}
+    analyzed = _build_analyzed_content(raw_json, repo_name="x", repo_url="", language="en")
+    assert analyzed.onboard is None
+
+
 def test_extract_commit_timeline_missing_path_returns_empty():
     from api.git_metadata import extract_commit_timeline
     timeline = extract_commit_timeline(local_path="/nonexistent/path/xyz", repo_url="")
@@ -138,7 +219,9 @@ def test_format_evolution_section_with_data():
     section = _format_evolution_section(analyzed)
     assert "Commit History" in section
     assert "The project started as a CLI tool." in section
-    assert "abc12345" in section
+    # Compact format includes author + message summary, no SHA
     assert "Alice" in section
-    assert "alice (10)" in section
+    assert "feat: initial commit" in section
+    # One-liner summary mentions contributors & latest release
+    assert "alice" in section
     assert "v1.0" in section

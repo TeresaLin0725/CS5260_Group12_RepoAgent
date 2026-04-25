@@ -63,12 +63,30 @@ class ReleaseInfo(BaseModel):
     name: str = ""
 
 
+class RepoStats(BaseModel):
+    """Social / liveness signals from the GitHub repo metadata endpoint.
+
+    Useful for the onboarding "is this project worth my time?" check:
+    - High stars + recent push = trusted, alive
+    - 0 stars + no push for years = abandoned
+    """
+    stars: int = 0
+    watchers: int = 0          # actual subscribers (more meaningful than watchers_count)
+    forks: int = 0
+    open_issues: int = 0
+    pushed_at: str = ""        # ISO 8601 of latest push (liveness signal)
+    description: str = ""      # one-line repo blurb from GitHub
+    topics: List[str] = Field(default_factory=list)
+    license: str = ""
+
+
 class CommitTimeline(BaseModel):
     """Full commit-history narrative payload attached to AnalyzedContent."""
 
     commits: List[CommitTimelineEntry] = Field(default_factory=list)
     contributors: List[ContributorInfo] = Field(default_factory=list)
     releases: List[ReleaseInfo] = Field(default_factory=list)
+    stats: Optional[RepoStats] = None
 
     # Simple derived stats for convenience
     total_commits_scanned: int = 0
@@ -76,7 +94,7 @@ class CommitTimeline(BaseModel):
     latest_commit_date: str = ""
 
     def is_empty(self) -> bool:
-        return not (self.commits or self.contributors or self.releases)
+        return not (self.commits or self.contributors or self.releases or self.stats)
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +231,40 @@ def _github_api_headers(access_token: Optional[str]) -> dict:
     return headers
 
 
+def _fetch_repo_stats(owner: str, repo: str, access_token: Optional[str]) -> Optional[RepoStats]:
+    """Fetch stars, watchers, forks, license, topics from /repos/{owner}/{repo}."""
+    try:
+        import requests
+    except ImportError:
+        return None
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    try:
+        resp = requests.get(url, headers=_github_api_headers(access_token), timeout=15)
+        if resp.status_code != 200:
+            logger.info("repo stats API returned %d for %s/%s", resp.status_code, owner, repo)
+            return None
+        data = resp.json()
+    except Exception as e:
+        logger.warning("repo stats fetch failed: %s", e)
+        return None
+
+    license_name = ""
+    license_obj = data.get("license")
+    if isinstance(license_obj, dict):
+        license_name = license_obj.get("spdx_id") or license_obj.get("name") or ""
+
+    return RepoStats(
+        stars=int(data.get("stargazers_count") or 0),
+        watchers=int(data.get("subscribers_count") or 0),  # real subscribers, not the legacy field
+        forks=int(data.get("forks_count") or 0),
+        open_issues=int(data.get("open_issues_count") or 0),
+        pushed_at=data.get("pushed_at") or "",
+        description=(data.get("description") or "").strip(),
+        topics=[str(t) for t in (data.get("topics") or [])][:10],
+        license=license_name,
+    )
+
+
 def _fetch_contributors(owner: str, repo: str, access_token: Optional[str]) -> List[ContributorInfo]:
     try:
         import requests
@@ -324,6 +376,10 @@ def extract_commit_timeline(
         if owner_repo:
             owner, repo = owner_repo
             try:
+                timeline.stats = _fetch_repo_stats(owner, repo, access_token)
+            except Exception as e:
+                logger.info("repo stats fetch skipped: %s", e)
+            try:
                 timeline.contributors = _fetch_contributors(owner, repo, access_token)
             except Exception as e:
                 logger.info("contributors fetch skipped: %s", e)
@@ -331,9 +387,13 @@ def extract_commit_timeline(
                 timeline.releases = _fetch_releases(owner, repo, access_token)
             except Exception as e:
                 logger.info("releases fetch skipped: %s", e)
+            stats_summary = (
+                f"{timeline.stats.stars}⭐ {timeline.stats.forks}🍴" if timeline.stats else "no stats"
+            )
             logger.info(
-                "commit_timeline for %s/%s: %d commits, %d contributors, %d releases",
+                "commit_timeline for %s/%s: %d commits, %d contributors, %d releases, %s",
                 owner, repo, len(timeline.commits), len(timeline.contributors), len(timeline.releases),
+                stats_summary,
             )
         else:
             logger.info(
@@ -353,6 +413,20 @@ def format_timeline_for_prompt(timeline: CommitTimeline) -> str:
         return ""
 
     lines = []
+    if timeline.stats:
+        lines.append("=== REPO SOCIAL STATS ===")
+        s = timeline.stats
+        lines.append(f"- {s.stars} stars, {s.watchers} watchers, {s.forks} forks, {s.open_issues} open issues")
+        if s.pushed_at:
+            lines.append(f"- Last push: {s.pushed_at.split('T')[0]}")
+        if s.license:
+            lines.append(f"- License: {s.license}")
+        if s.topics:
+            lines.append(f"- Topics: {', '.join(s.topics)}")
+        if s.description:
+            lines.append(f"- GitHub description: {s.description}")
+        lines.append("")
+
     if timeline.commits:
         lines.append("=== RECENT COMMIT HISTORY (newest first) ===")
         for c in timeline.commits[:40]:

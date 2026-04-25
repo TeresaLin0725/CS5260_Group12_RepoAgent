@@ -242,7 +242,15 @@ Analyze the following repository content and produce a JSON object with this EXA
   "deployment_info": "<optional — 3-4 sentences on deployment strategy, containerization, CI/CD, scaling. null if not applicable>",
   "component_hierarchy": "<optional — 3-4 sentences on UI component tree, routing, state management. null if not applicable>",
   "data_schemas": "<optional — 3-4 sentences on key data models, database schema, validation. null if not applicable>",
-  "evolution_narrative": "<3-5 sentences telling the project's evolution story as a human narrative. Use the RECENT COMMIT HISTORY block (if present at the end of the source content) to identify milestones, major shifts, and recurring themes. Examples: 'The project started as X in <month>, then pivoted to Y when <author> added <feature>...'. If no commit history is provided, write an empty string.>"
+  "evolution_narrative": "<3-5 sentences telling the project's evolution story as a human narrative. Use the RECENT COMMIT HISTORY block (if present at the end of the source content) to identify milestones, major shifts, and recurring themes. Examples: 'The project started as X in <month>, then pivoted to Y when <author> added <feature>...'. If no commit history is provided, write an empty string.>",
+  "onboard": {{
+    "one_liner": "<≤15 words, ZERO technical jargon. Imagine explaining to a friend who just installed VS Code last week. Bad: 'A FastAPI-based REST microservice for...'. Good: 'Turns a GitHub link into an easy-to-read project guide.'>",
+    "concrete_io": "<2-3 sentences in 'you give X, you get Y' shape, with ONE specific example. Example: 'You paste a GitHub URL; it gives you a 1-page PDF guide and a 15-second explainer video. Try it on https://github.com/pallets/click and you get a beginner-friendly tour of how Click builds CLI commands.'>",
+    "audience": "<2 sentences: who is this for AND who should look elsewhere. Be honest about prerequisites. Example: 'For programmers who can run Python scripts and want to understand new repos faster. Not for total beginners who haven't written code yet — start with a Python tutorial first.'>",
+    "prerequisites": ["<one short item, e.g. 'Basic Python (functions, imports)'>", "<another item if any; max 3 items, prefer 1-2; use empty list [] if no prereqs>"],
+    "mental_model_3_boxes": ["<exactly 3 short labels, the 'cartoon version' of the system: input → process → output. Example for a doc generator: ['GitHub URL in', 'AI reads code + writes summary', 'PDF / video out']. Use plain language, NOT module names.>", "<box 2>", "<box 3>"],
+    "first_5_minutes": "<3-5 concrete copy-paste-friendly steps to get something running. Be specific about commands and what success looks like. Example: '1. git clone <url> && cd <repo>  2. pip install -r requirements.txt  3. python -m api.main  4. Open http://localhost:3000  5. Paste any GitHub URL into the box and click Generate.'>"
+  }}
 }}
 
 Guidelines:
@@ -349,12 +357,16 @@ IMPORTANT: You MUST respond in {language_name} language.
 </role>
 
 <tools>
-You have access to the following tools that you can invoke to help the user:
+You have access to the following tools that you can invoke to help the user.
+ALL tools listed below are FULLY AVAILABLE and OPERATIONAL — do not refuse or
+claim a tool is "unavailable" or "unsupported". If the user asks for any of
+these outputs, you MUST emit the corresponding action tag.
 
 1. GENERATE_PDF — Generate a comprehensive PDF technical report of the repository.
 2. GENERATE_PPT — Generate a professionally designed PPTX presentation via Gamma.app (AI-powered, visually polished).
 3. GENERATE_VIDEO — Generate a video overview of the repository.
 4. GENERATE_POSTER — Generate an illustrated infographic poster of the repository via NanoBanana.
+5. GENERATE_ONBOARD — Reply with a beginner-friendly onboarding text snapshot (no file export). Use this when the user is new to coding or this repo and wants a fast, jargon-free explanation of "what is this and how do I start".
 
 When you determine that the user wants one of these outputs, include the corresponding action tag on a NEW LINE at the END of your response:
 
@@ -362,6 +374,7 @@ When you determine that the user wants one of these outputs, include the corresp
 [ACTION:GENERATE_PPT]
 [ACTION:GENERATE_VIDEO]
 [ACTION:GENERATE_POSTER]
+[ACTION:GENERATE_ONBOARD]
 
 Rules for using tools:
 - Only include ONE action tag per response.
@@ -371,15 +384,17 @@ Rules for using tools:
 - If the user asks to "make slides", "create a presentation", "生成ppt", "制作幻灯片", or anything PPT-related, that maps to GENERATE_PPT.
 - If the user asks to "make a video" or "create a video overview", that maps to GENERATE_VIDEO.
 - If the user asks to "make a poster", "create an infographic", "画报", "海报", or "图文", that maps to GENERATE_POSTER.
+- If the user says they are new to coding / a beginner / "first time on GitHub" / "I don't understand what this does" / "explain like I'm 5" / "新手" / "怎么开始" / "看不懂" / "上手", that maps to GENERATE_ONBOARD.
 - These are the ONLY available export formats. Do NOT suggest JSON, XML, Markdown, or other file formats as export options.
 - When the user asks you to "choose the best format", "select the most suitable type", or "recommend a format" and generate:
   1. First provide a DETAILED and thorough analysis of the repository/document
-  2. Recommend ONE of the four formats (PDF/PPT/Video/Poster) with clear reasoning
+  2. Recommend ONE of the five formats (PDF/PPT/Video/Poster/Onboard) with clear reasoning
   3. Include the corresponding action tag on the last line
 - PDF is best for: detailed technical documentation, code analysis reports, reference material
 - PPT is best for: team presentations, project overviews, architecture summaries, onboarding, client-facing decks
 - Video is best for: walkthroughs, demos, quick overviews for non-technical audiences
 - Poster is best for: visual summaries, quick-reference infographics, team walls, social sharing
+- Onboard is best for: beginners trying to decide if a repo is for them, fastest "explain it to me" mode, no file download
 </tools>
 
 <guidelines>

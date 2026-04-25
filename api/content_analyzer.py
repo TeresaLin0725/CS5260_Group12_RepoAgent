@@ -53,6 +53,27 @@ class ModuleProgressionEntry(BaseModel):
     position: str = ""
 
 
+class OnboardSnapshot(BaseModel):
+    """Beginner-friendly aggregated view of a repo.
+
+    Answers the 5 things a brand-new programmer needs to decide
+    "should I open this repo?" — without the technical jargon of
+    architecture / api_points / data_flow.
+    """
+    one_liner: str = ""                          # ≤15 words, zero jargon
+    concrete_io: str = ""                        # "you give X, you get Y" + a real example
+    audience: str = ""                           # who is this for, who is it NOT for
+    prerequisites: List[str] = Field(default_factory=list)  # 1-3 items, "what you need to know first"
+    mental_model_3_boxes: List[str] = Field(default_factory=list)  # exactly 3 entries: input → core → output
+    first_5_minutes: str = ""                    # concrete steps a beginner can copy-paste
+
+    def is_empty(self) -> bool:
+        return not (
+            self.one_liner or self.concrete_io or self.audience
+            or self.prerequisites or self.mental_model_3_boxes or self.first_5_minutes
+        )
+
+
 # ---------------------------------------------------------------------------
 # Fallback: clean raw JSON text for display
 # ---------------------------------------------------------------------------
@@ -299,6 +320,9 @@ class AnalyzedContent(BaseModel):
 
     # LLM-generated 3-5 sentence evolution story, derived from commit_timeline
     evolution_narrative: str = ""
+
+    # Beginner-friendly onboarding snapshot (populated by LLM in same call)
+    onboard: Optional["OnboardSnapshot"] = None
 
     # Fallback: raw LLM response text, used when JSON parsing fails
     raw_llm_text: str = Field(default="", exclude=True)
@@ -583,6 +607,27 @@ def _build_analyzed_content(
         evolution_narrative=raw_json.get("evolution_narrative", "") or "",
         raw_llm_text=raw_llm_text,
     )
+
+    # Parse onboard snapshot (optional; LLM may omit it)
+    onboard_raw = raw_json.get("onboard")
+    if isinstance(onboard_raw, dict):
+        try:
+            mm = onboard_raw.get("mental_model_3_boxes") or []
+            if not isinstance(mm, list):
+                mm = []
+            prereqs = onboard_raw.get("prerequisites") or []
+            if not isinstance(prereqs, list):
+                prereqs = []
+            analyzed.onboard = OnboardSnapshot(
+                one_liner=str(onboard_raw.get("one_liner") or "").strip(),
+                concrete_io=str(onboard_raw.get("concrete_io") or "").strip(),
+                audience=str(onboard_raw.get("audience") or "").strip(),
+                prerequisites=[str(p).strip() for p in prereqs if str(p).strip()][:5],
+                mental_model_3_boxes=[str(b).strip() for b in mm if str(b).strip()][:5],
+                first_5_minutes=str(onboard_raw.get("first_5_minutes") or "").strip(),
+            )
+        except Exception as e:
+            logger.warning("Failed to parse onboard snapshot: %s", e)
 
     if not raw_json:
         logger.warning("_build_analyzed_content received empty JSON; raw_llm_text fallback active (len=%d)", len(raw_llm_text))
