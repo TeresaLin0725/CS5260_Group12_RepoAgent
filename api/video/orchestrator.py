@@ -43,10 +43,23 @@ async def render_video_from_analyzed(  # noqa: C901
 
     The first layer that succeeds returns. Failures cascade silently to
     the next layer so the user always gets *some* video.
+
+    Pipeline switch: ``VIDEO_PIPELINE=onboard_5act`` redirects to the
+    new 5-act onboard pipeline, leaving baseline + API layers untouched.
     """
     overall_start = time.perf_counter()
     logger.info("Video export requested for %s", analyzed.repo_name)
     update_progress(job_id, 1)
+
+    # Pipeline switch: when VIDEO_PIPELINE=onboard_5act, hand off entirely
+    # to the new 5-act onboard pipeline. Baseline + API code below is
+    # bypassed (no fal.ai cost). Default (unset / "legacy") keeps the
+    # existing three-layer behavior below.
+    pipeline = os.environ.get("VIDEO_PIPELINE", "legacy").strip().lower()
+    if pipeline == "onboard_5act":
+        logger.info("VIDEO_PIPELINE=onboard_5act; routing to 5-act onboard pipeline")
+        from api.video.onboard_5act import render_onboard_5act_video
+        return await render_onboard_5act_video(analyzed, job_id=job_id)
 
     # Cost guard: set VIDEO_API_DISABLED=true in .env to skip all paid API
     # paths and go straight to the local baseline pipeline. Useful when

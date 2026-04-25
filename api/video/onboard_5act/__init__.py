@@ -23,5 +23,6 @@ Public entry point:
     render_onboard_5act_video(analyzed, ...) -> bytes
 """
 
-# Re-export the public entry point once orchestrator.py is in place.
-# (Filled in by Commit 5 of the onboard_5act roll-out.)
+from api.video.onboard_5act.orchestrator import render_onboard_5act_video
+
+__all__ = ["render_onboard_5act_video"]
