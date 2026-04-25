@@ -68,6 +68,11 @@ next-env.d.ts
 .idea/
 .claude/
 
+# Demo videos / generated outputs — keep them out of the repo so the
+# tree stays small. Re-add a specific file with `git add -f` if needed.
+assets/
+outputs/
+
 # ignore adding self-signed certs
 certs/
 eval/offline/.repos/
