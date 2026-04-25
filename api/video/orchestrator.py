@@ -51,13 +51,14 @@ async def render_video_from_analyzed(  # noqa: C901
     logger.info("Video export requested for %s", analyzed.repo_name)
     update_progress(job_id, 1)
 
-    # Pipeline switch: when VIDEO_PIPELINE=onboard_5act, hand off entirely
-    # to the new 5-act onboard pipeline. Baseline + API code below is
-    # bypassed (no fal.ai cost). Default (unset / "legacy") keeps the
-    # existing three-layer behavior below.
-    pipeline = os.environ.get("VIDEO_PIPELINE", "legacy").strip().lower()
-    if pipeline == "onboard_5act":
-        logger.info("VIDEO_PIPELINE=onboard_5act; routing to 5-act onboard pipeline")
+    # Pipeline switch: the 5-act onboard pipeline is the default since it
+    # produces a richer, narrative-driven walkthrough with TTS subtitles.
+    # The legacy three-layer pipeline (fal.ai onboard / fal.ai default /
+    # local baseline) below is kept as an emergency fallback only —
+    # opt in via ``VIDEO_PIPELINE=legacy`` if you specifically need it.
+    pipeline = os.environ.get("VIDEO_PIPELINE", "onboard_5act").strip().lower()
+    if pipeline != "legacy":
+        logger.info("VIDEO_PIPELINE=%s; routing to 5-act onboard pipeline", pipeline or "onboard_5act")
         from api.video.onboard_5act import render_onboard_5act_video
         return await render_onboard_5act_video(analyzed, job_id=job_id)
 
