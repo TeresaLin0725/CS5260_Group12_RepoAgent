@@ -340,8 +340,10 @@ def _render_single_page_attempt(
     # Simulate body
     _render_body(trial, summary_text, pw, font_size, font_family, need_cjk, font_path)
 
-    # Reserve space for footer (~10 mm) so body does not collide with it.
-    usable_h = 297 - 6 - 12  # = 279 mm
+    # Reserve space for footer (~10 mm) plus a 5 mm safety margin to absorb
+    # the small drift between trial measurement and the final render
+    # (line wrapping + section header heights are not perfectly predictable).
+    usable_h = 297 - 6 - 12 - 5  # = 274 mm
     if trial.get_y() < usable_h:
         # Fits on one page. Render the real pretty version.
         return _render_pdf_final(summary_text, repo_name, font_size, need_cjk, font_path)
@@ -465,6 +467,9 @@ def _is_section_header(line: str) -> bool:
         "COMPONENT HIERARCHY & ROUTING:", "COMPONENT HIERARCHY:",
         "DATA SCHEMAS & MODELS:", "DATA SCHEMAS:",
         "COMMANDS & INTERFACE:", "COMMANDS:",
+        # Commit history / evolution narrative section
+        "PROJECT EVOLUTION & COMMIT HISTORY:", "PROJECT EVOLUTION:",
+        "COMMIT HISTORY:", "EVOLUTION & HISTORY:",
     ]
     for h in en_headers:
         if s.startswith(h):
@@ -539,6 +544,9 @@ def _get_section_key(line: str) -> str:
         return "data_schemas"
     if su.startswith(("COMMANDS & INTERFACE:", "COMMANDS:")):
         return "api_integration_points"
+    if su.startswith(("PROJECT EVOLUTION & COMMIT HISTORY:", "PROJECT EVOLUTION:",
+                       "COMMIT HISTORY:", "EVOLUTION & HISTORY:")):
+        return "evolution_history"
 
     # --- Chinese headers (fallback if _postprocess_summary missed) ---
     if s.startswith("项目名称"):
@@ -600,6 +608,7 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
         "deployment": (248, 235, 220),          # warm amber
         "component_hierarchy": (230, 230, 255), # periwinkle
         "data_schemas": (235, 248, 225),        # olive
+        "evolution_history": (245, 230, 245),   # soft pink — "story" feel
     }
     # Accent bar colors — darker, matching the section theme.
     section_accent_colors = {
@@ -613,6 +622,7 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
         "deployment": (160, 100, 30),
         "component_hierarchy": (70, 70, 180),
         "data_schemas": (80, 140, 40),
+        "evolution_history": (160, 60, 140),
     }
     # Section icon prefixes — Latin-1 safe symbols to visually distinguish sections.
     # NOTE: We use only characters within the Latin-1 range (<=0xFF) so that the
@@ -629,6 +639,7 @@ def _render_body(pdf, text: str, page_width: float, font_size: float, font_famil
         "deployment": ">> ",
         "component_hierarchy": ">> ",
         "data_schemas": ">> ",
+        "evolution_history": ">> ",
     }
     default_header_bg = (230, 230, 248)
     default_accent_color = (60, 60, 140)
@@ -1010,7 +1021,11 @@ _PDF_ADAPTERS = {
 
 
 def _format_evolution_section(analyzed) -> str:
-    """Format commit history + evolution narrative as a PDF text section.
+    """Format commit history + evolution narrative as a compact PDF section.
+
+    Designed for the strict single-page PDF budget — keeps the section
+    to ~6-8 lines max so the existing 12→8pt font auto-fit can compress
+    the whole page without spilling over.
 
     Returns empty string when no commit data is available. Always reads
     directly from ``analyzed.commit_timeline`` so this works even when
@@ -1023,37 +1038,37 @@ def _format_evolution_section(analyzed) -> str:
     lines: list[str] = []
     lines.append("Project Evolution & Commit History:")
 
+    # Narrative — cap to keep section compact for single-page PDF
     narrative = getattr(analyzed, "evolution_narrative", "") or ""
     if narrative.strip():
-        lines.append(narrative.strip())
-        lines.append("")
+        narrative_short = narrative.strip()
+        if len(narrative_short) > 280:
+            narrative_short = narrative_short[:277].rstrip() + "..."
+        lines.append(narrative_short)
 
-    # Range summary
+    # One-liner combining range + contributors + releases when possible
+    summary_bits = []
     if timeline.first_commit_date or timeline.latest_commit_date:
         first = timeline.first_commit_date[:10] if timeline.first_commit_date else "?"
         latest = timeline.latest_commit_date[:10] if timeline.latest_commit_date else "?"
-        lines.append(f"- Timeline range: {first} to {latest} ({timeline.total_commits_scanned} commits analyzed)")
-
-    # Contributors
+        summary_bits.append(f"{first} to {latest} ({timeline.total_commits_scanned} commits)")
     if timeline.contributors:
-        top = timeline.contributors[:5]
-        names = ", ".join(f"{c.login} ({c.commit_count})" for c in top)
-        lines.append(f"- Top contributors: {names}")
-
-    # Releases
+        top_names = ", ".join(c.login for c in timeline.contributors[:3])
+        summary_bits.append(f"top: {top_names}")
     if timeline.releases:
-        rels = [f"{r.tag} ({r.date[:10]})" for r in timeline.releases[:5] if r.tag]
-        if rels:
-            lines.append(f"- Releases: {', '.join(rels)}")
+        latest_release = next((r.tag for r in timeline.releases if r.tag), "")
+        if latest_release:
+            summary_bits.append(f"latest release: {latest_release}")
+    if summary_bits:
+        lines.append("- " + " · ".join(summary_bits))
 
-    # Recent commits
+    # Recent commits — only top 3, shorter messages
     if timeline.commits:
-        lines.append("")
-        lines.append("Recent commits:")
-        for c in timeline.commits[:8]:
+        for c in timeline.commits[:3]:
             date = c.date[:10] if c.date else ""
-            msg = c.message[:80] if c.message else ""
-            lines.append(f"- {date} [{c.sha}] {c.author}: {msg}")
+            msg = (c.message[:60] if c.message else "")
+            author = c.author[:20] if c.author else ""
+            lines.append(f"- {date} {author}: {msg}")
 
     return "\n".join(lines).strip()
 

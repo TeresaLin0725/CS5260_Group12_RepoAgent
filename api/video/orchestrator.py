@@ -35,17 +35,65 @@ async def render_video_from_analyzed(  # noqa: C901
     job_id: Optional[str] = None,
 ) -> bytes:
     """
-    Phase 2b-video plus Phase 3: AnalyzedContent to MP4 bytes.
+    AnalyzedContent → MP4 bytes with three-layer fallback:
 
-    Renderer with TTS narration: generates scene-specific visuals and
-    TTS audio, then composes them into an MP4 walkthrough.
-    Falls back to silent video if TTS is unavailable.
+      1. ONBOARD API (fal.ai with onboard prompt) — beginner-friendly outcome demo
+      2. DEFAULT API (fal.ai with technical prompt) — UI walkthrough
+      3. BASELINE (Playwright + TTS + MoviePy) — always works
+
+    The first layer that succeeds returns. Failures cascade silently to
+    the next layer so the user always gets *some* video.
     """
     overall_start = time.perf_counter()
     logger.info("Video export requested for %s", analyzed.repo_name)
-
-    # Approximate: content analysis already done upstream, mark step 1 done here
     update_progress(job_id, 1)
+
+    # Cost guard: set VIDEO_API_DISABLED=true in .env to skip all paid API
+    # paths and go straight to the local baseline pipeline. Useful when
+    # iterating on the baseline without burning fal.ai credits.
+    api_disabled = os.environ.get("VIDEO_API_DISABLED", "").strip().lower() in ("1", "true", "yes")
+    fal_key = None if api_disabled else (os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY"))
+    if api_disabled:
+        logger.info("VIDEO_API_DISABLED=true; skipping fal.ai paths, going straight to baseline")
+
+    # ── Layer 1: ONBOARD API (beginner-friendly outcome video) ──────────────
+    if fal_key:
+        try:
+            from api.video.api_renderer import render_via_api
+            update_progress(job_id, 2, "Generating onboarding-style AI video...")
+            video_bytes = await render_via_api(analyzed, scenes=[], mode="onboard")
+            update_progress(job_id, 5, "Video ready (onboard mode)")
+            logger.info(
+                "Onboard API video succeeded for %s (%d bytes, %.1fs total)",
+                analyzed.repo_name, len(video_bytes), time.perf_counter() - overall_start,
+            )
+            return video_bytes
+        except Exception as e:
+            logger.warning("Onboard API video failed, falling back to default API: %s", e)
+
+    # ── Layer 2: DEFAULT API (technical UI walkthrough) ────────────────────
+    if fal_key:
+        try:
+            from api.video.api_renderer import render_via_api
+            update_progress(job_id, 2, "Generating AI video (default mode)...")
+            # Default mode needs scenes; build them quickly here.
+            raw_scenes_for_api = await generate_narration_script(analyzed, provider=provider, model=model)
+            scenes_for_api = _normalize_scenes(
+                _build_storyline_scenes(analyzed, _normalize_scenes(raw_scenes_for_api, analyzed.repo_name)),
+                analyzed.repo_name,
+            )
+            video_bytes = await render_via_api(analyzed, scenes=scenes_for_api, mode="default")
+            update_progress(job_id, 5, "Video ready (default mode)")
+            logger.info(
+                "Default API video succeeded for %s (%d bytes, %.1fs total)",
+                analyzed.repo_name, len(video_bytes), time.perf_counter() - overall_start,
+            )
+            return video_bytes
+        except Exception as e:
+            logger.warning("Default API video failed, falling back to baseline: %s", e)
+
+    # ── Layer 3: BASELINE (Playwright + TTS + MoviePy) ──────────────────────
+    logger.info("Using baseline pipeline for %s", analyzed.repo_name)
     update_progress(job_id, 2)  # Step 2: narration script
     narration_start = time.perf_counter()
     raw_scenes = await generate_narration_script(analyzed, provider=provider, model=model)

@@ -28,7 +28,12 @@ _DEFAULT_MODELS = {
 
 
 def _build_video_prompt(analyzed: "AnalyzedContent", scenes: List[dict]) -> str:
-    """Build a concise text prompt for the video generation API."""
+    """Build a concise text prompt for the technical-explainer style video.
+
+    This is the original API-mode prompt: shows software UI, dashboards,
+    code, with narration-driven scenes. Suited for users who already
+    understand what the project is.
+    """
     parts = []
 
     overview = analyzed.project_overview or analyzed.repo_name or "software project"
@@ -45,6 +50,57 @@ def _build_video_prompt(analyzed: "AnalyzedContent", scenes: List[dict]) -> str:
         "dark background with colored highlights, smooth transitions."
     )
 
+    prompt = "\n".join(parts)
+    if len(prompt) > 1500:
+        prompt = prompt[:1497] + "..."
+    return prompt
+
+
+def _build_onboard_video_prompt(analyzed: "AnalyzedContent") -> str:
+    """Build a beginner-friendly "show the OUTCOME" video prompt.
+
+    Strategy: the most powerful hook for a beginner is showing what the
+    tool *produces*, not its architecture. We describe a 5-shot story:
+    URL pasted in → AI thinking → final artifacts (PDF/video/poster)
+    appearing → happy user.
+
+    Reads analyzed.onboard if present (one_liner, mental_model_3_boxes)
+    to ground the visuals in the real project. Falls back to generic
+    "code → docs" framing when onboard is missing.
+    """
+    onboard = getattr(analyzed, "onboard", None)
+    one_liner = onboard.one_liner if (onboard and onboard.one_liner) else (
+        analyzed.project_overview[:100] if analyzed.project_overview else "a software project"
+    )
+    boxes = (onboard.mental_model_3_boxes if (onboard and onboard.mental_model_3_boxes)
+             else ["input", "AI processes", "output"])
+    box_str = " → ".join(boxes[:3])
+
+    parts = [
+        f"A 15-second beginner-friendly product demo video for {analyzed.repo_name}, "
+        f"a tool that {one_liner.lower().rstrip('.')}. Mental model: {box_str}. "
+        f"The video has 5 quick shots showing the OUTCOME, not technical details:",
+        "",
+        "Shot 1 (3s): Close-up of hands typing a GitHub URL into a search bar on a clean modern web app. "
+        "Soft lighting, shallow depth of field, hopeful mood.",
+        "",
+        "Shot 2 (3s): The screen shows a friendly progress animation — abstract glowing dots flowing "
+        "through a stylized neural-network shape, suggesting 'AI is thinking'. No readable text.",
+        "",
+        "Shot 3 (3s): A beautifully designed PDF document fades in on the right, "
+        "next to a short video player on the left, both arriving with smooth motion. "
+        "The user smiles in the corner.",
+        "",
+        "Shot 4 (3s): Camera pulls back showing all three artifacts — PDF, video, infographic poster — "
+        "arranged like a portfolio on a clean desk surface. Warm sunlight.",
+        "",
+        "Shot 5 (3s): Final hero shot — a relaxed person holding a tablet showing the PDF, "
+        "smiling, in a coffee shop or library. Soft bokeh background.",
+        "",
+        "Style: cinematic, warm and inviting, soft pastel palette with gentle teal and amber accents, "
+        "professional product-demo polish. NO readable text or UI labels (AI cannot render text well). "
+        "Each shot has a clear hard cut to the next. The story is INPUT → MAGIC → OUTPUT → JOY.",
+    ]
     prompt = "\n".join(parts)
     if len(prompt) > 1500:
         prompt = prompt[:1497] + "..."
@@ -112,15 +168,19 @@ async def render_via_api(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    mode: str = "default",
 ) -> bytes:
     """Generate video via external API.
 
     Args:
         analyzed: Structured repo analysis.
-        scenes: Narration scenes (used to build the video prompt).
+        scenes: Narration scenes (used to build the default-mode prompt).
         provider: "fal" (more providers can be added later).
         model: Model ID override. Uses provider default if not set.
         api_key: API key override. Read from env if not set.
+        mode: "default" for the technical-explainer prompt (uses scenes),
+              "onboard" for the beginner-friendly outcome-first prompt
+              (uses analyzed.onboard).
 
     Returns:
         Raw MP4 bytes.
@@ -146,7 +206,10 @@ async def render_via_api(
     if not model:
         raise ValueError(f"No default model for provider '{provider}'")
 
-    prompt = _build_video_prompt(analyzed, scenes)
+    if mode == "onboard":
+        prompt = _build_onboard_video_prompt(analyzed)
+    else:
+        prompt = _build_video_prompt(analyzed, scenes)
     logger.info("API video render: provider=%s, model=%s", provider, model)
 
     render_fn = _PROVIDERS.get(provider)
