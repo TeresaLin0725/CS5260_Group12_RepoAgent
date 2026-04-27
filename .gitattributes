@@ -1,0 +1,18 @@
+# Force LF on all text files to avoid CRLF/LF churn between Windows/WSL/macOS.
+* text=auto eol=lf
+
+# Common binary types — never normalize.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.mp4    binary
+*.mp3    binary
+*.wav    binary
+*.pdf    binary
+*.zip    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
